@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liderança em Movimento — CIMED</title>
+<style>
+:root {
+  --amarelo: #ffc600;
+  --amarelo-escuro: #e6b000;
+  --amarelo-suave: #fff8e1;
+  --amarelo-meio: #fff3c4;
+  --preto: #0d0d0d;
+  --preto-medio: #1a1a1a;
+  --cinza-bg: #f4f4f2;
+  --cinza-claro: #ebebea;
+  --cinza-bloco: #eeeeed;
+  --cinza-texto: #555555;
+  --cinza-sub: #888888;
+  --branco: #ffffff;
+  --fonte: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--fonte);background:var(--cinza-bg);color:var(--preto);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  background:var(--preto);
+  height:60px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 48px;
+}
+.nav-logo{display:flex;align-items:center;gap:14px;}
+.nav-logo-cimed{
+  background:var(--amarelo);border-radius:6px;
+  padding:4px 10px;
+  font-size:15px;font-weight:900;letter-spacing:0.04em;color:var(--preto);
+}
+.nav-sep{width:1px;height:20px;background:rgba(255,255,255,0.18);}
+.nav-label{font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.45);}
+.nav-links{display:flex;gap:28px;list-style:none;}
+.nav-links a{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.45);text-decoration:none;transition:color .2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--amarelo);}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:4px;}
+.hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px;}
+.mob-menu{display:none;position:fixed;inset:0;z-index:199;background:var(--preto);padding:80px 32px 32px;flex-direction:column;gap:0;}
+.mob-menu.open{display:flex;}
+.mob-menu a{font-size:18px;font-weight:700;color:#fff;text-decoration:none;padding:18px 0;border-bottom:1px solid rgba(255,255,255,0.08);}
+.mob-menu a:hover{color:var(--amarelo);}
+
+/* ── HERO ── */
+.hero{
+  background:var(--preto);
+  padding:140px 48px 100px;
+  position:relative;overflow:hidden;
+}
+.hero-accent{
+  position:absolute;top:0;right:0;
+  width:480px;height:100%;
+  background:var(--amarelo);
+  clip-path:polygon(18% 0, 100% 0, 100% 100%, 0% 100%);
+  opacity:0.06;
+  pointer-events:none;
+}
+.hero-inner{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;}
+.hero-left{}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:10px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--amarelo);margin-bottom:28px;
+  opacity:0;animation:fadeUp .6s .1s ease forwards;
+}
+.hero-eyebrow::before{content:'';width:24px;height:2px;background:var(--amarelo);}
+.hero-h1{
+  font-size:clamp(44px,5.5vw,80px);font-weight:900;line-height:.95;letter-spacing:-.03em;
+  color:#fff;margin-bottom:28px;
+  opacity:0;animation:fadeUp .6s .25s ease forwards;
+}
+.hero-h1 em{font-style:normal;color:var(--amarelo);}
+.hero-sub{
+  font-size:16px;color:rgba(255,255,255,.55);line-height:1.75;margin-bottom:40px;
+  opacity:0;animation:fadeUp .6s .4s ease forwards;
+}
+.hero-sub strong{color:#fff;}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap;opacity:0;animation:fadeUp .6s .55s ease forwards;}
+.btn-y{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--amarelo);color:var(--preto);
+  font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  text-decoration:none;padding:14px 28px;border-radius:4px;
+  border:2px solid var(--amarelo);transition:all .2s;
+}
+.btn-y:hover{background:transparent;color:var(--amarelo);}
+.btn-o{
+  display:inline-flex;align-items:center;gap:8px;
+  background:transparent;color:rgba(255,255,255,.7);
+  font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  text-decoration:none;padding:14px 28px;border-radius:4px;
+  border:1.5px solid rgba(255,255,255,.18);transition:all .2s;
+}
+.btn-o:hover{border-color:var(--amarelo);color:var(--amarelo);}
+.hero-right{
+  opacity:0;animation:fadeUp .6s .45s ease forwards;
+}
+.hero-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.hero-stat{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:8px;padding:24px 20px;
+}
+.hero-stat .st-num{font-size:36px;font-weight:900;color:var(--amarelo);line-height:1;margin-bottom:6px;letter-spacing:-.02em;}
+.hero-stat .st-label{font-size:12px;color:rgba(255,255,255,.45);line-height:1.5;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── CONTAINER GERAL ── */
+.wrap{max-width:1160px;margin:0 auto;}
+
+/* ── SECTION BASE ── */
+section.bloco{padding:80px 48px;}
+section.bloco-cinza{background:var(--cinza-bg);padding:80px 48px;}
+section.bloco-branco{background:var(--branco);padding:80px 48px;}
+section.bloco-preto{background:var(--preto);padding:80px 48px;}
+section.bloco-amarelo{background:var(--amarelo);padding:80px 48px;}
+
+/* ── SECTION HEADER ── */
+.sec-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--amarelo-escuro);margin-bottom:14px;
+}
+.sec-tag-preto{color:var(--amarelo);}
+.sec-tag::before{content:'';width:18px;height:2px;background:currentColor;}
+.sec-title{font-size:clamp(28px,3.5vw,48px);font-weight:900;line-height:1.08;letter-spacing:-.025em;margin-bottom:12px;color:var(--preto);}
+.sec-title-branco{color:#fff;}
+.sec-title span{color:var(--amarelo-escuro);}
+.sec-title-branco span{color:var(--amarelo);}
+.sec-lead{font-size:16px;color:var(--cinza-texto);line-height:1.75;max-width:580px;margin-bottom:48px;}
+.sec-lead-branco{color:rgba(255,255,255,.6);}
+
+/* ── REVEAL ── */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .65s ease,transform .65s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+/* ── CHECKLIST ── */
+.checklist{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.checklist li{
+  display:flex;align-items:flex-start;gap:12px;
+  font-size:14px;color:var(--cinza-texto);line-height:1.6;
+}
+.checklist-branco li{color:rgba(255,255,255,.7);}
+.ck{
+  width:20px;height:20px;border-radius:50%;
+  background:var(--amarelo);color:var(--preto);
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:900;flex-shrink:0;margin-top:2px;
+}
+
+/* ── ═══════════════ SEÇÃO 1 ═══════════════ ── */
+#presenca{background:var(--cinza-bg);}
+.presenca-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
+.presenca-body p{font-size:15px;color:var(--cinza-texto);line-height:1.8;margin-bottom:14px;}
+.insight-box{
+  background:var(--preto);border-radius:10px;padding:32px 28px;
+}
+.insight-box .ib-tag{
+  font-size:9px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--amarelo);margin-bottom:16px;
+}
+.insight-box p{font-size:14px;color:rgba(255,255,255,.65);line-height:1.75;margin-bottom:10px;}
+.insight-box ul{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.insight-box ul li{
+  font-size:13px;color:rgba(255,255,255,.55);line-height:1.5;
+  padding-left:14px;position:relative;
+}
+.insight-box ul li::before{content:'—';position:absolute;left:0;color:var(--amarelo);font-weight:700;}
+.insight-box .ib-end{margin-top:20px;font-weight:600;color:rgba(255,255,255,.85);font-size:14px;}
+
+/* ── ═══════════════ SEÇÃO 2 ═══════════════ ── */
+#rede{background:var(--branco);}
+.rede-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:8px;}
+.rede-card{
+  background:var(--cinza-bg);border:1px solid var(--cinza-claro);
+  border-radius:10px;padding:28px 22px;
+  position:relative;transition:all .25s;
+  border-top:3px solid transparent;
+}
+.rede-card:hover{border-top-color:var(--amarelo);background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.07);}
+.rede-card .rc-num{font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--cinza-sub);margin-bottom:12px;}
+.rede-card h3{font-size:14px;font-weight:800;color:var(--preto);margin-bottom:8px;line-height:1.35;}
+.rede-card p{font-size:12px;color:var(--cinza-texto);line-height:1.6;}
+.rede-card a{display:inline-block;margin-top:14px;font-size:11px;font-weight:700;color:var(--amarelo-escuro);text-decoration:none;border-bottom:1px solid var(--amarelo);padding-bottom:1px;}
+.rede-footer{
+  margin-top:32px;background:var(--amarelo-suave);border-radius:8px;
+  padding:20px 24px;font-size:14px;color:var(--preto);line-height:1.7;
+  border-left:3px solid var(--amarelo);
+}
+
+/* ── ═══════════════ SEÇÃO 3 ═══════════════ ── */
+#lideranca-visivel{background:var(--preto);}
+.lv-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start;}
+.lv-pillars{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;}
+.lv-pillar{
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
+  border-radius:8px;padding:22px 18px;transition:all .25s;
+}
+.lv-pillar:hover{background:rgba(255,198,0,.08);border-color:rgba(255,198,0,.25);}
+.lv-pillar .pi{font-size:22px;margin-bottom:10px;}
+.lv-pillar h4{font-size:13px;font-weight:800;color:#fff;margin-bottom:4px;}
+.lv-pillar p{font-size:12px;color:rgba(255,255,255,.4);line-height:1.5;}
+.lv-pillar.wide{grid-column:1/-1;}
+
+/* ── ═══════════════ SEÇÃO 4 ═══════════════ ── */
+#territorios{background:var(--cinza-bg);}
+.ter-intro p{font-size:17px;color:var(--cinza-texto);line-height:1.75;margin-bottom:6px;}
+.ter-intro strong{color:var(--preto);font-weight:700;}
+.ter-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:40px;}
+.ter-card{
+  background:#fff;border:1px solid var(--cinza-claro);
+  border-radius:10px;padding:28px 16px 22px;text-align:center;
+  transition:all .3s;cursor:default;
+}
+.ter-card:hover{background:var(--amarelo);transform:translateY(-5px);box-shadow:0 16px 40px rgba(255,198,0,.25);border-color:var(--amarelo);}
+.ter-card:hover .tc-title{color:var(--preto);}
+.ter-card:hover .tc-sub{color:rgba(0,0,0,.5);}
+.tc-icon{font-size:30px;margin-bottom:14px;display:block;}
+.tc-title{font-size:13px;font-weight:800;color:var(--preto);margin-bottom:5px;transition:color .3s;}
+.tc-sub{font-size:11px;color:var(--cinza-sub);line-height:1.5;transition:color .3s;}
+
+/* ── ═══════════════ SEÇÃO 5 ═══════════════ ── */
+#resultado{background:var(--branco);}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;}
+.share-list{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.share-list li{
+  display:flex;gap:12px;align-items:flex-start;
+  font-size:14px;color:var(--cinza-texto);line-height:1.55;
+  padding:13px 16px;background:var(--cinza-bg);border-radius:7px;
+  border:1px solid var(--cinza-claro);transition:all .2s;
+}
+.share-list li:hover{background:var(--amarelo-suave);border-color:var(--amarelo);}
+.share-list li .blt{color:var(--amarelo-escuro);font-weight:900;font-size:13px;flex-shrink:0;}
+.ex-card{
+  background:var(--preto);border-radius:10px;padding:32px 28px;
+}
+.ex-tag{font-size:9px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--amarelo);margin-bottom:20px;}
+.ex-quote{
+  font-size:14px;line-height:1.85;color:rgba(255,255,255,.75);font-style:italic;
+  border-left:3px solid var(--amarelo);padding-left:18px;margin-bottom:24px;
+}
+.ex-note{font-size:11px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;}
+.ex-links{display:flex;flex-direction:column;gap:8px;}
+.ex-links a{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;color:var(--amarelo);text-decoration:none;
+  padding:10px 14px;background:rgba(255,198,0,.08);border:1px solid rgba(255,198,0,.18);
+  border-radius:6px;transition:all .2s;
+}
+.ex-links a:hover{background:var(--amarelo);color:var(--preto);}
+
+/* ── ═══════════════ SEÇÃO 6 ═══════════════ ── */
+#amplifique{background:var(--cinza-bg);}
+.amp-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
+.q-cards{display:flex;flex-direction:column;gap:10px;margin:24px 0;}
+.q-card{
+  display:flex;gap:14px;align-items:flex-start;
+  background:#fff;border:1px solid var(--cinza-claro);border-radius:8px;
+  padding:14px 18px;font-size:13px;color:var(--cinza-texto);line-height:1.55;
+  transition:all .2s;
+}
+.q-card:hover{border-color:var(--amarelo);background:var(--amarelo-suave);}
+.q-num{color:var(--amarelo-escuro);font-weight:900;font-size:12px;flex-shrink:0;margin-top:1px;}
+.prio-list{list-style:none;display:flex;flex-direction:column;gap:0;}
+.prio-item{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:16px 0;border-bottom:1px solid var(--cinza-claro);
+}
+.prio-item:last-child{border-bottom:none;}
+.prio-n{
+  width:26px;height:26px;border-radius:50%;background:var(--amarelo);
+  color:var(--preto);display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;flex-shrink:0;
+}
+.prio-body h4{font-size:13px;font-weight:800;color:var(--preto);margin-bottom:6px;}
+.tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tag{font-size:10px;padding:3px 10px;background:var(--cinza-claro);border-radius:50px;color:var(--cinza-texto);}
+.contrast-box{
+  background:var(--amarelo);border-radius:10px;padding:28px;
+}
+.contrast-box .cb-tag{font-size:9px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,0,0,.5);margin-bottom:16px;}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.compare-side{background:rgba(0,0,0,.07);border-radius:8px;padding:16px;}
+.side-lbl{font-size:9px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;margin-bottom:10px;}
+.side-lbl.avoid{color:#b71c1c;}
+.side-lbl.prefer{color:#1b5e20;}
+.compare-side p{font-size:13px;font-style:italic;font-weight:600;color:var(--preto);line-height:1.6;}
+.amp-links{margin-top:24px;display:flex;flex-direction:column;gap:8px;}
+.amp-link{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;color:var(--cinza-texto);text-decoration:none;
+  padding:10px 14px;background:#fff;border:1px solid var(--cinza-claro);
+  border-radius:6px;transition:all .2s;
+}
+.amp-link:hover{border-color:var(--amarelo);background:var(--amarelo-suave);color:var(--preto);}
+
+/* ── ═══════════════ SEÇÃO 7 ═══════════════ ── */
+#voz{background:var(--amarelo);}
+.voz-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;}
+.voz-quote{font-size:clamp(26px,3.5vw,42px);font-weight:900;line-height:1.1;letter-spacing:-.025em;color:var(--preto);}
+.voz-quote .vs{color:rgba(0,0,0,.35);}
+.voz-sub{font-size:15px;color:rgba(0,0,0,.6);line-height:1.75;margin-top:18px;font-weight:400;}
+.voz-checklist li{color:rgba(0,0,0,.7);}
+.voz-ck{background:var(--preto);color:var(--amarelo);}
+
+/* ── ═══════════════ SEÇÃO 8 ═══════════════ ── */
+#perfil{background:var(--branco);}
+.perfil-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px;}
+.perfil-card{
+  background:var(--cinza-bg);border:1px solid var(--cinza-claro);
+  border-radius:10px;padding:28px 24px;transition:all .3s;
+}
+.perfil-card:hover{border-color:var(--amarelo);transform:translateY(-3px);background:#fff;}
+.pc-icon{
+  width:44px;height:44px;border-radius:8px;
+  background:var(--amarelo);display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin-bottom:18px;
+}
+.perfil-card h3{font-size:16px;font-weight:800;color:var(--preto);margin-bottom:14px;}
+.pc-items{display:flex;flex-direction:column;gap:8px;}
+.pc-item{font-size:13px;color:var(--cinza-texto);display:flex;align-items:flex-start;gap:8px;}
+.pc-item::before{content:'✔';color:var(--amarelo-escuro);font-size:11px;font-weight:900;margin-top:1px;}
+
+/* ── ═══════════════ SEÇÃO 9 ═══════════════ ── */
+#identidade{background:var(--cinza-bg);}
+.id-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.id-box{border-radius:10px;padding:28px;}
+.id-box.use{background:#fff;border:1px solid var(--cinza-claro);border-top:3px solid var(--amarelo);}
+.id-box.avoid{background:#fff;border:1px solid var(--cinza-claro);border-top:3px solid #e53935;}
+.id-box h3{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px;}
+.id-box.use h3{color:var(--amarelo-escuro);}
+.id-box.avoid h3{color:#e53935;}
+.id-items{display:flex;flex-direction:column;gap:10px;}
+.id-item{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--cinza-texto);padding:10px 12px;background:var(--cinza-bg);border-radius:6px;}
+.id-item .mk{font-size:12px;font-weight:900;}
+.id-box.use .mk{color:var(--amarelo-escuro);}
+.id-box.avoid .mk{color:#e53935;}
+.access-btn{
+  display:flex;align-items:center;gap:10px;margin-top:24px;
+  background:var(--amarelo);color:var(--preto);
+  font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  text-decoration:none;padding:13px 18px;border-radius:6px;transition:opacity .2s;
+}
+.access-btn:hover{opacity:.85;}
+
+/* ── ═══════════════ SEÇÃO 10 ═══════════════ ── */
+#evitar{background:var(--branco);}
+.evitar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px;}
+.evitar-card{
+  background:var(--cinza-bg);border:1px solid var(--cinza-claro);border-radius:8px;
+  padding:22px 20px;transition:all .25s;
+}
+.evitar-card:hover{border-color:#ffcdd2;background:#fff8f8;}
+.ev-x{
+  width:28px;height:28px;border-radius:50%;background:#ffebee;color:#e53935;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;
+  margin-bottom:12px;
+}
+.evitar-card p{font-size:13px;color:var(--cinza-texto);line-height:1.6;}
+.evitar-remember{
+  margin-top:32px;background:var(--amarelo-suave);border:1px solid var(--amarelo);
+  border-radius:8px;padding:24px 28px;text-align:center;
+  font-size:16px;color:var(--preto);line-height:1.7;font-weight:500;
+}
+.evitar-remember strong{font-weight:800;}
+
+/* ── ═══════════════ SEÇÃO 11 ═══════════════ ── */
+#rotina{background:var(--preto);}
+.rotina-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px;}
+.rot-card{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;padding:28px 24px;
+}
+.rot-card h3{
+  font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--amarelo);margin-bottom:20px;padding-bottom:14px;
+  border-bottom:1px solid rgba(255,198,0,.2);
+}
+.rot-items{display:flex;flex-direction:column;gap:10px;}
+.rot-item{display:flex;gap:10px;font-size:13px;color:rgba(255,255,255,.6);line-height:1.55;}
+.rot-ck{color:var(--amarelo);font-weight:900;font-size:12px;flex-shrink:0;margin-top:1px;}
+.rot-qs{grid-column:1/-1;background:rgba(255,198,0,.05);border:1px solid rgba(255,198,0,.15);}
+.qs-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.qs-item{
+  background:rgba(255,255,255,.04);border-radius:7px;padding:14px;
+  font-size:12px;color:rgba(255,255,255,.55);line-height:1.6;
+}
+.qs-item::before{content:'?';display:block;color:var(--amarelo);font-weight:900;font-size:16px;margin-bottom:6px;}
+
+/* ── ═══════════════ SEÇÃO 12 ═══════════════ ── */
+#ssi{background:var(--branco);}
+.ssi-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
+.ssi-body p{font-size:15px;color:var(--cinza-texto);line-height:1.8;margin-bottom:16px;}
+.ssi-bullets{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.ssi-bullets li{display:flex;gap:12px;font-size:14px;color:var(--cinza-texto);align-items:flex-start;}
+.ssi-bullet-icon{color:var(--amarelo-escuro);font-weight:900;flex-shrink:0;}
+.ssi-note{background:var(--amarelo-suave);border:1px solid var(--amarelo);border-radius:8px;padding:18px 20px;font-size:13px;color:var(--preto);line-height:1.7;}
+.ssi-note strong{font-weight:700;}
+.ssi-meter{
+  background:var(--cinza-bg);border:1px solid var(--cinza-claro);
+  border-radius:12px;padding:36px;
+}
+.ssi-head{text-align:center;margin-bottom:28px;}
+.ssi-big{font-size:72px;font-weight:900;line-height:1;color:var(--preto);letter-spacing:-.04em;}
+.ssi-big span{color:var(--amarelo-escuro);}
+.ssi-bigsub{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--cinza-sub);margin-top:4px;}
+.ssi-pillars{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
+.ssi-pillar{background:#fff;border:1px solid var(--cinza-claro);border-radius:8px;padding:14px;}
+.ssi-pl-label{font-size:10px;color:var(--cinza-sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em;}
+.ssi-bar{height:5px;border-radius:3px;background:var(--cinza-claro);}
+.ssi-fill{height:100%;border-radius:3px;background:var(--amarelo);transition:width 1.2s ease;}
+.ssi-btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--preto);color:#fff;font-size:12px;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;text-decoration:none;
+  padding:14px;border-radius:6px;transition:background .2s;
+}
+.ssi-btn:hover{background:var(--amarelo-escuro);}
+
+/* ── ═══════════════ SEÇÃO 13 ═══════════════ ── */
+#comunicacao{background:var(--cinza-bg);}
+.suporte-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:56px;}
+.sup-item{
+  background:#fff;border:1px solid var(--cinza-claro);border-radius:8px;
+  padding:18px 20px;display:flex;gap:12px;align-items:flex-start;transition:all .2s;
+}
+.sup-item:hover{border-color:var(--amarelo);background:var(--amarelo-suave);}
+.sup-icon{font-size:18px;flex-shrink:0;}
+.sup-item span{font-size:13px;color:var(--cinza-texto);}
+.opor-title{font-size:22px;font-weight:800;color:var(--preto);margin-bottom:8px;}
+.opor-sub{font-size:14px;color:var(--cinza-texto);margin-bottom:28px;line-height:1.65;}
+.opor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+.opor-card{
+  background:#fff;border:1px solid var(--cinza-claro);border-radius:10px;
+  padding:24px;transition:all .3s;
+}
+.opor-card:hover{border-color:var(--amarelo);box-shadow:0 6px 24px rgba(255,198,0,.12);transform:translateY(-2px);}
+.opor-card h4{font-size:14px;font-weight:800;color:var(--preto);margin-bottom:8px;line-height:1.35;}
+.opor-lbl{font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--amarelo-escuro);margin-bottom:6px;}
+.opor-card p{font-size:12px;color:var(--cinza-texto);line-height:1.7;}
+
+/* ── ENCERRAMENTO ── */
+#encerramento{background:var(--preto);padding:120px 48px;text-align:center;}
+.enc-inner{max-width:640px;margin:0 auto;}
+.enc-h{font-size:clamp(32px,5vw,60px);font-weight:900;line-height:1.1;letter-spacing:-.025em;color:#fff;margin-bottom:20px;}
+.enc-h span{color:var(--amarelo);}
+.enc-sub{font-size:16px;color:rgba(255,255,255,.5);line-height:1.8;margin-bottom:40px;}
+.enc-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+.enc-logo{margin-top:64px;}
+.enc-logo .logo-cimed{background:rgba(255,255,255,.08);border-radius:6px;padding:6px 14px;display:inline-block;font-size:14px;font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.3);}
+
+/* ── FOOTER ── */
+footer{background:var(--cinza-bg);border-top:1px solid var(--cinza-claro);padding:28px 48px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;}
+footer p{font-size:11px;color:var(--cinza-sub);}
+footer a{color:var(--amarelo-escuro);text-decoration:none;font-weight:600;}
+
+/* ── DIVIDERS ── */
+.divider{height:1px;background:var(--cinza-claro);margin:0 48px;}
+.divider-dark{height:1px;background:rgba(255,255,255,.07);margin:0;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){
+  .rede-grid{grid-template-columns:1fr 1fr;}
+  .ter-grid{grid-template-columns:repeat(3,1fr);}
+  .qs-grid{grid-template-columns:repeat(3,1fr);}
+  .opor-grid{grid-template-columns:1fr;}
+}
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .nav-links{display:none;}
+  .hamburger{display:flex;}
+  section.bloco,section.bloco-cinza,section.bloco-branco,section.bloco-preto,section.bloco-amarelo,
+  #presenca,#rede,#lideranca-visivel,#territorios,#resultado,#amplifique,#voz,#perfil,
+  #identidade,#evitar,#rotina,#ssi,#comunicacao,#encerramento{padding:64px 20px;}
+  .hero{padding:100px 20px 72px;}
+  .hero-inner{grid-template-columns:1fr;gap:40px;}
+  .presenca-grid,.lv-grid,.res-grid,.amp-grid,.voz-grid,.id-grid,.ssi-grid{grid-template-columns:1fr;gap:32px;}
+  .rede-grid,.perfil-grid,.evitar-grid,.suporte-grid{grid-template-columns:1fr;}
+  .ter-grid{grid-template-columns:repeat(2,1fr);}
+  .rotina-cols,.qs-grid{grid-template-columns:1fr;}
+  .lv-pillars,.compare-grid,.ssi-pillars,.hero-stat-grid{grid-template-columns:1fr;}
+  .rot-qs{grid-column:auto;}
+  footer{flex-direction:column;text-align:center;padding:24px 20px;}
+  .divider{margin:0 20px;}
+}
+@media(max-width:480px){
+  .ter-grid,.opor-grid,.evitar-grid{grid-template-columns:1fr;}
+  .hero-btns,.enc-btns{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-cimed">CIMED</div>
+    <div class="nav-sep"></div>
+    <span class="nav-label">Liderança em Movimento</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#ferramenta">Criar conteúdo</a></li>
+    <li><a href="#presenca">Presença</a></li>
+    <li><a href="#territorios">Territórios</a></li>
+    <li><a href="#amplifique">Amplificar</a></li>
+    <li><a href="#rotina">Rotina</a></li>
+    <li><a href="#ssi">SSI</a></li>
+    <li><a href="#comunicacao">Comunicação</a></li>
+  </ul>
+  <button class="hamburger" id="hbg" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="mob-menu" id="mobMenu">
+  <a href="#ferramenta" onclick="closeMob()">★ Criar conteúdo com IA</a>
+  <a href="#presenca" onclick="closeMob()">01 — Presença</a>
+  <a href="#rede" onclick="closeMob()">02 — Rede</a>
+  <a href="#lideranca-visivel" onclick="closeMob()">03 — Liderança visível</a>
+  <a href="#territorios" onclick="closeMob()">04 — Territórios</a>
+  <a href="#resultado" onclick="closeMob()">05 — Resultado</a>
+  <a href="#amplifique" onclick="closeMob()">06 — Amplificar</a>
+  <a href="#voz" onclick="closeMob()">07 — Sua voz</a>
+  <a href="#perfil" onclick="closeMob()">08 — Perfil</a>
+  <a href="#rotina" onclick="closeMob()">11 — Rotina</a>
+  <a href="#ssi" onclick="closeMob()">12 — SSI</a>
+  <a href="#comunicacao" onclick="closeMob()">13 — Comunicação</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-accent"></div>
+  <div class="hero-inner">
+    <div class="hero-left">
+      <div class="hero-eyebrow">Playbook Executivo de Influência — CIMED</div>
+      <h1 class="hero-h1">Liderança<br><em>em Movimento</em></h1>
+      <p class="hero-sub">Como fortalecer sua influência e dar visibilidade ao que faz a CIMED crescer.<br><br><strong>Toda liderança gera impacto. Tornar esse impacto visível também é uma forma de liderar.</strong></p>
+      <div class="hero-btns">
+        <a href="#presenca" class="btn-y">Explorar o playbook →</a>
+        <a href="#rotina" class="btn-o">Ver minha rotina</a>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-stat-grid">
+        <div class="hero-stat"><div class="st-num">13</div><div class="st-label">Seções de orientação executiva</div></div>
+        <div class="hero-stat"><div class="st-num">5</div><div class="st-label">Territórios de conteúdo</div></div>
+        <div class="hero-stat"><div class="st-num">4</div><div class="st-label">Vozes na rede de influência</div></div>
+        <div class="hero-stat"><div class="st-num">100</div><div class="st-label">Pontuação máxima no SSI</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 01 — PRESENÇA -->
+
+<!-- ============ FERRAMENTA: CRIAR CONTEÚDO COM IA (CIMED) ============ -->
+<section id="ferramenta">
+  <style>
+    #iac{--am:#ffc600;--pt:#0d0d0d;--cr:#ededec;background:var(--pt);color:var(--cr);font-family:'Inter','Helvetica Neue',Arial,sans-serif;line-height:1.6}
+    #ferramenta{padding:0}
+    #iac *{box-sizing:border-box}
+    #iac .iac-wrap{max-width:1180px;margin:0 auto;padding:96px 48px}
+    @media(max-width:600px){#iac .iac-wrap{padding:72px 24px}}
+    #iac .iac-eye{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--am);margin-bottom:16px}
+    #iac h2{font-weight:800;font-size:clamp(2rem,5vw,3.2rem);line-height:1.05;letter-spacing:-.02em;color:#fff;max-width:640px;margin:0}
+    #iac h2 span{font-weight:300;font-style:italic;color:var(--am)}
+    #iac .iac-head{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;flex-wrap:wrap;margin-bottom:14px}
+    #iac .iac-lead{max-width:460px;color:rgba(255,255,255,.7);font-size:1.02rem}
+    #iac .iac-panel{margin-top:46px;display:grid;grid-template-columns:1fr 1fr;border:1px solid rgba(255,255,255,.14);border-radius:20px;overflow:hidden;background:rgba(255,255,255,.03)}
+    @media(max-width:900px){#iac .iac-panel{grid-template-columns:1fr}}
+    #iac .iac-form,#iac .iac-out{padding:36px}
+    @media(max-width:600px){#iac .iac-form,#iac .iac-out{padding:26px}}
+    #iac .iac-out{background:rgba(255,255,255,.04);border-left:1px solid rgba(255,255,255,.12)}
+    @media(max-width:900px){#iac .iac-out{border-left:0;border-top:1px solid rgba(255,255,255,.12)}}
+    #iac .iac-field{margin-bottom:20px}
+    #iac .iac-field label{display:block;font-weight:600;font-size:.88rem;margin-bottom:8px;color:#fff}
+    #iac .iac-hint{font-weight:400;color:rgba(255,255,255,.45);font-size:.78rem}
+    #iac input[type=text],#iac textarea{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:12px 14px;color:var(--cr);font-family:inherit;font-size:.95rem;transition:.2s}
+    #iac input[type=text]:focus,#iac textarea:focus{outline:none;border-color:var(--am);background:rgba(255,255,255,.09)}
+    #iac textarea{resize:vertical;min-height:86px}
+    #iac input::placeholder,#iac textarea::placeholder{color:rgba(255,255,255,.38)}
+    #iac .iac-chips{display:flex;flex-wrap:wrap;gap:8px}
+    #iac .iac-chip{padding:8px 14px;border-radius:40px;border:1px solid rgba(255,255,255,.2);font-size:.84rem;cursor:pointer;font-weight:500;transition:.18s;user-select:none;color:var(--cr)}
+    #iac .iac-chip:hover{border-color:rgba(255,198,0,.6)}
+    #iac .iac-chip.on{background:var(--am);color:var(--pt);border-color:var(--am);font-weight:600}
+    #iac .iac-seg{display:flex;gap:8px}
+    #iac .iac-seg .iac-chip{flex:1;text-align:center}
+    #iac .iac-gen{width:100%;background:var(--am);color:var(--pt);padding:15px;border-radius:11px;font-weight:700;font-size:1rem;border:0;cursor:pointer;transition:.2s;margin-top:6px;font-family:inherit}
+    #iac .iac-gen:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 30px rgba(255,198,0,.26)}
+    #iac .iac-gen:disabled{opacity:.55;cursor:not-allowed}
+    #iac .iac-empty{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;color:rgba(255,255,255,.5)}
+    #iac .iac-ico{font-size:2.3rem;margin-bottom:12px}
+    #iac .iac-outlabel{font-weight:700;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--am);margin-bottom:14px}
+    #iac .iac-text{white-space:pre-wrap;font-size:1.02rem;line-height:1.7;color:#fff;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:18px;min-height:120px}
+    #iac .iac-actions{display:flex;gap:10px;margin-top:14px}
+    #iac .iac-mini{padding:9px 15px;border-radius:9px;font-weight:600;font-size:.84rem;cursor:pointer;border:1px solid rgba(255,255,255,.2);background:transparent;color:var(--cr);transition:.18s;font-family:inherit}
+    #iac .iac-mini:hover{border-color:var(--am);color:var(--am)}
+    #iac .iac-spin{width:30px;height:30px;border:3px solid rgba(255,198,0,.25);border-top-color:var(--am);border-radius:50%;animation:iacspin .8s linear infinite}
+    @keyframes iacspin{to{transform:rotate(360deg)}}
+    #iac .iac-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:rgba(255,255,255,.7)}
+    #iac .iac-disc{margin-top:16px;font-size:.8rem;color:rgba(255,255,255,.4);max-width:680px}
+  </style>
+  <div id="iac">
+    <div class="iac-wrap">
+      <div class="iac-head">
+        <div>
+          <div class="iac-eye">Ferramenta · Conteúdo assistido por IA</div>
+          <h2>Seu post, com a <span>sua voz</span></h2>
+        </div>
+        <p class="iac-lead">Conte rapidamente quem você é e sobre o que quer falar. A IA escreve um rascunho de post ou comentário no seu tom — pronto pra editar e publicar.</p>
+      </div>
+      <div class="iac-panel">
+        <div class="iac-form">
+          <div class="iac-field">
+            <label>Seu LinkedIn <span class="iac-hint">(opcional — fica salvo como referência)</span></label>
+            <input type="text" id="iac-linkedin" placeholder="https://www.linkedin.com/in/seu-perfil">
+          </div>
+          <div class="iac-field">
+            <label>Sua área e cargo</label>
+            <input type="text" id="iac-area" placeholder="Ex.: Diretora de Pessoas, RH Corporativo">
+          </div>
+          <div class="iac-field">
+            <label>Territórios que você mais conversa</label>
+            <div class="iac-chips" id="iac-terr">
+              <span class="iac-chip" data-v="Liderança">🧭 Liderança</span>
+              <span class="iac-chip" data-v="Negócio">📈 Negócio</span>
+              <span class="iac-chip" data-v="Cultura">💛 Cultura</span>
+              <span class="iac-chip" data-v="Mercado">🌐 Mercado</span>
+              <span class="iac-chip" data-v="Pessoas">👥 Pessoas</span>
+            </div>
+          </div>
+          <div class="iac-field">
+            <label>Seu estilo de comunicação</label>
+            <div class="iac-chips" id="iac-estilo">
+              <span class="iac-chip" data-v="Direto e objetivo">Direto</span>
+              <span class="iac-chip" data-v="Inspirador">Inspirador</span>
+              <span class="iac-chip" data-v="Analítico e baseado em dados">Analítico</span>
+              <span class="iac-chip" data-v="Próximo e caloroso">Próximo</span>
+              <span class="iac-chip" data-v="Técnico">Técnico</span>
+              <span class="iac-chip" data-v="Estratégico">Estratégico</span>
+            </div>
+          </div>
+          <div class="iac-field">
+            <label>O que você quer criar?</label>
+            <div class="iac-seg" id="iac-tipo">
+              <span class="iac-chip on" data-v="post">Post autoral</span>
+              <span class="iac-chip" data-v="comentario">Comentário em uma publicação</span>
+            </div>
+          </div>
+          <div class="iac-field" id="iac-wrap-coment" style="display:none">
+            <label>Cole a publicação que você vai comentar</label>
+            <textarea id="iac-pub" placeholder="Cole aqui o texto do post (da CIMED, do João Adibe, da Karla, ou uma notícia)..."></textarea>
+          </div>
+          <div class="iac-field">
+            <label>Tema / assunto <span class="iac-hint">(o que aconteceu, qual conquista, qual projeto)</span></label>
+            <textarea id="iac-tema" placeholder="Ex.: Teambuilding com o time de Licitações, foco em autoconhecimento e mapeamento do grupo"></textarea>
+          </div>
+          <div class="iac-field">
+            <label>Cole um post seu <span class="iac-hint">(opcional — é o que deixa a IA com a sua cara)</span></label>
+            <textarea id="iac-amostra" placeholder="Cole um texto que você já escreveu no LinkedIn para a IA capturar seu tom de voz..."></textarea>
+          </div>
+          <button class="iac-gen" id="iac-btn">Gerar sugestão ✨</button>
+        </div>
+        <div class="iac-out" id="iac-outpanel">
+          <div class="iac-empty">
+            <div class="iac-ico">✍️</div>
+            <div style="font-weight:700;color:#fff;font-size:1.1rem;margin-bottom:8px">Sua sugestão aparece aqui</div>
+            <div style="font-size:.92rem">Preencha ao lado e clique em <strong>Gerar sugestão</strong>. Você poderá copiar, editar e gerar outras versões.</div>
+          </div>
+        </div>
+      </div>
+      <p class="iac-disc">A IA gera um rascunho. Revise, ajuste com a sua verdade e publique. Os textos são pessoais e não substituem as orientações da Comunicação.</p>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var root=document.getElementById('iac');
+    function multi(id){root.querySelector('#'+id).querySelectorAll('.iac-chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on');});});}
+    multi('iac-terr');multi('iac-estilo');
+    var tipoBox=root.querySelector('#iac-tipo');
+    tipoBox.querySelectorAll('.iac-chip').forEach(function(c){c.addEventListener('click',function(){
+      tipoBox.querySelectorAll('.iac-chip').forEach(function(x){x.classList.remove('on');});
+      c.classList.add('on');
+      root.querySelector('#iac-wrap-coment').style.display=(c.dataset.v==='comentario')?'block':'none';
+    });});
+    function sel(id){return Array.prototype.slice.call(root.querySelector('#'+id).querySelectorAll('.iac-chip.on')).map(function(c){return c.dataset.v;});}
+    function val(id){return root.querySelector('#'+id).value.trim();}
+    var SYSTEM="Você é um(a) especialista em conteúdo executivo para LinkedIn, escrevendo em nome de uma liderança da CIMED (farmacêutica brasileira). Transforme os dados em um rascunho pronto para publicar, na voz da própria pessoa.\n\nPRINCÍPIOS DO PLAYBOOK \"LIDERANÇA EM MOVIMENTO\":\n- Conteúdo relevante mostra PESSOAS, APRENDIZADOS e IMPACTO — não só resultados soltos.\n- Reconheça e valorize equipes. Dê visibilidade a quem faz acontecer.\n- Adicione perspectiva e contexto; nunca seja genérico. Em comentários, NUNCA escreva só \"Parabéns!\" — agregue reflexão ligada ao negócio, aprendizado ou cultura.\n- Conecte ao impacto para o negócio e à cultura CIMED quando fizer sentido.\n- Tom profissional, humano e verdadeiro. Português do Brasil.\n\nFORMATO:\n- POST autoral: 90 a 180 palavras. Abertura forte sem clichê, corpo com a história/aprendizado/impacto, fecho com convite à reflexão. 1 a 3 hashtags no fim. No máximo 1 emoji discreto, se combinar com o estilo.\n- COMENTÁRIO: 2 a 4 frases, agrega contexto/visão, sem hashtags.\n- Escreva NA VOZ da pessoa, refletindo o estilo. Se houver amostra dela, espelhe tom, ritmo e vocabulário sem copiar.\n- Não invente números ou fatos não fornecidos.\n- Entregue SOMENTE o texto final, sem títulos, sem aspas, sem explicações.";
+    function buildUser(){
+      var tipo=root.querySelector('#iac-tipo .iac-chip.on').dataset.v;
+      var p="Crie um "+(tipo==='post'?'POST autoral para o LinkedIn':'COMENTÁRIO para uma publicação no LinkedIn')+".\n\nDADOS DA LIDERANÇA:\n";
+      p+="- Área e cargo: "+(val('iac-area')||'não informado')+"\n";
+      p+="- Territórios: "+(sel('iac-terr').join(', ')||'não informado')+"\n";
+      p+="- Estilo: "+(sel('iac-estilo').join(', ')||'não informado')+"\n";
+      if(val('iac-amostra')) p+="\nAMOSTRA DE UM TEXTO DELA (espelhe o tom, não copie):\n\"\"\""+val('iac-amostra')+"\"\"\"\n";
+      if(tipo==='comentario'&&val('iac-pub')) p+="\nPUBLICAÇÃO A COMENTAR:\n\"\"\""+val('iac-pub')+"\"\"\"\n";
+      p+="\nTEMA / ASSUNTO:\n"+(val('iac-tema')||'não informado')+"\n";
+      return p;
+    }
+    function call(system,user){
+      var body=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,system:system,messages:[{role:"user",content:user}]});
+      return fetch('/.netlify/functions/gerar-conteudo',{method:'POST',headers:{'Content-Type':'application/json'},body:body})
+        .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+        .then(function(d){ var t=(d.content||[]).filter(function(i){return i.type==='text';}).map(function(i){return i.text;}).join('\n').trim(); if(!t) throw 0; return t; })
+        .catch(function(){
+          return fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:body})
+            .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+            .then(function(d){ return (d.content||[]).filter(function(i){return i.type==='text';}).map(function(i){return i.text;}).join('\n').trim(); });
+        });
+    }
+    var out=root.querySelector('#iac-outpanel');
+    function loading(){out.innerHTML='<div class="iac-loading"><div class="iac-spin"></div><div>Escrevendo na sua voz…</div></div>';}
+    function err(){out.innerHTML='<div class="iac-empty"><div class="iac-ico">⚠️</div><div style="font-weight:700;color:#fff;font-size:1.05rem;margin-bottom:8px">Não consegui gerar agora</div><div style="font-size:.92rem">Tente novamente. No site publicado, confira se a função do Netlify e a chave da API estão configuradas.</div></div>';}
+    function result(text){
+      out.innerHTML='<div class="iac-outlabel">Sua sugestão</div><div class="iac-text" id="iac-result"></div><div class="iac-actions"><button class="iac-mini" id="iac-copy">📋 Copiar</button><button class="iac-mini" id="iac-again">🔄 Gerar outra versão</button></div>';
+      root.querySelector('#iac-result').textContent=text;
+      root.querySelector('#iac-copy').addEventListener('click',function(){navigator.clipboard.writeText(text);var b=root.querySelector('#iac-copy');b.textContent='✔ Copiado';setTimeout(function(){b.textContent='📋 Copiar';},1600);});
+      root.querySelector('#iac-again').addEventListener('click',run);
+    }
+    function run(){
+      if(!val('iac-area')||!val('iac-tema')){alert('Preencha pelo menos a sua área e o tema/assunto.');return;}
+      var btn=root.querySelector('#iac-btn');btn.disabled=true;loading();
+      call(SYSTEM,buildUser()).then(function(t){ if(t) result(t); else err(); }).catch(function(){err();}).then(function(){btn.disabled=false;});
+    }
+    root.querySelector('#iac-btn').addEventListener('click',run);
+  })();
+  </script>
+</section>
+<!-- ============ FIM DA FERRAMENTA ============ -->
+
+<section id="presenca" class="bloco-cinza">
+  <div class="wrap">
+    <div class="presenca-grid reveal">
+      <div class="presenca-body">
+        <div class="sec-tag">01 — Por que sua presença importa</div>
+        <h2 class="sec-title">Seu impacto merece <span>ser visto</span></h2>
+        <p>A CIMED cresce porque tem pessoas que transformam estratégia em execução, desafios em oportunidades e ideias em resultados.</p>
+        <p>Todos os dias, nossas lideranças impulsionam projetos, desenvolvem equipes, tomam decisões e geram impacto para o negócio.</p>
+        <p>Mas muitas dessas histórias permanecem apenas dentro da companhia.</p>
+        <p>O LinkedIn é uma oportunidade de ampliar essa visibilidade e mostrar ao mercado o que faz a CIMED crescer.</p>
+        <p style="font-weight:700;color:var(--preto);margin-top:24px;font-size:14px;">Quando uma liderança compartilha experiências, resultados e aprendizados, ela ajuda a:</p>
+        <ul class="checklist" style="margin-top:16px;">
+          <li><div class="ck">✔</div>Dar visibilidade ao trabalho da sua área</li>
+          <li><div class="ck">✔</div>Reconhecer e valorizar equipes</li>
+          <li><div class="ck">✔</div>Atrair profissionais alinhados à nossa cultura</li>
+          <li><div class="ck">✔</div>Fortalecer a percepção da CIMED no mercado</li>
+          <li><div class="ck">✔</div>Ampliar o alcance das iniciativas da companhia</li>
+        </ul>
+      </div>
+      <div>
+        <div class="insight-box">
+          <div class="ib-tag">Por que isso importa?</div>
+          <p>Profissionais pesquisam empresas, mas também observam quem as lidera.</p>
+          <p>Antes de se candidatarem, muitos buscam entender:</p>
+          <ul>
+            <li>Quem são as lideranças</li>
+            <li>Como elas se posicionam</li>
+            <li>Como reconhecem pessoas</li>
+            <li>Como compartilham resultados</li>
+            <li>Como falam sobre cultura e crescimento</li>
+          </ul>
+          <p class="ib-end">Sua presença ajuda a tornar a experiência CIMED mais visível para o mercado.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 02 — REDE -->
+<section id="rede" class="bloco-branco">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">02 — A força da nossa rede de influência</div>
+      <h2 class="sec-title">Quatro vozes, <span>um alcance</span></h2>
+      <p class="sec-lead">A reputação da CIMED é construída por diferentes vozes.</p>
+    </div>
+    <div class="rede-grid reveal">
+      <div class="rede-card">
+        <div class="rc-num">Canal 01</div>
+        <h3>Perfil Institucional</h3>
+        <p>Amplifica nossas iniciativas, campanhas e resultados.</p>
+        <a href="https://www.linkedin.com/company/grupocimed/?viewAsMember=true" target="_blank" rel="noopener">Acessar perfil ↗</a>
+      </div>
+      <div class="rede-card">
+        <div class="rc-num">Canal 02</div>
+        <h3>João Adibe Marques</h3>
+        <p>Compartilha visão, estratégia e direcionamento.</p>
+        <a href="https://www.linkedin.com/in/joao-adibe-marques/" target="_blank" rel="noopener">Ver perfil ↗</a>
+      </div>
+      <div class="rede-card">
+        <div class="rc-num">Canal 03</div>
+        <h3>Karla Marques Felmanas</h3>
+        <p>Compartilha visão, estratégia e direcionamento.</p>
+        <a href="https://www.linkedin.com/in/karla-marques-felmanas/" target="_blank" rel="noopener">Ver perfil ↗</a>
+      </div>
+      <div class="rede-card">
+        <div class="rc-num">Canal 04</div>
+        <h3>Lideranças e Colaboradores</h3>
+        <p>Transformam estratégia em histórias reais, conquistas e desenvolvimento. Mostram a experiência de viver a cultura CIMED na prática.</p>
+      </div>
+    </div>
+    <div class="rede-footer reveal">
+      Quando essas vozes atuam juntas, ampliamos nosso alcance e fortalecemos nossa presença no mercado.
+    </div>
+  </div>
+</section>
+
+<!-- 03 — LIDERANÇA VISÍVEL -->
+<section id="lideranca-visivel" class="bloco-preto">
+  <div class="wrap">
+    <div class="lv-grid">
+      <div class="reveal">
+        <div class="sec-tag sec-tag-preto">03 — Liderança visível</div>
+        <h2 class="sec-title sec-title-branco">Liderança visível gera times <span>mais fortes</span></h2>
+        <p class="sec-lead sec-lead-branco">Reconhecer pessoas, compartilhar aprendizados e dar visibilidade às conquistas do time vai além da comunicação.</p>
+        <p style="font-size:18px;font-weight:800;color:var(--amarelo);margin-bottom:18px;">É uma prática de liderança.</p>
+        <p style="font-size:14px;color:rgba(255,255,255,.55);line-height:1.75;">Quando uma liderança compartilha o trabalho de sua equipe, ela fortalece — e também desenvolve pessoas.</p>
+        <p style="font-size:14px;font-weight:600;color:rgba(255,255,255,.8);line-height:1.75;margin-top:12px;">Dar visibilidade para quem faz acontecer também é uma forma de desenvolver pessoas.</p>
+      </div>
+      <div class="lv-pillars reveal">
+        <div class="lv-pillar"><div class="pi">🏆</div><h4>Orgulho de pertencimento</h4><p>Time que se vê reconhecido produz mais e melhor.</p></div>
+        <div class="lv-pillar"><div class="pi">⭐</div><h4>Reconhecimento</h4><p>Valorizar é um dos maiores motivadores de engajamento.</p></div>
+        <div class="lv-pillar"><div class="pi">🔥</div><h4>Engajamento</h4><p>Times visíveis são times mais comprometidos.</p></div>
+        <div class="lv-pillar"><div class="pi">🚀</div><h4>Cultura de protagonismo</h4><p>Lideranças que compartilham inspiram outros.</p></div>
+        <div class="lv-pillar wide"><div class="pi">🎯</div><h4>Atração de talentos</h4><p>Profissionais talentosos querem trabalhar com líderes que reconhecem e valorizam suas equipes.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 — TERRITÓRIOS -->
+<section id="territorios" class="bloco-cinza">
+  <div class="wrap">
+    <div class="reveal ter-intro">
+      <div class="sec-tag">04 — Sobre o que falar</div>
+      <h2 class="sec-title">Cinco territórios de <span>conteúdo</span></h2>
+      <p>Você não precisa ser influenciador. <strong>Mas pode ser uma referência.</strong></p>
+      <p>Os conteúdos mais relevantes para lideranças normalmente estão conectados a cinco territórios:</p>
+    </div>
+    <div class="ter-grid reveal">
+      <div class="ter-card"><span class="tc-icon">🧭</span><div class="tc-title">Liderança</div><div class="tc-sub">Aprendizados, desenvolvimento e gestão.</div></div>
+      <div class="ter-card"><span class="tc-icon">📈</span><div class="tc-title">Negócio</div><div class="tc-sub">Resultados, estratégia, inovação e crescimento.</div></div>
+      <div class="ter-card"><span class="tc-icon">💛</span><div class="tc-title">Cultura</div><div class="tc-sub">Experiências que fortalecem quem somos.</div></div>
+      <div class="ter-card"><span class="tc-icon">🌐</span><div class="tc-title">Mercado</div><div class="tc-sub">Tendências, aprendizados e transformações.</div></div>
+      <div class="ter-card"><span class="tc-icon">👥</span><div class="tc-title">Pessoas</div><div class="tc-sub">Reconhecimento, desenvolvimento e conquistas.</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 05 — RESULTADO -->
+<section id="resultado" class="bloco-branco">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">05 — O que gera mais resultado</div>
+      <h2 class="sec-title">Conteúdo que <span>conecta</span></h2>
+      <p class="sec-lead">Os conteúdos que costumam gerar maior conexão têm algo em comum: <strong style="color:var(--preto);">eles mostram pessoas, aprendizados e impacto.</strong></p>
+    </div>
+    <div class="res-grid reveal">
+      <div>
+        <p style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--amarelo-escuro);margin-bottom:16px;">Compartilhe</p>
+        <ul class="share-list">
+          <li><span class="blt">✔</span>Bastidores de projetos</li>
+          <li><span class="blt">✔</span>Conquistas da equipe</li>
+          <li><span class="blt">✔</span>Aprendizados de liderança</li>
+          <li><span class="blt">✔</span>Cases relevantes</li>
+          <li><span class="blt">✔</span>Iniciativas de desenvolvimento</li>
+          <li><span class="blt">✔</span>Resultados acompanhados de contexto</li>
+        </ul>
+      </div>
+      <div class="ex-card">
+        <div class="ex-tag">Exemplo CIMED — Melhoria Contínua</div>
+        <p class="ex-quote">"Foi inspirador acompanhar iniciativas que nasceram da experiência prática dos nossos colaboradores e se transformaram em melhorias reais para o negócio. Esse protagonismo é um dos fatores que impulsionam nossa evolução contínua."</p>
+        <p class="ex-note">Em vez de apenas compartilhar a publicação institucional</p>
+        <div class="ex-links">
+          <a href="https://www.linkedin.com/posts/marcelo-biscaro_noite-especial-com-pessoas-especiais-ontem-ugcPost-7466102344087257088-eJBF/" target="_blank" rel="noopener">↗ Exemplo prático — Marcelo Biscaro</a>
+          <a href="https://www.linkedin.com/posts/fernandonadalini_vamosjuntos-activity-7459968009865035777-WD4y" target="_blank" rel="noopener">↗ Exemplo prático — Fernando Nadalini</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 — AMPLIFIQUE -->
+<section id="amplifique" class="bloco-cinza">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">06 — Amplifique com a sua perspectiva</div>
+      <h2 class="sec-title">Compartilhar é bom. <span>Adicionar sua visão</span> é o que gera valor.</h2>
+    </div>
+    <div class="amp-grid reveal">
+      <div>
+        <p style="font-size:15px;color:var(--cinza-texto);line-height:1.8;margin-bottom:20px;">Sempre que interagir com conteúdos da CIMED, dos fundadores ou com notícias relacionadas à companhia, procure contribuir para a conversa.</p>
+        <p style="font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--amarelo-escuro);margin-bottom:12px;">Pergunte-se:</p>
+        <div class="q-cards">
+          <div class="q-card"><span class="q-num">01</span>O que esse tema representa para o negócio?</div>
+          <div class="q-card"><span class="q-num">02</span>O que ele me ensinou?</div>
+          <div class="q-card"><span class="q-num">03</span>Como ele impacta minha área?</div>
+          <div class="q-card"><span class="q-num">04</span>O que posso agregar?</div>
+        </div>
+        <p style="font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--amarelo-escuro);margin-bottom:12px;margin-top:28px;">Prioridades de interação</p>
+        <ul class="prio-list">
+          <li class="prio-item">
+            <div class="prio-n">1</div>
+            <div class="prio-body"><h4>Conteúdos da CIMED</h4><div class="tags"><span class="tag">Curtir</span><span class="tag">Comentar</span><span class="tag">Compartilhar com contexto</span></div></div>
+          </li>
+          <li class="prio-item">
+            <div class="prio-n">2</div>
+            <div class="prio-body"><h4>Conteúdos dos fundadores</h4><div class="tags"><span class="tag">Entrevistas</span><span class="tag">Artigos</span><span class="tag">Premiações</span><span class="tag">Reconhecimentos</span><span class="tag">Resultados</span></div></div>
+          </li>
+          <li class="prio-item">
+            <div class="prio-n">3</div>
+            <div class="prio-body"><h4>Notícias sobre a companhia</h4><p style="font-size:12px;color:var(--cinza-sub);margin-top:6px;">Sempre que houver matérias positivas sobre a CIMED, nossas marcas ou lideranças.</p></div>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <div class="contrast-box">
+          <div class="cb-tag">Exemplo CIMED — Entrevista do João Adibe</div>
+          <div class="compare-grid">
+            <div class="compare-side"><div class="side-lbl avoid">✖ Evite</div><p>"Parabéns!"</p></div>
+            <div class="compare-side"><div class="side-lbl prefer">✔ Prefira</div><p>"Essa visão reflete uma característica presente no nosso dia a dia: transformar ambição em execução e crescimento."</p></div>
+          </div>
+        </div>
+        <p style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza-sub);margin:20px 0 12px;">Exemplos de publicações com potencial</p>
+        <div class="amp-links">
+          <a href="https://www.linkedin.com/feed/update/urn:li:activity:7462219766267568129" target="_blank" rel="noopener" class="amp-link">↗ Publicação exemplo 01</a>
+          <a href="https://www.linkedin.com/feed/update/urn:li:activity:7460706391142375425" target="_blank" rel="noopener" class="amp-link">↗ Publicação exemplo 02</a>
+          <a href="https://www.linkedin.com/feed/update/urn:li:activity:7470163638473912320" target="_blank" rel="noopener" class="amp-link">↗ Publicação exemplo 03</a>
+          <a href="https://www.linkedin.com/feed/update/urn:li:activity:7460025465349636097" target="_blank" rel="noopener" class="amp-link">↗ Entrevista João Adibe</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 — SEJA A VOZ -->
+<section id="voz" class="bloco-amarelo">
+  <div class="wrap">
+    <div class="voz-grid">
+      <div class="reveal">
+        <div class="sec-tag" style="color:rgba(0,0,0,.5);">07 — Seja a voz dos temas que você lidera</div>
+        <div class="voz-quote">Algumas histórias<br><span class="vs">só podem ser contadas</span><br>por quem viveu.</div>
+        <p class="voz-sub">Por isso, não espere apenas pelas publicações institucionais.</p>
+      </div>
+      <div class="reveal">
+        <p style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(0,0,0,.45);margin-bottom:18px;">Compartilhe</p>
+        <ul class="checklist voz-checklist">
+          <li><div class="ck voz-ck">✔</div>Projetos da sua área</li>
+          <li><div class="ck voz-ck">✔</div>Desafios superados</li>
+          <li><div class="ck voz-ck">✔</div>Aprendizados</li>
+          <li><div class="ck voz-ck">✔</div>Resultados</li>
+          <li><div class="ck voz-ck">✔</div>Iniciativas que geraram impacto</li>
+          <li><div class="ck voz-ck">✔</div>Reconhecimento de equipes</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 — PERFIL -->
+<section id="perfil" class="bloco-branco">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">08 — Fortaleça sua presença</div>
+      <h2 class="sec-title">Seu perfil é sua <span>principal vitrine</span></h2>
+      <p class="sec-lead">Mantenha atualizado e alinhado com a identidade CIMED.</p>
+    </div>
+    <div class="perfil-grid reveal">
+      <div class="perfil-card">
+        <div class="pc-icon">📷</div>
+        <h3>Foto</h3>
+        <div class="pc-items">
+          <div class="pc-item">Foto corporativa oficial CIMED</div>
+          <div class="pc-item">Foto profissional atualizada</div>
+        </div>
+      </div>
+      <div class="perfil-card">
+        <div class="pc-icon">🖼️</div>
+        <h3>Capa</h3>
+        <div class="pc-items">
+          <div class="pc-item">Capas institucionais</div>
+          <div class="pc-item">Capas de campanhas vigentes</div>
+          <div class="pc-item">Materiais da Comunicação</div>
+        </div>
+      </div>
+      <div class="perfil-card">
+        <div class="pc-icon">👤</div>
+        <h3>Perfil</h3>
+        <div class="pc-items">
+          <div class="pc-item">Cargo atualizado</div>
+          <div class="pc-item">Área atualizada</div>
+          <div class="pc-item">Experiências completas</div>
+          <div class="pc-item">Resumo profissional</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 09 — IDENTIDADE DIGITAL -->
+<section id="identidade" class="bloco-cinza">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">09 — Identidade digital CIMED</div>
+      <h2 class="sec-title">Consistência visual <span>é posicionamento</span></h2>
+      <p class="sec-lead">Para fortalecer nossa presença institucional e manter consistência visual:</p>
+    </div>
+    <div class="id-grid reveal">
+      <div class="id-box use">
+        <h3>✔ Utilize</h3>
+        <div class="id-items">
+          <div class="id-item"><span class="mk">✔</span>Fotos corporativas oficiais</div>
+          <div class="id-item"><span class="mk">✔</span>Capas homologadas</div>
+          <div class="id-item"><span class="mk">✔</span>Logos oficiais</div>
+          <div class="id-item"><span class="mk">✔</span>Materiais institucionais atualizados</div>
+        </div>
+        <a class="access-btn" href="https://grupocimed-my.sharepoint.com/:f:/r/personal/karina_ferreira_grupocimed_com_br/Documents/MATERIAL%20PARA%20APROVAÇÃO/Linkedin/LIDERANÇA%20EM%20MOVIMENTO?csf=1&web=1&e=hVGqB0" target="_blank" rel="noopener">📁 Acessar materiais oficiais</a>
+      </div>
+      <div class="id-box avoid">
+        <h3>✖ Evite</h3>
+        <div class="id-items">
+          <div class="id-item"><span class="mk">✖</span>Logos antigos</div>
+          <div class="id-item"><span class="mk">✖</span>Alterações visuais</div>
+          <div class="id-item"><span class="mk">✖</span>Aplicações não homologadas</div>
+          <div class="id-item"><span class="mk">✖</span>Materiais desatualizados</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 — O QUE EVITAR -->
+<section id="evitar" class="bloco-branco">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">10 — O que evitar</div>
+      <h2 class="sec-title">Atenção a esses <span>comportamentos</span></h2>
+    </div>
+    <div class="evitar-grid reveal">
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Repostar conteúdos sem adicionar contexto</p></div>
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Fazer comentários genéricos</p></div>
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Publicar apenas vagas</p></div>
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Compartilhar apenas resultados sem contexto</p></div>
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Utilizar o LinkedIn apenas durante campanhas</p></div>
+      <div class="evitar-card"><div class="ev-x">✖</div><p>Transformar o perfil em um canal corporativo</p></div>
+    </div>
+    <div class="evitar-remember reveal">
+      Lembre-se: <strong>As pessoas se conectam com experiências, aprendizados e histórias.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- 11 — ROTINA -->
+<section id="rotina" class="bloco-preto">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag sec-tag-preto">11 — Sua rotina de influência</div>
+      <h2 class="sec-title sec-title-branco">Consistência <span>gera presença</span></h2>
+      <p class="sec-lead sec-lead-branco" style="margin-bottom:0;">Pequenas ações semanais e mensais constroem uma presença relevante ao longo do tempo.</p>
+    </div>
+    <div class="rotina-cols reveal">
+      <div class="rot-card">
+        <h3>Semanalmente</h3>
+        <div class="rot-items">
+          <div class="rot-item"><span class="rot-ck">✔</span>Interaja com conteúdos da CIMED</div>
+          <div class="rot-item"><span class="rot-ck">✔</span>Interaja com conteúdos dos fundadores</div>
+          <div class="rot-item"><span class="rot-ck">✔</span>Reconheça equipes</div>
+          <div class="rot-item"><span class="rot-ck">✔</span>Compartilhe iniciativas relevantes</div>
+        </div>
+      </div>
+      <div class="rot-card">
+        <h3>Mensalmente</h3>
+        <div class="rot-items">
+          <div class="rot-item"><span class="rot-ck">✔</span>Publique um conteúdo autoral</div>
+          <div class="rot-item"><span class="rot-ck">✔</span>Compartilhe aprendizados</div>
+          <div class="rot-item"><span class="rot-ck">✔</span>Dê visibilidade a projetos e resultados da sua área</div>
+        </div>
+      </div>
+      <div class="rot-card rot-qs">
+        <h3>Antes de publicar, pergunte-se:</h3>
+        <div class="qs-grid">
+          <div class="qs-item">Estou gerando valor para quem lê?</div>
+          <div class="qs-item">Estou compartilhando um aprendizado?</div>
+          <div class="qs-item">Estou reconhecendo pessoas?</div>
+          <div class="qs-item">Estou dando visibilidade ao trabalho da minha equipe?</div>
+          <div class="qs-item">Estou fortalecendo a CIMED?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 — SSI -->
+<section id="ssi" class="bloco-branco">
+  <div class="wrap">
+    <div class="ssi-grid">
+      <div class="ssi-body reveal">
+        <div class="sec-tag">12 — Acompanhe sua evolução</div>
+        <h2 class="sec-title">SSI — Social <span>Selling Index</span></h2>
+        <p>O <strong>SSI (Social Selling Index)</strong> é um indicador do LinkedIn que ajuda a acompanhar sua presença e atuação na plataforma. Ele considera fatores como marca profissional, relacionamento com a rede, compartilhamento de conteúdo e construção de conexões.</p>
+        <p>Ao acessar, você poderá ver:</p>
+        <ul class="ssi-bullets">
+          <li><span class="ssi-bullet-icon">→</span>Sua pontuação geral (0 a 100)</li>
+          <li><span class="ssi-bullet-icon">→</span>Seu desempenho em cada um dos quatro pilares avaliados</li>
+          <li><span class="ssi-bullet-icon">→</span>Comparação com profissionais do mesmo setor</li>
+          <li><span class="ssi-bullet-icon">→</span>Comparação com sua rede de contatos</li>
+        </ul>
+        <div class="ssi-note"><strong>Importante:</strong> Mais do que a pontuação, o objetivo é fortalecer sua presença profissional, ampliar sua rede de relacionamento e dar visibilidade ao impacto gerado por sua área e equipe.</div>
+      </div>
+      <div class="ssi-meter reveal">
+        <div class="ssi-head">
+          <div class="ssi-big"><span>S</span>SI</div>
+          <div class="ssi-bigsub">Indicador 0 — 100</div>
+        </div>
+        <div class="ssi-pillars">
+          <div class="ssi-pillar"><div class="ssi-pl-label">Marca Profissional</div><div class="ssi-bar"><div class="ssi-fill" data-w="75%"></div></div></div>
+          <div class="ssi-pillar"><div class="ssi-pl-label">Relacionamento com a rede</div><div class="ssi-bar"><div class="ssi-fill" data-w="65%"></div></div></div>
+          <div class="ssi-pillar"><div class="ssi-pl-label">Compartilhamento</div><div class="ssi-bar"><div class="ssi-fill" data-w="55%"></div></div></div>
+          <div class="ssi-pillar"><div class="ssi-pl-label">Construção de conexões</div><div class="ssi-bar"><div class="ssi-fill" data-w="80%"></div></div></div>
+        </div>
+        <a href="https://www.linkedin.com/sales/ssi" target="_blank" rel="noopener" class="ssi-btn">Acessar meu SSI ↗</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 13 — COMUNICAÇÃO -->
+<section id="comunicacao" class="bloco-cinza">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="sec-tag">13 — Conte com a Comunicação</div>
+      <h2 class="sec-title">Você não está <span>sozinho</span></h2>
+      <p class="sec-lead">A Comunicação pode apoiar você com:</p>
+    </div>
+    <div class="suporte-grid reveal">
+      <div class="sup-item"><span class="sup-icon">📸</span><span>Fotos corporativas</span></div>
+      <div class="sup-item"><span class="sup-icon">🖼️</span><span>Capas institucionais</span></div>
+      <div class="sup-item"><span class="sup-icon">📄</span><span>Materiais oficiais</span></div>
+      <div class="sup-item"><span class="sup-icon">💡</span><span>Sugestões de conteúdo</span></div>
+      <div class="sup-item"><span class="sup-icon">🔗</span><span>Orientações sobre LinkedIn</span></div>
+      <div class="sup-item"><span class="sup-icon">🎯</span><span>Apoio em publicações estratégicas</span></div>
+    </div>
+    <div class="reveal">
+      <div class="opor-title">Oportunidades de Conteúdo</div>
+      <p class="opor-sub">Mensalmente, a Comunicação compartilhará temas, iniciativas e acontecimentos relevantes da companhia que podem ser amplificados pelas lideranças no LinkedIn.</p>
+      <div class="opor-grid">
+        <div class="opor-card"><h4>Premiação de Melhoria Contínua</h4><div class="opor-lbl">Abordagem sugerida</div><p>Reconheça o protagonismo dos colaboradores, destaque a importância da inovação e compartilhe o impacto das iniciativas para o negócio.</p></div>
+        <div class="opor-card"><h4>Trilha Sênior e Programas de Desenvolvimento</h4><div class="opor-lbl">Abordagem sugerida</div><p>Compartilhe aprendizados, destaque a evolução dos participantes e reforce a importância do desenvolvimento contínuo para sustentar o crescimento da companhia.</p></div>
+        <div class="opor-card"><h4>Expansões e Marcos do Negócio</h4><div class="opor-lbl">Abordagem sugerida</div><p>Mostre como essas conquistas refletem a capacidade de execução, inovação e crescimento da CIMED.</p></div>
+        <div class="opor-card"><h4>Patrocínios e Grandes Ações de Marca (ex.: Copa do Mundo)</h4><div class="opor-lbl">Abordagem sugerida</div><p>Destaque o impacto estratégico da iniciativa para a companhia, a força da marca CIMED em projetos de grande relevância nacional e o orgulho de fazer parte de uma empresa que investe em ações que conectam negócio, marca e consumidor.</p></div>
+        <div class="opor-card"><h4>Matérias e Reconhecimentos na Imprensa (ex.: Forbes)</h4><div class="opor-lbl">Abordagem sugerida</div><p>Compartilhe os aprendizados, o reconhecimento conquistado e a relevância da pauta para o mercado, conectando o tema à estratégia e ao crescimento da CIMED.</p></div>
+        <div class="opor-card"><h4>Entrevistas, Publicações e Participações do João Adibe</h4><div class="opor-lbl">Abordagem sugerida</div><p>Conecte os temas abordados à realidade da companhia, aos aprendizados gerados e ao impacto para o negócio.</p></div>
+        <div class="opor-card"><h4>Entrevistas, Publicações e Participações da Karla Marques Felmanas</h4><div class="opor-lbl">Abordagem sugerida</div><p>Reforce mensagens relacionadas à cultura, desenvolvimento de pessoas, liderança e construção de times de alta performance.</p></div>
+        <div class="opor-card"><h4>Datas e Iniciativas Relevantes das Áreas</h4><div class="opor-lbl">Abordagem sugerida</div><p>Compartilhe conquistas, projetos e aprendizados que demonstrem o impacto da área para os resultados da companhia.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENCERRAMENTO -->
+<section id="encerramento">
+  <div class="enc-inner reveal">
+    <div class="sec-tag sec-tag-preto">Encerramento</div>
+    <h2 class="enc-h">Sua voz amplia o impacto <span>da CIMED</span></h2>
+    <p class="enc-sub">A CIMED cresce todos os dias por meio das pessoas que transformam desafios em resultados. Dar visibilidade a essas histórias também é uma forma de liderar.</p>
+    <div class="enc-btns">
+      <a href="https://www.linkedin.com/sales/ssi" target="_blank" rel="noopener" class="btn-y">Acompanhar meu SSI ↗</a>
+      <a href="https://grupocimed-my.sharepoint.com/:f:/r/personal/karina_ferreira_grupocimed_com_br/Documents/MATERIAL%20PARA%20APROVAÇÃO/Linkedin/LIDERANÇA%20EM%20MOVIMENTO?csf=1&web=1&e=hVGqB0" target="_blank" rel="noopener" class="btn-o">Acessar materiais</a>
+    </div>
+    <div class="enc-logo"><div class="logo-cimed">CIMED</div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© CIMED & CO — Playbook Executivo de Influência — Liderança em Movimento</p>
+  <p>Diretoria de Branding e Criação · <a href="mailto:marca@grupocimed.com.br">marca@grupocimed.com.br</a></p>
+</footer>
+
+<script>
+// Hamburger
+const hbg = document.getElementById('hbg');
+const mob = document.getElementById('mobMenu');
+hbg.addEventListener('click', () => mob.classList.toggle('open'));
+function closeMob(){ mob.classList.remove('open'); }
+
+// Scroll reveal
+const revEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.08, rootMargin:'0px 0px -40px 0px' });
+revEls.forEach(el => io.observe(el));
+
+// SSI bars
+const fills = document.querySelectorAll('.ssi-fill');
+fills.forEach(f => { f.style.width = '0'; });
+const barIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      e.target.style.width = e.target.getAttribute('data-w');
+      barIO.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+fills.forEach(f => barIO.observe(f));
+
+// Active nav
+const secs = document.querySelectorAll('section[id]');
+const nls = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  secs.forEach(s => { if(window.scrollY >= s.offsetTop - 80) cur = s.id; });
+  nls.forEach(a => {
+    a.classList.remove('active');
+    if(a.getAttribute('href') === '#' + cur) a.classList.add('active');
+  });
+}, { passive:true });
+</script>
+</body>
+</html>
