@@ -387,69 +387,79 @@ const Files={
 
 /* ---------- DADOS DEMO ---------- */
 function seed(){
-  const hoje=new Date();
-  const d=(diasFimDeHoje)=>{const x=new Date();x.setDate(x.getDate()+diasFimDeHoje);return x.toISOString().slice(0,10);};
-  const areas=['Comercial','Marketing','Financeiro','Logística','TI','RH','Jurídico'];
+  const d=(off)=>{const x=new Date();x.setDate(x.getDate()+off);return x.toISOString().slice(0,10);};
+  const areas=['Comercial','Marketing','Financeiro','Logística','TI','RH','Jurídico','Operações','Suprimentos','Atendimento'];
   const lideres=[
-    {nome:'Fernanda Lima',email:'fernanda.lima@cimed.com.br'},
-    {nome:'Ricardo Alves',email:'ricardo.alves@cimed.com.br'},
-    {nome:'Patrícia Souza',email:'patricia.souza@cimed.com.br'},
-    {nome:'Marcelo Dias',email:'marcelo.dias@cimed.com.br'},
+    {nome:'Fernanda Lima',email:'fernanda.lima@grupocimed.com.br'},
+    {nome:'Ricardo Alves',email:'ricardo.alves@grupocimed.com.br'},
+    {nome:'Patrícia Souza',email:'patricia.souza@grupocimed.com.br'},
+    {nome:'Marcelo Dias',email:'marcelo.dias@grupocimed.com.br'},
+    {nome:'Aline Barbosa',email:'aline.barbosa@grupocimed.com.br'},
+    {nome:'Bruno Carvalho',email:'bruno.carvalho@grupocimed.com.br'},
+    {nome:'Juliana Prado',email:'juliana.prado@grupocimed.com.br'},
+    {nome:'Rodrigo Teixeira',email:'rodrigo.teixeira@grupocimed.com.br'},
   ];
-  const nomes=[
-    ['Ana Beatriz Rocha','Comercial',0,-320,'ativo','SENAI','Assistente Administrativo'],
-    ['Lucas Ferreira','TI',1,-40,'ativo','SENAC','Técnico em Informática'],
-    ['Mariana Costa','Marketing',1,-200,'ativo','SENAC','Marketing Digital'],
-    ['Pedro Henrique Alves','Logística',3,-500,'ativo','SENAI','Logística'],
-    ['Juliana Santos','Financeiro',2,-90,'ativo','CIEE','Rotinas Administrativas'],
-    ['Gabriel Oliveira','Comercial',0,-660,'desligado','SENAI','Vendas'],
-    ['Beatriz Almeida','RH','','','ativo','SENAC','Gestão de Pessoas'],
-    ['Rafael Martins','TI',1,-15,'ativo','SENAI','Redes'],
-    ['Camila Ribeiro','Jurídico',3,-410,'afastado','CIEE','Rotinas Administrativas'],
-    ['Thiago Nunes','Marketing',1,-250,'ativo','SENAC','Design'],
-  ];
-  const aprendizes=nomes.map((n,i)=>{
-    const lid=lideres[n[2]===''?0:n[2]];
-    const admDias=n[3]===''? -120 : n[3];
-    return {
+  const instituicoes=['SENAI','SENAC','CIEE','Instituto Aprendiz Legal','Fundação Bradesco'];
+  const cursos=['Assistente Administrativo','Técnico em Informática','Marketing Digital','Logística','Rotinas Administrativas','Vendas','Gestão de Pessoas','Design Gráfico','Redes de Computadores','Auxiliar Financeiro'];
+  const primeiros=['Ana Beatriz','Lucas','Mariana','Pedro Henrique','Juliana','Gabriel','Beatriz','Rafael','Camila','Thiago','Larissa','João Vitor','Isabela','Matheus','Sophia','Enzo','Valentina','Guilherme','Helena','Davi','Laura','Bernardo','Manuela','Arthur','Alice','Heitor','Lorena','Gustavo','Yasmin','Felipe'];
+  const sobrenomes=['Rocha','Ferreira','Costa','Alves','Santos','Oliveira','Almeida','Martins','Ribeiro','Nunes','Gomes','Pires','Moraes','Cardoso','Barbosa','Teixeira','Carvalho','Araújo','Melo','Pinto','Correia','Fernandes','Batista','Moreira','Cavalcante','Dias','Freitas','Ramos','Azevedo','Lopes'];
+  const aprendizes=[];
+  for(let i=0;i<30;i++){
+    const nome=primeiros[i]+' '+sobrenomes[i];
+    let admDias;
+    if(i<4) admDias=-(702+i*8);          // contratos vencendo em ~2 a 30 dias
+    else if(i<6) admDias=-(736+i*6);     // contratos já vencidos
+    else admDias=-(50+i*22);             // tempo restante variado
+    let status='ativo';
+    if(i===7||i===19) status='afastado';
+    if(i===4||i===23||i===28) status='desligado';
+    const lid=lideres[i%lideres.length];
+    const emailNome=nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,'').split(' ').filter(Boolean).slice(0,2).join('.');
+    aprendizes.push({
       id:uid(),
-      nome:n[0],
-      cpf:`${100+i}.${200+i}.${300+i}-0${i}`,
-      matricula:'AP'+(2024000+i),
-      email:n[0].toLowerCase().replace(/[^a-z ]/g,'').split(' ').slice(0,2).join('.')+'@email.com',
-      telefone:`(11) 9${8000+i}-${1000+i*7}`,
-      dataNascimento:d(-6000-i*40),
-      area:n[1],
+      nome,
+      cpf:`${((i*37)%900)+100}.${((i*53)%900)+100}.${((i*29)%900)+100}-${((i*7)%89)+10}`,
+      matricula:'AP'+(2024001+i),
+      email:emailNome+'@email.com',
+      telefone:`(11) 9${8000+i*11}-${((1000+i*137)%9000)+1000}`,
+      dataNascimento:d(-(6570+i*40)),
+      area:areas[i%areas.length],
       lider:lid.nome, liderEmail:lid.email,
-      instituicao:n[5], curso:n[6], cargaHoraria:'6h/dia',
+      instituicao:instituicoes[i%instituicoes.length],
+      curso:cursos[i%cursos.length],
+      cargaHoraria:(i%2?'6h/dia':'4h/dia'),
       dataAdmissao:d(admDias),
-      dataFimContrato:d(admDias+730), // contrato de 2 anos
-      status:n[4],
+      dataFimContrato:d(admDias+730),
+      status,
       observacoes:'',
       createdAt:nowISO(), updatedAt:nowISO(),
-    };
-  });
-  const ap=(i)=>aprendizes[i];
-  const contratos=aprendizes.filter(a=>a.status!=='desligado').map((a)=>({
+    });
+  }
+  const contratos=aprendizes.filter(a=>a.status!=='desligado').map(a=>({
     id:uid(), aprendizId:a.id, tipo:'Contrato de Aprendizagem',
     dataInicio:a.dataAdmissao, dataFim:a.dataFimContrato,
-    arquivoId:null, arquivoNome:null,
-    createdAt:nowISO(),
+    arquivoId:null, arquivoNome:null, createdAt:nowISO(),
   }));
-  const documentos=[
-    {id:uid(),aprendizId:ap(1).id,titulo:'Aditivo de carga horária',tipo:'Aditivo contratual',lider:ap(1).lider,liderEmail:ap(1).liderEmail,status:'pendente',prazo:d(3),createdAt:nowISO()},
-    {id:uid(),aprendizId:ap(7).id,titulo:'Avaliação semestral de desempenho',tipo:'Avaliação',lider:ap(7).lider,liderEmail:ap(7).liderEmail,status:'pendente',prazo:d(-1),createdAt:nowISO()},
-    {id:uid(),aprendizId:ap(4).id,titulo:'Termo de renovação de contrato',tipo:'Renovação',lider:ap(4).lider,liderEmail:ap(4).liderEmail,status:'pendente',prazo:d(9),createdAt:nowISO()},
-    {id:uid(),aprendizId:ap(0).id,titulo:'Folha de ponto — Junho',tipo:'Folha de ponto',lider:ap(0).lider,liderEmail:ap(0).liderEmail,status:'assinado',prazo:d(-10),assinadoEm:d(-8),createdAt:nowISO()},
+  const at=aprendizes.filter(a=>a.status!=='desligado');
+  const modelosDoc=[
+    {titulo:'Aditivo de carga horária',tipo:'Aditivo contratual',prazo:d(3)},
+    {titulo:'Avaliação semestral de desempenho',tipo:'Avaliação',prazo:d(-1)},
+    {titulo:'Termo de renovação de contrato',tipo:'Renovação',prazo:d(9)},
+    {titulo:'Avaliação semestral de desempenho',tipo:'Avaliação',prazo:d(15)},
+    {titulo:'Folha de ponto — mês anterior',tipo:'Folha de ponto',prazo:d(-4)},
+    {titulo:'Aditivo de prorrogação',tipo:'Aditivo contratual',prazo:d(6)},
   ];
+  const documentos=modelosDoc.map((x,i)=>{const a=at[(i*4)%at.length];return {id:uid(),aprendizId:a.id,titulo:x.titulo,tipo:x.tipo,lider:a.lider,liderEmail:a.liderEmail,status:'pendente',prazo:x.prazo,createdAt:nowISO()};});
+  documentos.push({id:uid(),aprendizId:at[1].id,titulo:'Folha de ponto — mês retrasado',tipo:'Folha de ponto',lider:at[1].lider,liderEmail:at[1].liderEmail,status:'assinado',prazo:d(-30),assinadoEm:d(-28),createdAt:nowISO()});
   const convites=[
-    {id:uid(),nome:'Isabela Moraes',email:'isabela.moraes@email.com',area:'Comercial',status:'enviado',enviadoEm:d(-2),token:uid()},
-    {id:uid(),nome:'João Vitor Pires',email:'joao.pires@email.com',area:'Logística',status:'aceito',enviadoEm:d(-12),token:uid()},
-    {id:uid(),nome:'Larissa Gomes',email:'larissa.gomes@email.com',area:'Marketing',status:'pendente',enviadoEm:null,token:uid()},
-  ];
+    {nome:'Sofia Andrade',email:'sofia.andrade@email.com',area:'Comercial',status:'enviado',enviadoEm:d(-2)},
+    {nome:'Miguel Teixeira',email:'miguel.teixeira@email.com',area:'Logística',status:'aceito',enviadoEm:d(-12)},
+    {nome:'Antonella Ramos',email:'antonella.ramos@email.com',area:'Marketing',status:'pendente',enviadoEm:null},
+    {nome:'Benjamin Rocha',email:'benjamin.rocha@email.com',area:'TI',status:'enviado',enviadoEm:d(-5)},
+  ].map(c=>Object.assign({id:uid(),token:uid()},c));
   return {
     aprendizes, contratos, documentos, convites, areas, lideres,
-    config:{empresa:'CIMED',remetente:'',responsavel:'',responsavelEmail:'',alertaDias:30},
+    config:{empresa:'CIMED',responsavel:'',responsavelEmail:'',alertaDias:30},
   };
 }
 
@@ -1207,7 +1217,7 @@ function viewConfig(){
       <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="exportarAprendizesCSV()">${svg('download')}Exportar aprendizes</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarBackup()">${svg('download')}Backup (JSON)</button>
-        <button class="btn btn-danger btn-sm" onclick="resetarDados()">${svg('trash')}Restaurar dados demo</button>
+        <button class="btn btn-dark btn-sm" onclick="resetarDados()">${svg('users')}Carregar base de exemplo (30)</button>
       </div>
     </div>`;
 }
