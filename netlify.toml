@@ -1,0 +1,9 @@
+# Site estático (HTML/CSS/JS) + Netlify Functions.
+# Não há etapa de build: publicamos a raiz do repositório diretamente.
+# O comando "echo" é um no-op que sobrescreve qualquer build command
+# configurado no painel do Netlify (evita falhas de deploy).
+
+[build]
+  command = "echo 'Site estatico - sem etapa de build'"
+  publish = "."
+  functions = "netlify/functions"

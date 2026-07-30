@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Jovens Aprendizes — CIMED</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --amarelo:#ffc600; --amarelo-escuro:#e6b000; --amarelo-suave:#fff8e1; --amarelo-meio:#fff3c4;
+  --preto:#0d0d0d; --preto-medio:#1a1a1a; --preto-suave:#242424;
+  --cinza-bg:#f4f4f2; --cinza-claro:#ebebea; --cinza-bloco:#eeeeed;
+  --cinza-borda:#e2e2df; --cinza-texto:#555; --cinza-sub:#8a8a8a;
+  --branco:#fff;
+  --verde:#1f9d57; --verde-bg:#e7f6ee;
+  --vermelho:#d64545; --vermelho-bg:#fbeaea;
+  --laranja:#e08a1e; --laranja-bg:#fbf1e0;
+  --azul:#2b6cb0; --azul-bg:#e8f0f9;
+  --fonte:'Inter','Helvetica Neue',Arial,sans-serif;
+  --sombra:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sombra-md:0 4px 16px rgba(0,0,0,.08);
+  --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--fonte);background:var(--cinza-bg);color:var(--preto);-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+a{color:inherit;}
+
+/* ── LAYOUT ── */
+.app{display:flex;min-height:100vh;}
+.sidebar{
+  width:250px;background:var(--preto);color:#fff;position:fixed;top:0;left:0;bottom:0;
+  display:flex;flex-direction:column;z-index:100;transition:transform .25s;
+}
+.sb-brand{padding:22px 22px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.08);}
+.sb-logo{background:var(--amarelo);border-radius:7px;padding:5px 11px;font-size:15px;font-weight:900;letter-spacing:.04em;color:var(--preto);}
+.sb-brand-txt{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);line-height:1.5;}
+.sb-nav{flex:1;padding:14px 12px;overflow-y:auto;}
+.sb-sec{font-size:9px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.28);padding:16px 14px 8px;}
+.sb-link{
+  display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:9px;
+  font-size:13.5px;font-weight:600;color:rgba(255,255,255,.62);text-decoration:none;
+  transition:.15s;position:relative;margin-bottom:2px;
+}
+.sb-link:hover{background:rgba(255,255,255,.06);color:#fff;}
+.sb-link.active{background:var(--amarelo);color:var(--preto);}
+.sb-link .ic{width:18px;height:18px;flex-shrink:0;}
+.sb-link .badge{margin-left:auto;background:var(--vermelho);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;min-width:20px;text-align:center;}
+.sb-link.active .badge{background:var(--preto);color:var(--amarelo);}
+.sb-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:10px;color:rgba(255,255,255,.32);}
+
+.main{flex:1;margin-left:250px;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{
+  height:64px;background:var(--branco);border-bottom:1px solid var(--cinza-borda);
+  display:flex;align-items:center;gap:16px;padding:0 28px;position:sticky;top:0;z-index:50;
+}
+.topbar h1{font-size:19px;font-weight:800;letter-spacing:-.01em;}
+.topbar .sub{font-size:12px;color:var(--cinza-sub);font-weight:500;margin-top:1px;}
+.hamburger{display:none;background:none;border:none;flex-direction:column;gap:4px;padding:6px;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--preto);border-radius:2px;}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.bell{position:relative;width:40px;height:40px;border-radius:9px;border:1px solid var(--cinza-borda);background:var(--branco);display:flex;align-items:center;justify-content:center;color:var(--cinza-texto);}
+.bell:hover{background:var(--cinza-bg);}
+.bell .dot{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--vermelho);border:2px solid var(--branco);}
+.content{padding:28px;max-width:1240px;width:100%;margin:0 auto;flex:1;}
+
+/* ── BOTÕES ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;border:1px solid transparent;transition:.15s;white-space:nowrap;}
+.btn .ic{width:16px;height:16px;}
+.btn-primary{background:var(--amarelo);color:var(--preto);}
+.btn-primary:hover{background:var(--amarelo-escuro);}
+.btn-dark{background:var(--preto);color:#fff;}
+.btn-dark:hover{background:var(--preto-suave);}
+.btn-ghost{background:var(--branco);color:var(--preto);border-color:var(--cinza-borda);}
+.btn-ghost:hover{background:var(--cinza-bg);}
+.btn-sm{padding:7px 13px;font-size:12px;}
+.btn-danger{background:var(--vermelho-bg);color:var(--vermelho);}
+.btn-danger:hover{background:#f6dada;}
+.btn-icon{width:34px;height:34px;padding:0;justify-content:center;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--cinza-sub);}
+.btn-icon:hover{background:var(--cinza-claro);color:var(--preto);}
+
+/* ── CARDS / KPI ── */
+.grid{display:grid;gap:18px;}
+.kpi-grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:22px;}
+.card{background:var(--branco);border:1px solid var(--cinza-borda);border-radius:var(--radius);box-shadow:var(--sombra);}
+.kpi{padding:20px 22px;position:relative;overflow:hidden;}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.kpi-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.kpi-ico .ic{width:20px;height:20px;}
+.kpi-val{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1;}
+.kpi-lbl{font-size:12.5px;color:var(--cinza-sub);font-weight:600;margin-top:7px;}
+.kpi-tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.ico-y{background:var(--amarelo-suave);color:var(--amarelo-escuro);}
+.ico-g{background:var(--verde-bg);color:var(--verde);}
+.ico-r{background:var(--vermelho-bg);color:var(--vermelho);}
+.ico-o{background:var(--laranja-bg);color:var(--laranja);}
+.ico-b{background:var(--azul-bg);color:var(--azul);}
+
+.panel{padding:22px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.panel-head h2{font-size:15px;font-weight:800;}
+.panel-head .link{font-size:12px;font-weight:700;color:var(--cinza-sub);text-decoration:none;}
+.panel-head .link:hover{color:var(--preto);}
+.two-col{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;}
+
+/* ── GRÁFICOS ── */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.bar-lbl{font-size:12.5px;font-weight:600;width:120px;flex-shrink:0;color:var(--cinza-texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:22px;background:var(--cinza-bloco);border-radius:6px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--amarelo);border-radius:6px;transition:width .6s;min-width:2px;}
+.bar-val{font-size:12.5px;font-weight:800;width:34px;text-align:right;}
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+.donut-legend{display:flex;flex-direction:column;gap:10px;}
+.donut-legend .li{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;}
+.donut-legend .dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+
+/* ── FEED / LISTAS ── */
+.feed-item{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--cinza-claro);}
+.feed-item:last-child{border-bottom:none;}
+.feed-ico{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.feed-ico .ic{width:17px;height:17px;}
+.feed-body{flex:1;min-width:0;}
+.feed-title{font-size:13px;font-weight:700;line-height:1.4;}
+.feed-sub{font-size:12px;color:var(--cinza-sub);margin-top:2px;}
+.feed-time{font-size:11px;color:var(--cinza-sub);font-weight:600;white-space:nowrap;}
+
+/* ── TABELA ── */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.search{flex:1;min-width:200px;position:relative;}
+.search input{width:100%;padding:11px 14px 11px 40px;border:1px solid var(--cinza-borda);border-radius:9px;font-size:13.5px;background:var(--branco);}
+.search input:focus{outline:none;border-color:var(--amarelo);box-shadow:0 0 0 3px var(--amarelo-suave);}
+.search .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--cinza-sub);}
+select.filter{padding:11px 14px;border:1px solid var(--cinza-borda);border-radius:9px;font-size:13px;background:var(--branco);font-weight:600;color:var(--cinza-texto);}
+.table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--cinza-borda);background:var(--branco);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{background:var(--cinza-bg);text-align:left;padding:13px 16px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--cinza-sub);white-space:nowrap;border-bottom:1px solid var(--cinza-borda);}
+tbody td{padding:13px 16px;border-bottom:1px solid var(--cinza-claro);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--amarelo-suave);}
+.person{display:flex;align-items:center;gap:11px;}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--preto);color:var(--amarelo);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.person .nm{font-weight:700;}
+.person .em{font-size:11.5px;color:var(--cinza-sub);}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;}
+.p-ativo{background:var(--verde-bg);color:var(--verde);}
+.p-afastado{background:var(--laranja-bg);color:var(--laranja);}
+.p-desligado{background:var(--cinza-bloco);color:var(--cinza-sub);}
+.p-pendente{background:var(--laranja-bg);color:var(--laranja);}
+.p-assinado{background:var(--verde-bg);color:var(--verde);}
+.p-enviado{background:var(--azul-bg);color:var(--azul);}
+.p-aceito{background:var(--verde-bg);color:var(--verde);}
+.p-vigente{background:var(--verde-bg);color:var(--verde);}
+.p-vencido{background:var(--vermelho-bg);color:var(--vermelho);}
+.p-encerrado{background:var(--cinza-bloco);color:var(--cinza-sub);}
+.p-alerta{background:var(--vermelho-bg);color:var(--vermelho);}
+.row-actions{display:flex;gap:4px;justify-content:flex-end;}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:56px 20px;color:var(--cinza-sub);}
+.empty .ic{width:44px;height:44px;margin:0 auto 14px;color:var(--cinza-claro);}
+.empty h3{font-size:15px;font-weight:800;color:var(--cinza-texto);margin-bottom:6px;}
+.empty p{font-size:13px;margin-bottom:18px;}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(13,13,13,.55);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;backdrop-filter:blur(2px);}
+.overlay.open{display:flex;}
+.modal{background:var(--branco);border-radius:16px;width:100%;max-width:620px;box-shadow:var(--sombra-md);animation:pop .2s;margin:auto 0;}
+.modal.wide{max-width:820px;}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.98);}to{opacity:1;transform:none;}}
+.modal-head{padding:22px 26px;border-bottom:1px solid var(--cinza-borda);display:flex;align-items:center;justify-content:space-between;}
+.modal-head h2{font-size:17px;font-weight:800;}
+.modal-head .sub{font-size:12.5px;color:var(--cinza-sub);margin-top:2px;}
+.modal-body{padding:24px 26px;max-height:65vh;overflow-y:auto;}
+.modal-foot{padding:18px 26px;border-top:1px solid var(--cinza-borda);display:flex;gap:10px;justify-content:flex-end;background:var(--cinza-bg);border-radius:0 0 16px 16px;}
+.close-x{width:34px;height:34px;border:none;background:var(--cinza-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--cinza-texto);}
+.close-x:hover{background:var(--cinza-claro);}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:12px;font-weight:700;color:var(--cinza-texto);}
+.field label .req{color:var(--vermelho);}
+.field input,.field select,.field textarea{
+  padding:10px 13px;border:1px solid var(--cinza-borda);border-radius:9px;font-size:13.5px;background:var(--branco);width:100%;
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--amarelo);box-shadow:0 0 0 3px var(--amarelo-suave);}
+.field textarea{resize:vertical;min-height:74px;}
+.field .hint{font-size:11px;color:var(--cinza-sub);}
+.dropzone{border:2px dashed var(--cinza-borda);border-radius:11px;padding:26px;text-align:center;cursor:pointer;transition:.15s;background:var(--cinza-bg);}
+.dropzone:hover,.dropzone.drag{border-color:var(--amarelo);background:var(--amarelo-suave);}
+.dropzone .ic{width:30px;height:30px;color:var(--cinza-sub);margin-bottom:8px;}
+.dropzone p{font-size:13px;font-weight:600;color:var(--cinza-texto);}
+.dropzone .sm{font-size:11.5px;color:var(--cinza-sub);margin-top:3px;}
+.file-chip{display:flex;align-items:center;gap:10px;background:var(--amarelo-suave);border:1px solid var(--amarelo-meio);border-radius:9px;padding:10px 13px;margin-top:10px;}
+.file-chip .ic{width:18px;height:18px;color:var(--amarelo-escuro);flex-shrink:0;}
+.file-chip .nm{font-size:12.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── TOAST ── */
+.toasts{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;flex-direction:column;gap:10px;}
+.toast{background:var(--preto);color:#fff;padding:14px 18px;border-radius:11px;font-size:13px;font-weight:600;box-shadow:var(--sombra-md);display:flex;align-items:center;gap:11px;min-width:280px;max-width:400px;animation:slideIn .25s;}
+.toast .ic{width:19px;height:19px;flex-shrink:0;}
+.toast.ok{border-left:4px solid var(--verde);}
+.toast.err{border-left:4px solid var(--vermelho);}
+.toast.info{border-left:4px solid var(--amarelo);}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:none;}}
+
+/* ── DETALHE ── */
+.detail-head{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.detail-avatar{width:60px;height:60px;border-radius:50%;background:var(--preto);color:var(--amarelo);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2px;background:var(--cinza-borda);border-radius:10px;overflow:hidden;}
+.info-cell{background:var(--branco);padding:14px 16px;}
+.info-cell .k{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--cinza-sub);}
+.info-cell .v{font-size:14px;font-weight:600;margin-top:4px;}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--cinza-borda);margin-bottom:20px;}
+.tab{padding:11px 16px;font-size:13px;font-weight:700;color:var(--cinza-sub);border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tab.active{color:var(--preto);border-bottom-color:var(--amarelo);}
+.section-title{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--cinza-sub);margin:22px 0 12px;}
+
+.alert-banner{display:flex;align-items:center;gap:12px;background:var(--amarelo-suave);border:1px solid var(--amarelo-meio);border-radius:11px;padding:14px 18px;margin-bottom:20px;font-size:13.5px;font-weight:600;}
+.alert-banner .ic{width:20px;height:20px;color:var(--amarelo-escuro);flex-shrink:0;}
+.alert-banner.warn{background:var(--vermelho-bg);border-color:#f2cccc;}
+.alert-banner.warn .ic{color:var(--vermelho);}
+
+.mono{font-variant-numeric:tabular-nums;}
+.muted{color:var(--cinza-sub);}
+#loginScreen{position:fixed;inset:0;z-index:1000;background:var(--preto);display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{background:var(--branco);border-radius:18px;padding:38px 34px;width:100%;max-width:392px;box-shadow:var(--sombra-md);}
+.login-brand{display:flex;align-items:center;gap:12px;}
+.nowrap{white-space:nowrap;}
+.stack-sm{display:flex;flex-direction:column;gap:3px;}
+
+/* ── RESPONSIVO ── */
+.overlay-nav{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99;}
+@media(max-width:960px){.two-col{grid-template-columns:1fr;}}
+@media(max-width:860px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:none;}
+  .main{margin-left:0;}
+  .hamburger{display:flex;}
+  .overlay-nav.open{display:block;}
+  .form-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <span class="sb-logo">CIMED</span>
+      <span class="sb-brand-txt">Gestão de<br>Jovens Aprendizes</span>
+    </div>
+    <nav class="sb-nav" id="sbNav"></nav>
+    <div class="sb-foot">
+      <div id="sbUser" style="color:rgba(255,255,255,.6);font-weight:600;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+      <button onclick="logout()" style="display:flex;align-items:center;justify-content:center;gap:7px;background:none;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.62);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;width:100%">Sair</button>
+    </div>
+  </aside>
+  <div class="overlay-nav" id="overlayNav"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="sub" id="pageSub">Visão geral do programa</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="bell" id="bellBtn" title="Alertas">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="dot" id="bellDot" style="display:none"></span>
+        </button>
+        <button class="btn btn-primary" id="quickAdd">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          Novo aprendiz
+        </button>
+      </div>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ============================================================
+   GESTÃO DE JOVENS APRENDIZES — CIMED
+   App com login (Supabase Auth). Dados e arquivos: Supabase (nuvem, compartilhado).
+   Envio de e-mail: Netlify Function /enviar-email (Resend).
+   ============================================================ */
+
+/* ---------- ÍCONES (SVG inline) ---------- */
+const IC = {
+  dash:'<path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+  sign:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  trash:'<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7"/><circle cx="12" cy="12" r="3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  warn:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  cake:'<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20M7 8v2M12 8v2M17 8v2M7 4h.01M12 4h.01M17 4h.01"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+  award:'<circle cx="12" cy="8" r="6"/><path d="M15.5 12.5 17 22l-5-3-5 3 1.5-9.5"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+};
+function svg(name,cls){return `<svg class="${cls||'ic'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[name]||''}</svg>`;}
+
+/* ---------- SUPABASE (login + dados compartilhados) ---------- */
+const SUPABASE_URL='https://vryahmikpmvddvrogdzg.supabase.co';
+const SUPABASE_KEY='sb_publishable_rTCFe9lyajJdz9oc1yIXvw_nE7XvYNH';
+const AREAS_PADRAO=['Comercial','Marketing','Financeiro','Logística','TI','RH','Jurídico'];
+let sb=null;
+function initSupabase(){
+  if(sb)return sb;
+  if(!window.supabase){toast('Falha ao carregar a biblioteca do Supabase (verifique a conexão).','err');return null;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  return sb;
+}
+const DB={
+  data:null,
+  async load(){
+    const q=(t)=>sb.from(t).select('id,data');
+    const [r1,r2,r3,r4,r5]=await Promise.all([
+      q('aprendizes'),q('contratos'),q('documentos'),q('convites'),
+      sb.from('app_config').select('data').eq('id',1).maybeSingle(),
+    ]);
+    const err=[r1,r2,r3,r4,r5].find(r=>r.error);
+    if(err&&err.error)throw new Error(err.error.message||'Erro ao carregar dados');
+    const rows=r=>(r.data||[]).map(x=>Object.assign({},x.data,{id:x.id}));
+    const cfg=(r5&&r5.data&&r5.data.data)?r5.data.data:{};
+    this.data={
+      aprendizes:rows(r1),contratos:rows(r2),documentos:rows(r3),convites:rows(r4),
+      areas:(cfg.areas&&cfg.areas.length)?cfg.areas:AREAS_PADRAO.slice(),
+      lideres:cfg.lideres||[],
+      config:{empresa:cfg.empresa||'CIMED',responsavel:cfg.responsavel||'',responsavelEmail:cfg.responsavelEmail||'',alertaDias:cfg.alertaDias||30},
+    };
+    return this.data;
+  },
+  save(){ syncAll().catch(e=>toast('Não foi possível sincronizar: '+e.message,'err')); },
+  async reset(){ this.data=seed(); await syncAll(); },
+};
+async function syncAll(){
+  const D=DB.data; if(!D)return;
+  const cfg=Object.assign({},D.config,{areas:D.areas,lideres:D.lideres});
+  const up=(t,arr)=>arr.length?sb.from(t).upsert(arr.map(o=>({id:o.id,data:o,updated_at:new Date().toISOString()}))):Promise.resolve({});
+  const res=await Promise.all([
+    sb.from('app_config').upsert({id:1,data:cfg,updated_at:new Date().toISOString()}),
+    up('aprendizes',D.aprendizes),up('contratos',D.contratos),up('documentos',D.documentos),up('convites',D.convites),
+  ]);
+  const e=res.find(r=>r&&r.error); if(e&&e.error)throw new Error(e.error.message);
+}
+async function dbDelete(table,ids){
+  ids=[].concat(ids).filter(Boolean); if(!ids.length)return;
+  const {error}=await sb.from(table).delete().in('id',ids);
+  if(error)toast('Erro ao excluir no servidor: '+error.message,'err');
+}
+function uid(){return 'x'+Math.random().toString(36).slice(2,10);}
+function nowISO(){return new Date().toISOString();}
+
+/* ---------- ARQUIVOS (Supabase Storage) ---------- */
+const Files={
+  async put(path,blob){const {error}=await sb.storage.from('contratos').upload(path,blob,{upsert:true,contentType:blob.type||'application/octet-stream'});if(error)throw error;return path;},
+  async del(path){if(!path)return;await sb.storage.from('contratos').remove([path]);},
+  async open_(path,nome){const {data,error}=await sb.storage.from('contratos').createSignedUrl(path,3600);if(error||!data){toast('Arquivo indisponível','err');return;}window.open(data.signedUrl,'_blank');},
+};
+
+/* ---------- DADOS DEMO ---------- */
+function seed(){
+  const d=(off)=>{const x=new Date();x.setDate(x.getDate()+off);return x.toISOString().slice(0,10);};
+  const areas=['Comercial','Marketing','Financeiro','Logística','TI','RH','Jurídico','Operações','Suprimentos','Atendimento'];
+  const lideres=[
+    {nome:'Fernanda Lima',email:'fernanda.lima@grupocimed.com.br'},
+    {nome:'Ricardo Alves',email:'ricardo.alves@grupocimed.com.br'},
+    {nome:'Patrícia Souza',email:'patricia.souza@grupocimed.com.br'},
+    {nome:'Marcelo Dias',email:'marcelo.dias@grupocimed.com.br'},
+    {nome:'Aline Barbosa',email:'aline.barbosa@grupocimed.com.br'},
+    {nome:'Bruno Carvalho',email:'bruno.carvalho@grupocimed.com.br'},
+    {nome:'Juliana Prado',email:'juliana.prado@grupocimed.com.br'},
+    {nome:'Rodrigo Teixeira',email:'rodrigo.teixeira@grupocimed.com.br'},
+  ];
+  const instituicoes=['SENAI','SENAC','CIEE','Instituto Aprendiz Legal','Fundação Bradesco'];
+  const cursos=['Assistente Administrativo','Técnico em Informática','Marketing Digital','Logística','Rotinas Administrativas','Vendas','Gestão de Pessoas','Design Gráfico','Redes de Computadores','Auxiliar Financeiro'];
+  const primeiros=['Ana Beatriz','Lucas','Mariana','Pedro Henrique','Juliana','Gabriel','Beatriz','Rafael','Camila','Thiago','Larissa','João Vitor','Isabela','Matheus','Sophia','Enzo','Valentina','Guilherme','Helena','Davi','Laura','Bernardo','Manuela','Arthur','Alice','Heitor','Lorena','Gustavo','Yasmin','Felipe'];
+  const sobrenomes=['Rocha','Ferreira','Costa','Alves','Santos','Oliveira','Almeida','Martins','Ribeiro','Nunes','Gomes','Pires','Moraes','Cardoso','Barbosa','Teixeira','Carvalho','Araújo','Melo','Pinto','Correia','Fernandes','Batista','Moreira','Cavalcante','Dias','Freitas','Ramos','Azevedo','Lopes'];
+  const aprendizes=[];
+  for(let i=0;i<30;i++){
+    const nome=primeiros[i]+' '+sobrenomes[i];
+    let admDias;
+    if(i<4) admDias=-(702+i*8);          // contratos vencendo em ~2 a 30 dias
+    else if(i<6) admDias=-(736+i*6);     // contratos já vencidos
+    else admDias=-(50+i*22);             // tempo restante variado
+    let status='ativo';
+    if(i===7||i===19) status='afastado';
+    if(i===4||i===23||i===28) status='desligado';
+    const lid=lideres[i%lideres.length];
+    const emailNome=nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z ]/g,'').split(' ').filter(Boolean).slice(0,2).join('.');
+    aprendizes.push({
+      id:uid(),
+      nome,
+      cpf:`${((i*37)%900)+100}.${((i*53)%900)+100}.${((i*29)%900)+100}-${((i*7)%89)+10}`,
+      matricula:'AP'+(2024001+i),
+      email:emailNome+'@email.com',
+      telefone:`(11) 9${8000+i*11}-${((1000+i*137)%9000)+1000}`,
+      dataNascimento:d(-(6570+i*40)),
+      area:areas[i%areas.length],
+      lider:lid.nome, liderEmail:lid.email,
+      instituicao:instituicoes[i%instituicoes.length],
+      curso:cursos[i%cursos.length],
+      cargaHoraria:(i%2?'6h/dia':'4h/dia'),
+      dataAdmissao:d(admDias),
+      dataFimContrato:d(admDias+730),
+      status,
+      observacoes:'',
+      createdAt:nowISO(), updatedAt:nowISO(),
+    });
+  }
+  const contratos=aprendizes.filter(a=>a.status!=='desligado').map(a=>({
+    id:uid(), aprendizId:a.id, tipo:'Contrato de Aprendizagem',
+    dataInicio:a.dataAdmissao, dataFim:a.dataFimContrato,
+    arquivoId:null, arquivoNome:null, createdAt:nowISO(),
+  }));
+  const at=aprendizes.filter(a=>a.status!=='desligado');
+  const modelosDoc=[
+    {titulo:'Aditivo de carga horária',tipo:'Aditivo contratual',prazo:d(3)},
+    {titulo:'Avaliação semestral de desempenho',tipo:'Avaliação',prazo:d(-1)},
+    {titulo:'Termo de renovação de contrato',tipo:'Renovação',prazo:d(9)},
+    {titulo:'Avaliação semestral de desempenho',tipo:'Avaliação',prazo:d(15)},
+    {titulo:'Folha de ponto — mês anterior',tipo:'Folha de ponto',prazo:d(-4)},
+    {titulo:'Aditivo de prorrogação',tipo:'Aditivo contratual',prazo:d(6)},
+  ];
+  const documentos=modelosDoc.map((x,i)=>{const a=at[(i*4)%at.length];return {id:uid(),aprendizId:a.id,titulo:x.titulo,tipo:x.tipo,lider:a.lider,liderEmail:a.liderEmail,status:'pendente',prazo:x.prazo,createdAt:nowISO()};});
+  documentos.push({id:uid(),aprendizId:at[1].id,titulo:'Folha de ponto — mês retrasado',tipo:'Folha de ponto',lider:at[1].lider,liderEmail:at[1].liderEmail,status:'assinado',prazo:d(-30),assinadoEm:d(-28),createdAt:nowISO()});
+  const convites=[
+    {nome:'Sofia Andrade',email:'sofia.andrade@email.com',area:'Comercial',status:'enviado',enviadoEm:d(-2)},
+    {nome:'Miguel Teixeira',email:'miguel.teixeira@email.com',area:'Logística',status:'aceito',enviadoEm:d(-12)},
+    {nome:'Antonella Ramos',email:'antonella.ramos@email.com',area:'Marketing',status:'pendente',enviadoEm:null},
+    {nome:'Benjamin Rocha',email:'benjamin.rocha@email.com',area:'TI',status:'enviado',enviadoEm:d(-5)},
+  ].map(c=>Object.assign({id:uid(),token:uid()},c));
+  return {
+    aprendizes, contratos, documentos, convites, areas, lideres,
+    config:{empresa:'CIMED',responsavel:'',responsavelEmail:'',alertaDias:30},
+  };
+}
+
+/* ---------- HELPERS ---------- */
+function fmtData(iso){if(!iso)return '—';const [y,m,dd]=iso.split('-');return `${dd}/${m}/${y}`;}
+function diasEntre(iso){if(!iso)return null;const alvo=new Date(iso+'T00:00:00');const h=new Date();h.setHours(0,0,0,0);return Math.round((alvo-h)/86400000);}
+function idade(iso){if(!iso)return '—';const n=new Date(iso);const h=new Date();let a=h.getFullYear()-n.getFullYear();const m=h.getMonth()-n.getMonth();if(m<0||(m===0&&h.getDate()<n.getDate()))a--;return a+' anos';}
+function iniciais(nome){return nome.split(' ').filter(Boolean).map(p=>p[0]).slice(0,2).join('').toUpperCase();}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function ap(id){return DB.data.aprendizes.find(a=>a.id===id);}
+function nomeAp(id){const a=ap(id);return a?a.nome:'—';}
+function contratoStatus(c){const dias=diasEntre(c.dataFim);if(dias===null)return 'vigente';if(dias<0)return 'vencido';return 'vigente';}
+
+/* ---------- TOAST ---------- */
+function toast(msg,tipo='ok'){
+  const ic=tipo==='ok'?'check':tipo==='err'?'x':'warn';
+  const el=document.createElement('div');
+  el.className='toast '+tipo;
+  el.innerHTML=svg(ic)+`<span>${esc(msg)}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(30px)';el.style.transition='.3s';setTimeout(()=>el.remove(),300);},3800);
+}
+
+/* ---------- ALERTAS (derivados) ---------- */
+function getAlertas(){
+  const cfg=DB.data.config; const dd=cfg.alertaDias||30; const out=[];
+  DB.data.contratos.forEach(c=>{
+    const dias=diasEntre(c.dataFim); const a=ap(c.aprendizId); if(!a||a.status==='desligado')return;
+    if(dias!==null&&dias<0) out.push({tipo:'contrato',nivel:'alto',ico:'file',icoCls:'ico-r',titulo:`Contrato vencido — ${a.nome}`,sub:`Venceu em ${fmtData(c.dataFim)}`,ord:dias});
+    else if(dias!==null&&dias<=dd) out.push({tipo:'contrato',nivel:'medio',ico:'file',icoCls:'ico-o',titulo:`Contrato vence em ${dias} dia(s) — ${a.nome}`,sub:`Vencimento em ${fmtData(c.dataFim)}`,ord:dias});
+  });
+  DB.data.documentos.filter(d=>d.status==='pendente').forEach(d=>{
+    const dias=diasEntre(d.prazo); const a=ap(d.aprendizId);
+    const atras=dias!==null&&dias<0;
+    out.push({tipo:'assinatura',nivel:atras?'alto':'medio',ico:'sign',icoCls:atras?'ico-r':'ico-o',
+      titulo:`Assinatura pendente — ${d.titulo}`,
+      sub:`${a?a.nome:''} · Líder ${d.lider}${d.prazo?` · prazo ${fmtData(d.prazo)}${atras?' (atrasado)':''}`:''}`,ord:dias===null?999:dias});
+  });
+  DB.data.convites.filter(c=>c.status==='pendente').forEach(c=>{
+    out.push({tipo:'convite',nivel:'baixo',ico:'mail',icoCls:'ico-b',titulo:`Convite não enviado — ${c.nome}`,sub:`${c.email} · ${c.area||''}`,ord:500});
+  });
+  // aniversários próximos (7 dias)
+  DB.data.aprendizes.filter(a=>a.status!=='desligado'&&a.dataNascimento).forEach(a=>{
+    const n=a.dataNascimento; const hoje=new Date(); const aniv=new Date(hoje.getFullYear(),+n.slice(5,7)-1,+n.slice(8,10));
+    let dias=Math.round((aniv-new Date(hoje.getFullYear(),hoje.getMonth(),hoje.getDate()))/86400000);
+    if(dias<0)dias+=365;
+    if(dias<=7) out.push({tipo:'aniversario',nivel:'baixo',ico:'cake',icoCls:'ico-y',titulo:`Aniversário — ${a.nome}`,sub:dias===0?'É hoje! 🎉':`Em ${dias} dia(s)`,ord:dias});
+  });
+  return out.sort((a,b)=>a.ord-b.ord);
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+const NAV=[
+  {sec:'Principal'},
+  {id:'dashboard',label:'Dashboard',ico:'dash',title:'Dashboard',sub:'Visão geral do programa'},
+  {id:'aprendizes',label:'Aprendizes',ico:'users',title:'Base de Aprendizes',sub:'Cadastro e ativos do programa'},
+  {sec:'Documentação'},
+  {id:'contratos',label:'Contratos',ico:'file',title:'Contratos',sub:'Upload e controle de vigência'},
+  {id:'documentos',label:'Assinaturas',ico:'sign',title:'Documentos & Assinaturas',sub:'Documentos para o líder assinar'},
+  {sec:'Movimento'},
+  {id:'convites',label:'Convites',ico:'mail',title:'Convites',sub:'Envio de convites a candidatos'},
+  {id:'alertas',label:'Alertas',ico:'bell',title:'Central de Alertas',sub:'Pendências e vencimentos'},
+  {id:'relatorios',label:'Relatórios',ico:'chart',title:'Relatórios',sub:'Indicadores e exportação'},
+  {sec:'Sistema'},
+  {id:'config',label:'Configurações',ico:'gear',title:'Configurações',sub:'Preferências e dados'},
+];
+let ROTA='dashboard';
+
+function renderNav(){
+  const alertas=getAlertas();
+  const badges={
+    documentos:DB.data.documentos.filter(d=>d.status==='pendente').length,
+    alertas:alertas.length,
+    convites:DB.data.convites.filter(c=>c.status==='pendente').length,
+  };
+  document.getElementById('sbNav').innerHTML=NAV.map(n=>{
+    if(n.sec)return `<div class="sb-sec">${n.sec}</div>`;
+    const b=badges[n.id];
+    return `<a class="sb-link ${ROTA===n.id?'active':''}" data-rota="${n.id}">
+      ${svg(n.ico,'ic')}<span>${n.label}</span>${b?`<span class="badge">${b}</span>`:''}</a>`;
+  }).join('');
+  document.querySelectorAll('.sb-link').forEach(el=>el.onclick=()=>go(el.dataset.rota));
+  const dot=document.getElementById('bellDot'); dot.style.display=alertas.length?'block':'none';
+}
+
+function go(rota){
+  ROTA=rota;
+  const meta=NAV.find(n=>n.id===rota)||{};
+  document.getElementById('pageTitle').textContent=meta.title||'';
+  document.getElementById('pageSub').textContent=meta.sub||'';
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlayNav').classList.remove('open');
+  renderNav();
+  window.scrollTo(0,0);
+  ({dashboard:viewDashboard,aprendizes:viewAprendizes,contratos:viewContratos,documentos:viewDocumentos,convites:viewConvites,alertas:viewAlertas,relatorios:viewRelatorios,config:viewConfig}[rota]||viewDashboard)();
+}
+
+/* ============================================================
+   VIEW: DASHBOARD
+   ============================================================ */
+function viewDashboard(){
+  const A=DB.data.aprendizes;
+  const ativos=A.filter(a=>a.status==='ativo');
+  const alertas=getAlertas();
+  const docsPend=DB.data.documentos.filter(d=>d.status==='pendente').length;
+  const contratosVenc=DB.data.contratos.filter(c=>{const d=diasEntre(c.dataFim);const a=ap(c.aprendizId);return a&&a.status!=='desligado'&&d!==null&&d>=0&&d<=(DB.data.config.alertaDias||30);}).length;
+  const convitesAtivos=DB.data.convites.filter(c=>c.status!=='aceito').length;
+
+  // distribuição por área
+  const porArea={}; ativos.forEach(a=>porArea[a.area]=(porArea[a.area]||0)+1);
+  const areasSorted=Object.entries(porArea).sort((a,b)=>b[1]-a[1]);
+  const maxArea=Math.max(1,...areasSorted.map(x=>x[1]));
+
+  // status donut
+  const st={ativo:0,afastado:0,desligado:0}; A.forEach(a=>st[a.status]=(st[a.status]||0)+1);
+  const total=A.length||1;
+  const donutColors={ativo:'#1f9d57',afastado:'#e08a1e',desligado:'#c9c9c6'};
+  let acc=0; const segs=Object.entries(st).filter(([,v])=>v>0).map(([k,v])=>{const pct=v/total*100;const s={k,v,from:acc,to:acc+pct,color:donutColors[k]};acc+=pct;return s;});
+  const grad=segs.map(s=>`${s.color} ${s.from}% ${s.to}%`).join(',');
+
+  const kpi=(cls,ico,val,lbl,tag)=>`<div class="card kpi"><div class="kpi-top"><div class="kpi-ico ${cls}">${svg(ico)}</div>${tag||''}</div><div class="kpi-val">${val}</div><div class="kpi-lbl">${lbl}</div></div>`;
+
+  document.getElementById('view').innerHTML=`
+    <div class="grid kpi-grid">
+      ${kpi('ico-y','users',ativos.length,'Aprendizes ativos',`<span class="kpi-tag ico-g">${A.length} total</span>`)}
+      ${kpi('ico-o','file',contratosVenc,'Contratos a vencer (30d)',contratosVenc?`<span class="kpi-tag ico-o">atenção</span>`:`<span class="kpi-tag ico-g">ok</span>`)}
+      ${kpi('ico-r','sign',docsPend,'Assinaturas pendentes',docsPend?`<span class="kpi-tag ico-r">líder</span>`:`<span class="kpi-tag ico-g">ok</span>`)}
+      ${kpi('ico-b','mail',convitesAtivos,'Convites em aberto','')}
+    </div>
+
+    <div class="two-col">
+      <div class="card panel">
+        <div class="panel-head"><h2>Aprendizes por área</h2><a class="link" data-goto="aprendizes">Ver base →</a></div>
+        ${areasSorted.length?areasSorted.map(([area,n])=>`
+          <div class="bar-row"><span class="bar-lbl">${esc(area)}</span><div class="bar-track"><div class="bar-fill" style="width:${n/maxArea*100}%"></div></div><span class="bar-val">${n}</span></div>
+        `).join(''):'<p class="muted" style="font-size:13px">Sem aprendizes ativos.</p>'}
+        <div style="height:1px;background:var(--cinza-claro);margin:20px 0"></div>
+        <div class="panel-head" style="margin-bottom:14px"><h2>Situação dos aprendizes</h2></div>
+        <div class="donut-wrap">
+          <div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(${grad||'#eee 0 100%'});display:flex;align-items:center;justify-content:center;position:relative">
+            <div style="width:78px;height:78px;background:var(--branco);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-size:22px;font-weight:800">${A.length}</div><div style="font-size:10px;color:var(--cinza-sub);font-weight:700">TOTAL</div>
+            </div>
+          </div>
+          <div class="donut-legend">
+            ${Object.entries(st).map(([k,v])=>`<div class="li"><span class="dot" style="background:${donutColors[k]}"></span>${k[0].toUpperCase()+k.slice(1)} · <b>${v}</b></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card panel">
+        <div class="panel-head"><h2>Alertas &amp; pendências</h2><a class="link" data-goto="alertas">Todos →</a></div>
+        ${alertas.length?alertas.slice(0,7).map(al=>`
+          <div class="feed-item">
+            <div class="feed-ico ${al.icoCls}">${svg(al.ico)}</div>
+            <div class="feed-body"><div class="feed-title">${esc(al.titulo)}</div><div class="feed-sub">${esc(al.sub)}</div></div>
+          </div>`).join(''):`<div class="empty" style="padding:30px 10px">${svg('check','ic')}<p>Tudo em dia! Nenhuma pendência.</p></div>`}
+      </div>
+    </div>
+
+    <div class="card panel" style="margin-top:18px">
+      <div class="panel-head"><h2>Contratos próximos do vencimento</h2><a class="link" data-goto="contratos">Ver contratos →</a></div>
+      ${(()=>{
+        const linhas=DB.data.contratos.map(c=>({c,dias:diasEntre(c.dataFim),a:ap(c.aprendizId)}))
+          .filter(x=>x.a&&x.a.status!=='desligado'&&x.dias!==null).sort((a,b)=>a.dias-b.dias).slice(0,5);
+        if(!linhas.length)return '<p class="muted" style="font-size:13px">Nenhum contrato cadastrado.</p>';
+        return `<div class="table-wrap"><table><thead><tr><th>Aprendiz</th><th>Área</th><th>Vencimento</th><th>Situação</th></tr></thead><tbody>
+          ${linhas.map(({c,dias,a})=>`<tr data-open-ap="${a.id}" style="cursor:pointer">
+            <td><div class="person"><div class="avatar">${iniciais(a.nome)}</div><div class="stack-sm"><span class="nm">${esc(a.nome)}</span><span class="em">${esc(a.matricula)}</span></div></div></td>
+            <td>${esc(a.area)}</td>
+            <td class="mono nowrap">${fmtData(c.dataFim)}</td>
+            <td>${dias<0?`<span class="pill p-vencido">Vencido há ${-dias}d</span>`:dias<=30?`<span class="pill p-alerta">Vence em ${dias}d</span>`:`<span class="pill p-vigente">${dias}d restantes</span>`}</td>
+          </tr>`).join('')}
+        </tbody></table></div>`;
+      })()}
+    </div>`;
+
+  document.querySelectorAll('[data-goto]').forEach(el=>el.onclick=(e)=>{e.preventDefault();go(el.dataset.goto);});
+  document.querySelectorAll('[data-open-ap]').forEach(el=>el.onclick=()=>abrirAprendiz(el.dataset.openAp));
+}
+
+/* ============================================================
+   VIEW: APRENDIZES (base de ativos)
+   ============================================================ */
+let filtroAp={q:'',status:'',area:''};
+function viewAprendizes(){
+  const areas=[...new Set(DB.data.aprendizes.map(a=>a.area))].sort();
+  document.getElementById('view').innerHTML=`
+    <div class="toolbar">
+      <div class="search">${svg('search')}<input id="qAp" placeholder="Buscar por nome, matrícula, e-mail, líder..." value="${esc(filtroAp.q)}"></div>
+      <select class="filter" id="fStatus">
+        <option value="">Todos os status</option>
+        <option value="ativo">Ativos</option><option value="afastado">Afastados</option><option value="desligado">Desligados</option>
+      </select>
+      <select class="filter" id="fArea"><option value="">Todas as áreas</option>${areas.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select>
+      <button class="btn btn-ghost btn-sm" id="expAp">${svg('download')}CSV</button>
+      <button class="btn btn-primary btn-sm" id="novoAp">${svg('plus')}Novo aprendiz</button>
+    </div>
+    <div id="tabelaAp"></div>`;
+  document.getElementById('fStatus').value=filtroAp.status;
+  document.getElementById('fArea').value=filtroAp.area;
+  document.getElementById('qAp').oninput=e=>{filtroAp.q=e.target.value;renderTabelaAp();};
+  document.getElementById('fStatus').onchange=e=>{filtroAp.status=e.target.value;renderTabelaAp();};
+  document.getElementById('fArea').onchange=e=>{filtroAp.area=e.target.value;renderTabelaAp();};
+  document.getElementById('novoAp').onclick=()=>modalAprendiz();
+  document.getElementById('expAp').onclick=exportarAprendizesCSV;
+  renderTabelaAp();
+}
+function filtrarAprendizes(){
+  const q=filtroAp.q.toLowerCase();
+  return DB.data.aprendizes.filter(a=>{
+    if(filtroAp.status&&a.status!==filtroAp.status)return false;
+    if(filtroAp.area&&a.area!==filtroAp.area)return false;
+    if(q&&!(`${a.nome} ${a.matricula} ${a.email} ${a.lider} ${a.cpf}`.toLowerCase().includes(q)))return false;
+    return true;
+  }).sort((a,b)=>a.nome.localeCompare(b.nome));
+}
+function renderTabelaAp(){
+  const list=filtrarAprendizes();
+  const el=document.getElementById('tabelaAp');
+  if(!list.length){el.innerHTML=`<div class="card"><div class="empty">${svg('users','ic')}<h3>Nenhum aprendiz encontrado</h3><p>Ajuste os filtros ou cadastre um novo aprendiz.</p><button class="btn btn-primary" onclick="modalAprendiz()">${svg('plus')}Cadastrar aprendiz</button></div></div>`;return;}
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr>
+    <th>Aprendiz</th><th>Área</th><th>Líder</th><th>Instituição</th><th>Fim do contrato</th><th>Status</th><th></th>
+  </tr></thead><tbody>
+  ${list.map(a=>{const dias=diasEntre(a.dataFimContrato);return `<tr>
+    <td><div class="person"><div class="avatar">${iniciais(a.nome)}</div><div class="stack-sm"><span class="nm">${esc(a.nome)}</span><span class="em">${esc(a.matricula)} · ${esc(a.email)}</span></div></div></td>
+    <td>${esc(a.area)}</td>
+    <td>${esc(a.lider)}</td>
+    <td class="stack-sm"><span>${esc(a.instituicao)}</span><span class="em muted" style="font-size:11.5px">${esc(a.curso)}</span></td>
+    <td class="mono nowrap">${fmtData(a.dataFimContrato)}${dias!==null&&dias>=0&&dias<=30?`<br><span style="font-size:11px;color:var(--laranja);font-weight:700">${dias}d restantes</span>`:dias!==null&&dias<0&&a.status!=='desligado'?`<br><span style="font-size:11px;color:var(--vermelho);font-weight:700">vencido</span>`:''}</td>
+    <td><span class="pill p-${a.status}">${a.status}</span></td>
+    <td><div class="row-actions">
+      <button class="btn-icon" title="Ver" onclick="abrirAprendiz('${a.id}')">${svg('eye')}</button>
+      <button class="btn-icon" title="Editar" onclick="modalAprendiz('${a.id}')">${svg('edit')}</button>
+      <button class="btn-icon" title="Excluir" onclick="excluirAprendiz('${a.id}')">${svg('trash')}</button>
+    </div></td>
+  </tr>`;}).join('')}
+  </tbody></table></div>
+  <p class="muted" style="font-size:12px;margin-top:12px">${list.length} aprendiz(es) exibido(s)</p>`;
+}
+
+function modalAprendiz(id){
+  const a=id?ap(id):{};
+  const lideres=DB.data.lideres;
+  openModal(`${id?'Editar':'Novo'} aprendiz`, id?'Atualize os dados do aprendiz':'Cadastre um jovem aprendiz no programa', `
+    <div class="form-grid">
+      <div class="field full"><label>Nome completo <span class="req">*</span></label><input id="f_nome" value="${esc(a.nome||'')}"></div>
+      <div class="field"><label>CPF</label><input id="f_cpf" value="${esc(a.cpf||'')}" placeholder="000.000.000-00"></div>
+      <div class="field"><label>Matrícula</label><input id="f_matricula" value="${esc(a.matricula||'')}"></div>
+      <div class="field"><label>E-mail <span class="req">*</span></label><input id="f_email" type="email" value="${esc(a.email||'')}"></div>
+      <div class="field"><label>Telefone</label><input id="f_telefone" value="${esc(a.telefone||'')}"></div>
+      <div class="field"><label>Data de nascimento</label><input id="f_nasc" type="date" value="${esc(a.dataNascimento||'')}"></div>
+      <div class="field"><label>Área / Departamento</label><input id="f_area" list="areasList" value="${esc(a.area||'')}"><datalist id="areasList">${DB.data.areas.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label>Líder responsável</label><input id="f_lider" list="lideresList" value="${esc(a.lider||'')}" placeholder="Nome do líder"><datalist id="lideresList">${lideres.map(l=>`<option value="${esc(l.nome)}">`).join('')}</datalist></div>
+      <div class="field"><label>E-mail do líder</label><input id="f_liderEmail" type="email" value="${esc(a.liderEmail||'')}"></div>
+      <div class="field"><label>Instituição de ensino</label><input id="f_inst" value="${esc(a.instituicao||'')}" placeholder="SENAI, SENAC, CIEE..."></div>
+      <div class="field"><label>Curso</label><input id="f_curso" value="${esc(a.curso||'')}"></div>
+      <div class="field"><label>Carga horária</label><input id="f_carga" value="${esc(a.cargaHoraria||'')}" placeholder="6h/dia"></div>
+      <div class="field"><label>Data de admissão</label><input id="f_adm" type="date" value="${esc(a.dataAdmissao||'')}"></div>
+      <div class="field"><label>Fim do contrato</label><input id="f_fim" type="date" value="${esc(a.dataFimContrato||'')}"></div>
+      <div class="field"><label>Status</label><select id="f_status">
+        <option value="ativo" ${a.status==='ativo'?'selected':''}>Ativo</option>
+        <option value="afastado" ${a.status==='afastado'?'selected':''}>Afastado</option>
+        <option value="desligado" ${a.status==='desligado'?'selected':''}>Desligado</option>
+      </select></div>
+      <div class="field full"><label>Observações</label><textarea id="f_obs">${esc(a.observacoes||'')}</textarea></div>
+    </div>`,
+    [{label:id?'Salvar alterações':'Cadastrar',cls:'btn-primary',fn:()=>{
+      const nome=val('f_nome').trim(), email=val('f_email').trim();
+      if(!nome){toast('Informe o nome','err');return false;}
+      if(!email){toast('Informe o e-mail','err');return false;}
+      const obj={nome,cpf:val('f_cpf'),matricula:val('f_matricula'),email,telefone:val('f_telefone'),
+        dataNascimento:val('f_nasc'),area:val('f_area'),lider:val('f_lider'),liderEmail:val('f_liderEmail'),
+        instituicao:val('f_inst'),curso:val('f_curso'),cargaHoraria:val('f_carga'),
+        dataAdmissao:val('f_adm'),dataFimContrato:val('f_fim'),status:val('f_status'),observacoes:val('f_obs'),updatedAt:nowISO()};
+      if(id){Object.assign(ap(id),obj);toast('Aprendiz atualizado');}
+      else{obj.id=uid();obj.createdAt=nowISO();DB.data.aprendizes.push(obj);
+        if(val('f_area')&&!DB.data.areas.includes(val('f_area')))DB.data.areas.push(val('f_area'));
+        toast('Aprendiz cadastrado');}
+      DB.save();closeModal();renderNav();go('aprendizes');
+    }}]);
+}
+function excluirAprendiz(id){
+  const a=ap(id);
+  confirmar(`Excluir "${a.nome}"?`,'Isso remove o aprendiz e seus contratos/documentos vinculados. Ação irreversível.',async()=>{
+    const ctIds=DB.data.contratos.filter(c=>c.aprendizId===id).map(c=>c.id);
+    const ctPaths=DB.data.contratos.filter(c=>c.aprendizId===id&&c.arquivoId).map(c=>c.arquivoId);
+    const docIds=DB.data.documentos.filter(d=>d.aprendizId===id).map(d=>d.id);
+    DB.data.aprendizes=DB.data.aprendizes.filter(x=>x.id!==id);
+    DB.data.contratos=DB.data.contratos.filter(c=>c.aprendizId!==id);
+    DB.data.documentos=DB.data.documentos.filter(d=>d.aprendizId!==id);
+    for(const p of ctPaths){await Files.del(p);}
+    await dbDelete('aprendizes',id);await dbDelete('contratos',ctIds);await dbDelete('documentos',docIds);
+    DB.save();toast('Aprendiz excluído');renderNav();go('aprendizes');
+  });
+}
+
+/* ---------- DETALHE DO APRENDIZ ---------- */
+function abrirAprendiz(id){
+  const a=ap(id); if(!a)return;
+  const contratos=DB.data.contratos.filter(c=>c.aprendizId===id);
+  const docs=DB.data.documentos.filter(d=>d.aprendizId===id);
+  const dias=diasEntre(a.dataFimContrato);
+  let banner='';
+  if(a.status!=='desligado'&&dias!==null&&dias<0)banner=`<div class="alert-banner warn">${svg('warn')}Contrato vencido em ${fmtData(a.dataFimContrato)}. Providencie renovação ou encerramento.</div>`;
+  else if(a.status!=='desligado'&&dias!==null&&dias<=30)banner=`<div class="alert-banner">${svg('clock')}Contrato vence em ${dias} dia(s) — ${fmtData(a.dataFimContrato)}.</div>`;
+
+  openModal(a.nome,`${a.matricula} · ${a.area}`,`
+    ${banner}
+    <div class="detail-head">
+      <div class="detail-avatar">${iniciais(a.nome)}</div>
+      <div><div style="font-size:19px;font-weight:800">${esc(a.nome)}</div>
+      <div class="muted" style="font-size:13px;margin-top:2px">${esc(a.curso||'—')} · ${esc(a.instituicao||'—')}</div>
+      <div style="margin-top:8px"><span class="pill p-${a.status}">${a.status}</span></div></div>
+    </div>
+    <div class="info-grid">
+      <div class="info-cell"><div class="k">E-mail</div><div class="v">${esc(a.email||'—')}</div></div>
+      <div class="info-cell"><div class="k">Telefone</div><div class="v">${esc(a.telefone||'—')}</div></div>
+      <div class="info-cell"><div class="k">CPF</div><div class="v">${esc(a.cpf||'—')}</div></div>
+      <div class="info-cell"><div class="k">Idade</div><div class="v">${idade(a.dataNascimento)}</div></div>
+      <div class="info-cell"><div class="k">Líder</div><div class="v">${esc(a.lider||'—')}</div></div>
+      <div class="info-cell"><div class="k">Carga horária</div><div class="v">${esc(a.cargaHoraria||'—')}</div></div>
+      <div class="info-cell"><div class="k">Admissão</div><div class="v mono">${fmtData(a.dataAdmissao)}</div></div>
+      <div class="info-cell"><div class="k">Fim do contrato</div><div class="v mono">${fmtData(a.dataFimContrato)}</div></div>
+    </div>
+    ${a.observacoes?`<div class="section-title">Observações</div><p style="font-size:13.5px;line-height:1.6">${esc(a.observacoes)}</p>`:''}
+    <div class="section-title">Contratos (${contratos.length})</div>
+    ${contratos.length?contratos.map(c=>`<div class="feed-item"><div class="feed-ico ico-y">${svg('file')}</div>
+      <div class="feed-body"><div class="feed-title">${esc(c.tipo)}</div><div class="feed-sub">${fmtData(c.dataInicio)} → ${fmtData(c.dataFim)} ${c.arquivoNome?'· 📎 '+esc(c.arquivoNome):'· sem arquivo'}</div></div>
+      ${c.arquivoId?`<button class="btn-icon" title="Baixar" onclick="Files.open_('${c.arquivoId}','${esc(c.arquivoNome)}')">${svg('download')}</button>`:''}</div>`).join(''):'<p class="muted" style="font-size:13px">Nenhum contrato anexado.</p>'}
+    <div class="section-title">Documentos & assinaturas (${docs.length})</div>
+    ${docs.length?docs.map(d=>`<div class="feed-item"><div class="feed-ico ${d.status==='assinado'?'ico-g':'ico-o'}">${svg('sign')}</div>
+      <div class="feed-body"><div class="feed-title">${esc(d.titulo)}</div><div class="feed-sub">${esc(d.tipo)} · líder ${esc(d.lider)}</div></div>
+      <span class="pill p-${d.status}">${d.status}</span></div>`).join(''):'<p class="muted" style="font-size:13px">Nenhum documento.</p>'}
+    `,
+    [{label:'Editar',cls:'btn-ghost',fn:()=>{closeModal();modalAprendiz(id);}},
+     {label:'Novo contrato',cls:'btn-dark',fn:()=>{closeModal();modalContrato(null,id);}},
+     {label:'Solicitar assinatura',cls:'btn-primary',fn:()=>{closeModal();modalDocumento(null,id);}}],'wide');
+}
+
+/* ============================================================
+   VIEW: CONTRATOS
+   ============================================================ */
+let filtroCt={q:'',status:''};
+function viewContratos(){
+  document.getElementById('view').innerHTML=`
+    <div class="alert-banner">${svg('file')}Anexe os contratos de aprendizagem (PDF). Os arquivos ficam guardados com segurança na nuvem (Supabase) e ficam disponíveis para todo o time.</div>
+    <div class="toolbar">
+      <div class="search">${svg('search')}<input id="qCt" placeholder="Buscar por aprendiz, tipo..." value="${esc(filtroCt.q)}"></div>
+      <select class="filter" id="fCtStatus"><option value="">Todas as situações</option><option value="vigente">Vigentes</option><option value="vencido">Vencidos</option></select>
+      <button class="btn btn-primary btn-sm" id="novoCt">${svg('upload')}Anexar contrato</button>
+    </div>
+    <div id="tabelaCt"></div>`;
+  document.getElementById('fCtStatus').value=filtroCt.status;
+  document.getElementById('qCt').oninput=e=>{filtroCt.q=e.target.value;renderTabelaCt();};
+  document.getElementById('fCtStatus').onchange=e=>{filtroCt.status=e.target.value;renderTabelaCt();};
+  document.getElementById('novoCt').onclick=()=>modalContrato();
+  renderTabelaCt();
+}
+function renderTabelaCt(){
+  const q=filtroCt.q.toLowerCase();
+  let list=DB.data.contratos.map(c=>({c,a:ap(c.aprendizId),st:contratoStatus(c),dias:diasEntre(c.dataFim)}));
+  list=list.filter(x=>x.a).filter(x=>{
+    if(filtroCt.status&&x.st!==filtroCt.status)return false;
+    if(q&&!(`${x.a.nome} ${x.c.tipo}`.toLowerCase().includes(q)))return false;
+    return true;
+  }).sort((a,b)=>(a.dias??1e9)-(b.dias??1e9));
+  const el=document.getElementById('tabelaCt');
+  if(!list.length){el.innerHTML=`<div class="card"><div class="empty">${svg('file','ic')}<h3>Nenhum contrato</h3><p>Anexe o primeiro contrato de aprendizagem.</p><button class="btn btn-primary" onclick="modalContrato()">${svg('upload')}Anexar contrato</button></div></div>`;return;}
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Aprendiz</th><th>Tipo</th><th>Início</th><th>Fim</th><th>Arquivo</th><th>Situação</th><th></th></tr></thead><tbody>
+  ${list.map(({c,a,st,dias})=>`<tr>
+    <td><div class="person"><div class="avatar">${iniciais(a.nome)}</div><span class="nm">${esc(a.nome)}</span></div></td>
+    <td>${esc(c.tipo)}</td>
+    <td class="mono nowrap">${fmtData(c.dataInicio)}</td>
+    <td class="mono nowrap">${fmtData(c.dataFim)}${st==='vigente'&&dias!==null&&dias<=30&&dias>=0?`<br><span style="font-size:11px;color:var(--laranja);font-weight:700">${dias}d</span>`:''}</td>
+    <td>${c.arquivoId?`<button class="btn btn-ghost btn-sm" onclick="Files.open_('${c.arquivoId}','${esc(c.arquivoNome)}')">${svg('download')}${esc((c.arquivoNome||'arquivo').slice(0,18))}</button>`:'<span class="muted" style="font-size:12px">sem arquivo</span>'}</td>
+    <td><span class="pill p-${st}">${st}</span></td>
+    <td><div class="row-actions">
+      <button class="btn-icon" title="Editar" onclick="modalContrato('${c.id}')">${svg('edit')}</button>
+      <button class="btn-icon" title="Excluir" onclick="excluirContrato('${c.id}')">${svg('trash')}</button>
+    </div></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}
+let arquivoBuffer=null;
+function modalContrato(id,aprendizId){
+  const c=id?DB.data.contratos.find(x=>x.id===id):{};
+  arquivoBuffer=null;
+  const opts=DB.data.aprendizes.filter(a=>a.status!=='desligado'||a.id===c.aprendizId).map(a=>`<option value="${a.id}" ${(c.aprendizId||aprendizId)===a.id?'selected':''}>${esc(a.nome)} — ${esc(a.matricula)}</option>`).join('');
+  openModal(`${id?'Editar':'Anexar'} contrato`,'Vincule o documento a um aprendiz',`
+    <div class="form-grid">
+      <div class="field full"><label>Aprendiz <span class="req">*</span></label><select id="c_ap">${opts}</select></div>
+      <div class="field"><label>Tipo</label><input id="c_tipo" value="${esc(c.tipo||'Contrato de Aprendizagem')}"></div>
+      <div class="field"><label></label><span></span></div>
+      <div class="field"><label>Início da vigência</label><input id="c_ini" type="date" value="${esc(c.dataInicio||'')}"></div>
+      <div class="field"><label>Fim da vigência</label><input id="c_fim" type="date" value="${esc(c.dataFim||'')}"></div>
+      <div class="field full"><label>Arquivo do contrato (PDF, imagem, doc)</label>
+        <div class="dropzone" id="dz">${svg('upload','ic')}<p>Clique ou arraste o arquivo aqui</p><div class="sm">PDF, JPG, PNG, DOCX · até ~15 MB</div></div>
+        <input type="file" id="c_file" hidden accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        <div id="fileInfo">${c.arquivoNome?`<div class="file-chip">${svg('file')}<span class="nm">${esc(c.arquivoNome)}</span><span class="muted" style="font-size:11px">(atual)</span></div>`:''}</div>
+      </div>
+    </div>`,
+    [{label:id?'Salvar':'Anexar contrato',cls:'btn-primary',fn:async()=>{
+      const apId=val('c_ap'); if(!apId){toast('Selecione o aprendiz','err');return false;}
+      const obj={aprendizId:apId,tipo:val('c_tipo'),dataInicio:val('c_ini'),dataFim:val('c_fim')};
+      if(arquivoBuffer){
+        const safe=(arquivoBuffer.nome||'arquivo').replace(/[^\w.\-]+/g,'_');
+        const path=uid()+'-'+safe;
+        try{await Files.put(path,arquivoBuffer.blob);}catch(e){toast('Falha ao enviar arquivo: '+e.message,'err');return false;}
+        if(id&&c.arquivoId)await Files.del(c.arquivoId);
+        obj.arquivoId=path;obj.arquivoNome=arquivoBuffer.nome;
+      }
+      if(id){Object.assign(c,obj);toast('Contrato atualizado');}
+      else{obj.id=uid();obj.createdAt=nowISO();if(!obj.arquivoId){obj.arquivoId=null;obj.arquivoNome=null;}DB.data.contratos.push(obj);toast('Contrato anexado');}
+      DB.save();closeModal();renderNav();if(ROTA==='contratos')renderTabelaCt();else go('contratos');
+    }}]);
+  const dz=document.getElementById('dz'),fi=document.getElementById('c_file');
+  dz.onclick=()=>fi.click();
+  dz.ondragover=e=>{e.preventDefault();dz.classList.add('drag');};
+  dz.ondragleave=()=>dz.classList.remove('drag');
+  dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])pegarArquivo(e.dataTransfer.files[0]);};
+  fi.onchange=e=>{if(e.target.files[0])pegarArquivo(e.target.files[0]);};
+}
+function pegarArquivo(file){
+  if(file.size>16*1024*1024){toast('Arquivo muito grande (máx ~15 MB)','err');return;}
+  arquivoBuffer={blob:file,nome:file.name};
+  document.getElementById('fileInfo').innerHTML=`<div class="file-chip">${svg('file')}<span class="nm">${esc(file.name)}</span><span class="muted" style="font-size:11px">${(file.size/1024/1024).toFixed(1)} MB</span></div>`;
+}
+function excluirContrato(id){
+  const c=DB.data.contratos.find(x=>x.id===id);
+  confirmar('Excluir contrato?','O arquivo anexado também será removido.',async()=>{
+    if(c.arquivoId)await Files.del(c.arquivoId);
+    DB.data.contratos=DB.data.contratos.filter(x=>x.id!==id);
+    await dbDelete('contratos',id);
+    DB.save();toast('Contrato excluído');renderNav();renderTabelaCt();
+  });
+}
+
+/* ============================================================
+   VIEW: DOCUMENTOS & ASSINATURAS
+   ============================================================ */
+let filtroDoc='';
+function viewDocumentos(){
+  document.getElementById('view').innerHTML=`
+    <div class="alert-banner">${svg('sign')}Aqui você registra documentos que precisam da <b>assinatura do líder</b> e dispara o aviso por e-mail. Acompanhe o status até a assinatura.</div>
+    <div class="toolbar">
+      <select class="filter" id="fDoc"><option value="">Todos</option><option value="pendente">Pendentes</option><option value="assinado">Assinados</option></select>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary btn-sm" id="novoDoc">${svg('plus')}Novo documento</button>
+    </div>
+    <div id="tabelaDoc"></div>`;
+  document.getElementById('fDoc').value=filtroDoc;
+  document.getElementById('fDoc').onchange=e=>{filtroDoc=e.target.value;renderTabelaDoc();};
+  document.getElementById('novoDoc').onclick=()=>modalDocumento();
+  renderTabelaDoc();
+}
+function renderTabelaDoc(){
+  let list=DB.data.documentos.filter(d=>!filtroDoc||d.status===filtroDoc)
+    .sort((a,b)=>(a.status===b.status?0:a.status==='pendente'?-1:1)||0 || ((diasEntre(a.prazo)??1e9)-(diasEntre(b.prazo)??1e9)));
+  const el=document.getElementById('tabelaDoc');
+  if(!list.length){el.innerHTML=`<div class="card"><div class="empty">${svg('sign','ic')}<h3>Nenhum documento</h3><p>Cadastre um documento para assinatura do líder.</p><button class="btn btn-primary" onclick="modalDocumento()">${svg('plus')}Novo documento</button></div></div>`;return;}
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Aprendiz</th><th>Líder</th><th>Prazo</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(d=>{const dias=diasEntre(d.prazo);const atras=d.status==='pendente'&&dias!==null&&dias<0;return `<tr>
+    <td class="stack-sm"><span class="nm" style="font-weight:700">${esc(d.titulo)}</span><span class="em muted" style="font-size:11.5px">${esc(d.tipo)}</span></td>
+    <td>${esc(nomeAp(d.aprendizId))}</td>
+    <td class="stack-sm"><span>${esc(d.lider)}</span><span class="em muted" style="font-size:11.5px">${esc(d.liderEmail||'')}</span></td>
+    <td class="mono nowrap">${d.prazo?fmtData(d.prazo):'—'}${atras?'<br><span style="font-size:11px;color:var(--vermelho);font-weight:700">atrasado</span>':d.status==='assinado'&&d.assinadoEm?`<br><span style="font-size:11px;color:var(--verde);font-weight:700">✓ ${fmtData(d.assinadoEm)}</span>`:''}</td>
+    <td><span class="pill p-${d.status}">${d.status}</span></td>
+    <td><div class="row-actions">
+      ${d.status==='pendente'?`<button class="btn-icon" title="Enviar aviso ao líder" onclick="avisarLider('${d.id}')">${svg('send')}</button>
+      <button class="btn-icon" title="Marcar como assinado" onclick="marcarAssinado('${d.id}')">${svg('check')}</button>`:''}
+      <button class="btn-icon" title="Editar" onclick="modalDocumento('${d.id}')">${svg('edit')}</button>
+      <button class="btn-icon" title="Excluir" onclick="excluirDoc('${d.id}')">${svg('trash')}</button>
+    </div></td>
+  </tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function modalDocumento(id,aprendizId){
+  const d=id?DB.data.documentos.find(x=>x.id===id):{};
+  const preAp=d.aprendizId||aprendizId||'';
+  const opts='<option value="">— selecione —</option>'+DB.data.aprendizes.map(a=>`<option value="${a.id}" ${preAp===a.id?'selected':''}>${esc(a.nome)}</option>`).join('');
+  openModal(`${id?'Editar':'Novo'} documento`,'Documento para assinatura do líder',`
+    <div class="form-grid">
+      <div class="field full"><label>Título do documento <span class="req">*</span></label><input id="d_titulo" value="${esc(d.titulo||'')}" placeholder="Ex.: Termo de renovação de contrato"></div>
+      <div class="field"><label>Tipo</label><input id="d_tipo" list="tiposDoc" value="${esc(d.tipo||'')}" placeholder="Aditivo, Avaliação, Renovação..."><datalist id="tiposDoc"><option>Aditivo contratual<option>Avaliação<option>Renovação<option>Folha de ponto<option>Termo de desligamento<option>Advertência</datalist></div>
+      <div class="field"><label>Aprendiz</label><select id="d_ap">${opts}</select></div>
+      <div class="field"><label>Líder responsável <span class="req">*</span></label><input id="d_lider" list="lideresList2" value="${esc(d.lider||'')}"><datalist id="lideresList2">${DB.data.lideres.map(l=>`<option value="${esc(l.nome)}">`).join('')}</datalist></div>
+      <div class="field"><label>E-mail do líder <span class="req">*</span></label><input id="d_email" type="email" value="${esc(d.liderEmail||'')}"></div>
+      <div class="field"><label>Prazo para assinatura</label><input id="d_prazo" type="date" value="${esc(d.prazo||'')}"></div>
+    </div>
+    <p class="hint" style="margin-top:14px">Ao salvar você poderá disparar o aviso por e-mail para o líder na tabela (ícone ✈️).</p>`,
+    [{label:id?'Salvar':'Cadastrar',cls:'btn-primary',fn:()=>{
+      const titulo=val('d_titulo').trim(),lider=val('d_lider').trim(),email=val('d_email').trim();
+      if(!titulo){toast('Informe o título','err');return false;}
+      if(!lider||!email){toast('Informe o líder e o e-mail','err');return false;}
+      // auto preenche email do líder pelo aprendiz
+      const obj={titulo,tipo:val('d_tipo'),aprendizId:val('d_ap'),lider,liderEmail:email,prazo:val('d_prazo')};
+      if(id){Object.assign(d,obj);toast('Documento atualizado');}
+      else{obj.id=uid();obj.status='pendente';obj.createdAt=nowISO();DB.data.documentos.push(obj);toast('Documento cadastrado');}
+      DB.save();closeModal();renderNav();if(ROTA==='documentos')renderTabelaDoc();else go('documentos');
+    }}]);
+  // auto: ao escolher aprendiz, sugere líder
+  document.getElementById('d_ap').onchange=e=>{const a=ap(e.target.value);if(a){if(!val('d_lider'))document.getElementById('d_lider').value=a.lider||'';if(!val('d_email'))document.getElementById('d_email').value=a.liderEmail||'';}};
+}
+function marcarAssinado(id){
+  const d=DB.data.documentos.find(x=>x.id===id);
+  d.status='assinado';d.assinadoEm=new Date().toISOString().slice(0,10);
+  DB.save();toast('Documento marcado como assinado');renderNav();renderTabelaDoc();
+}
+function excluirDoc(id){
+  confirmar('Excluir documento?','',async()=>{DB.data.documentos=DB.data.documentos.filter(x=>x.id!==id);await dbDelete('documentos',id);DB.save();toast('Documento excluído');renderNav();renderTabelaDoc();});
+}
+function avisarLider(id){
+  const d=DB.data.documentos.find(x=>x.id===id); const a=ap(d.aprendizId);
+  const cfg=DB.data.config;
+  const assunto=`[Assinatura pendente] ${d.titulo}${a?` — ${a.nome}`:''}`;
+  const corpo=
+`Olá ${d.lider.split(' ')[0]},
+
+Há um documento aguardando sua assinatura no programa Jovem Aprendiz da ${cfg.empresa||'CIMED'}:
+
+• Documento: ${d.titulo}
+• Tipo: ${d.tipo||'—'}
+${a?`• Aprendiz: ${a.nome} (${a.matricula}) — ${a.area}\n`:''}${d.prazo?`• Prazo para assinatura: ${fmtData(d.prazo)}\n`:''}
+Por favor, providencie a assinatura o quanto antes.
+
+Atenciosamente,
+${cfg.responsavel||'Equipe de Gestão de Aprendizes'}
+${cfg.empresa||'CIMED'}`;
+  const html=corpo.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  dispararEmail({to:d.liderEmail,subject:assunto,html,texto:corpo,replyTo:cfg.responsavelEmail,
+    okMsg:`Aviso enviado para ${d.lider}`,contexto:'assinatura'});
+}
+
+/* ============================================================
+   VIEW: CONVITES
+   ============================================================ */
+function viewConvites(){
+  document.getElementById('view').innerHTML=`
+    <div class="alert-banner">${svg('mail')}Convide candidatos a jovem aprendiz. O convite é enviado por e-mail com um link de cadastro. Acompanhe quem já aceitou.</div>
+    <div class="toolbar"><div style="flex:1"></div><button class="btn btn-primary btn-sm" id="novoConv">${svg('plus')}Novo convite</button></div>
+    <div id="tabelaConv"></div>`;
+  document.getElementById('novoConv').onclick=()=>modalConvite();
+  renderTabelaConv();
+}
+function renderTabelaConv(){
+  const list=DB.data.convites.slice().sort((a,b)=>(b.enviadoEm||'').localeCompare(a.enviadoEm||''));
+  const el=document.getElementById('tabelaConv');
+  if(!list.length){el.innerHTML=`<div class="card"><div class="empty">${svg('mail','ic')}<h3>Nenhum convite</h3><p>Convide o primeiro candidato.</p><button class="btn btn-primary" onclick="modalConvite()">${svg('plus')}Novo convite</button></div></div>`;return;}
+  el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Candidato</th><th>E-mail</th><th>Área</th><th>Enviado em</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(c=>`<tr>
+    <td><div class="person"><div class="avatar">${iniciais(c.nome)}</div><span class="nm">${esc(c.nome)}</span></div></td>
+    <td>${esc(c.email)}</td><td>${esc(c.area||'—')}</td>
+    <td class="mono nowrap">${c.enviadoEm?fmtData(c.enviadoEm):'—'}</td>
+    <td><span class="pill p-${c.status}">${c.status}</span></td>
+    <td><div class="row-actions">
+      ${c.status!=='aceito'?`<button class="btn-icon" title="Enviar convite" onclick="enviarConvite('${c.id}')">${svg('send')}</button>`:''}
+      <button class="btn-icon" title="Copiar link" onclick="copiarLink('${c.token}')">${svg('link')}</button>
+      ${c.status==='enviado'?`<button class="btn-icon" title="Marcar como aceito" onclick="aceitarConvite('${c.id}')">${svg('check')}</button>`:''}
+      <button class="btn-icon" title="Excluir" onclick="excluirConvite('${c.id}')">${svg('trash')}</button>
+    </div></td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+}
+function modalConvite(){
+  openModal('Novo convite','Convide um candidato para o programa',`
+    <div class="form-grid">
+      <div class="field full"><label>Nome do candidato <span class="req">*</span></label><input id="v_nome"></div>
+      <div class="field"><label>E-mail <span class="req">*</span></label><input id="v_email" type="email"></div>
+      <div class="field"><label>Área de interesse</label><input id="v_area" list="areasList3"><datalist id="areasList3">${DB.data.areas.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+    </div>
+    <p class="hint" style="margin-top:12px">Após criar, clique em ✈️ para enviar o e-mail com o link de cadastro.</p>`,
+    [{label:'Criar e enviar',cls:'btn-primary',fn:async()=>{
+      const nome=val('v_nome').trim(),email=val('v_email').trim();
+      if(!nome||!email){toast('Preencha nome e e-mail','err');return false;}
+      const c={id:uid(),nome,email,area:val('v_area'),status:'pendente',enviadoEm:null,token:uid()};
+      DB.data.convites.push(c);DB.save();closeModal();renderNav();
+      if(ROTA==='convites')renderTabelaConv();else go('convites');
+      enviarConvite(c.id);
+    }},
+    {label:'Só criar',cls:'btn-ghost',fn:()=>{
+      const nome=val('v_nome').trim(),email=val('v_email').trim();
+      if(!nome||!email){toast('Preencha nome e e-mail','err');return false;}
+      DB.data.convites.push({id:uid(),nome,email,area:val('v_area'),status:'pendente',enviadoEm:null,token:uid()});
+      DB.save();closeModal();toast('Convite criado');renderNav();if(ROTA==='convites')renderTabelaConv();else go('convites');
+    }}]);
+}
+function linkConvite(token){return `${location.origin}${location.pathname.replace(/index\.html$/,'')}?convite=${token}`;}
+function copiarLink(token){
+  const url=linkConvite(token);
+  navigator.clipboard?.writeText(url).then(()=>toast('Link copiado!')).catch(()=>toast(url,'info'));
+}
+function enviarConvite(id){
+  const c=DB.data.convites.find(x=>x.id===id); const cfg=DB.data.config;
+  const url=linkConvite(c.token);
+  const assunto=`Convite — Programa Jovem Aprendiz ${cfg.empresa||'CIMED'}`;
+  const corpo=
+`Olá ${c.nome.split(' ')[0]},
+
+Você foi convidado(a) a participar do processo do Programa Jovem Aprendiz da ${cfg.empresa||'CIMED'}${c.area?` para a área de ${c.area}`:''}.
+
+Para iniciar seu cadastro, acesse o link abaixo:
+${url}
+
+Estamos animados para te conhecer!
+
+Atenciosamente,
+${cfg.responsavel||'Equipe de Gestão de Aprendizes'}
+${cfg.empresa||'CIMED'}`;
+  const html=corpo.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>').replace(esc(url),`<a href="${esc(url)}">${esc(url)}</a>`);
+  dispararEmail({to:c.email,subject:assunto,html,texto:corpo,replyTo:cfg.responsavelEmail,
+    okMsg:`Convite enviado para ${c.nome}`,contexto:'convite',
+    onOk:()=>{c.status='enviado';c.enviadoEm=new Date().toISOString().slice(0,10);DB.save();renderNav();if(ROTA==='convites')renderTabelaConv();}});
+}
+function aceitarConvite(id){const c=DB.data.convites.find(x=>x.id===id);c.status='aceito';DB.save();toast('Convite aceito');renderNav();renderTabelaConv();}
+function excluirConvite(id){confirmar('Excluir convite?','',async()=>{DB.data.convites=DB.data.convites.filter(x=>x.id!==id);await dbDelete('convites',id);DB.save();toast('Convite excluído');renderNav();renderTabelaConv();});}
+
+/* ============================================================
+   ENVIO DE E-MAIL (Netlify Function + fallback mailto)
+   ============================================================ */
+async function dispararEmail({to,subject,html,texto,replyTo,okMsg,onOk,contexto}){
+  // tenta a function; se falhar, oferece fallback mailto
+  let loading=toast('Enviando e-mail...','info');
+  try{
+    const resp=await fetch('/.netlify/functions/enviar-email',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({to,subject,html,replyTo:replyTo||undefined}),
+    });
+    const data=await resp.json().catch(()=>({}));
+    if(resp.ok&&!data.error){toast(okMsg||'E-mail enviado','ok');onOk&&onOk();return;}
+    throw new Error(data.error||('HTTP '+resp.status));
+  }catch(err){
+    // fallback: abre cliente de e-mail
+    const ok=confirm(`Não foi possível enviar automaticamente (${err.message}).\n\nDeseja abrir seu programa de e-mail para enviar manualmente?`);
+    if(ok){
+      const mail=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(texto||'')}`;
+      window.location.href=mail;
+      onOk&&onOk();
+    }
+    toast('Envio automático indisponível — verifique a chave RESEND_API_KEY','err');
+  }
+}
+
+/* ============================================================
+   VIEW: ALERTAS
+   ============================================================ */
+function viewAlertas(){
+  const alertas=getAlertas();
+  const grupos={alto:[],medio:[],baixo:[]};
+  alertas.forEach(a=>grupos[a.nivel].push(a));
+  const bloco=(titulo,arr,cor)=>arr.length?`
+    <div class="card panel" style="margin-bottom:18px">
+      <div class="panel-head"><h2>${titulo} <span class="muted" style="font-weight:600">(${arr.length})</span></h2></div>
+      ${arr.map(al=>`<div class="feed-item"><div class="feed-ico ${al.icoCls}">${svg(al.ico)}</div>
+        <div class="feed-body"><div class="feed-title">${esc(al.titulo)}</div><div class="feed-sub">${esc(al.sub)}</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="irPara('${al.tipo}')">Resolver</button></div>`).join('')}
+    </div>`:'';
+  document.getElementById('view').innerHTML=
+    (alertas.length?'':`<div class="card"><div class="empty">${svg('check','ic')}<h3>Tudo em dia 🎉</h3><p>Nenhuma pendência no momento.</p></div></div>`)+
+    bloco('🔴 Urgente',grupos.alto)+bloco('🟠 Atenção',grupos.medio)+bloco('🔵 Informativo',grupos.baixo);
+}
+function irPara(tipo){go({contrato:'contratos',assinatura:'documentos',convite:'convites',aniversario:'aprendizes'}[tipo]||'dashboard');}
+
+/* ============================================================
+   VIEW: RELATÓRIOS
+   ============================================================ */
+function viewRelatorios(){
+  const A=DB.data.aprendizes;
+  const ativos=A.filter(a=>a.status==='ativo');
+  const porArea={},porLider={},porInst={};
+  ativos.forEach(a=>{porArea[a.area]=(porArea[a.area]||0)+1;porLider[a.lider]=(porLider[a.lider]||0)+1;porInst[a.instituicao]=(porInst[a.instituicao]||0)+1;});
+  const docs=DB.data.documentos;
+  const taxaAssin=docs.length?Math.round(docs.filter(d=>d.status==='assinado').length/docs.length*100):0;
+  const conv=DB.data.convites;
+  const taxaAceite=conv.length?Math.round(conv.filter(c=>c.status==='aceito').length/conv.length*100):0;
+  // tempo médio de casa (ativos)
+  const temposMeses=ativos.filter(a=>a.dataAdmissao).map(a=>{const d=(new Date()-new Date(a.dataAdmissao))/86400000/30.4;return d;});
+  const mediaMeses=temposMeses.length?Math.round(temposMeses.reduce((s,x)=>s+x,0)/temposMeses.length):0;
+
+  const barras=(obj,cor)=>{const e=Object.entries(obj).sort((a,b)=>b[1]-a[1]);const mx=Math.max(1,...e.map(x=>x[1]));return e.length?e.map(([k,v])=>`<div class="bar-row"><span class="bar-lbl">${esc(k||'—')}</span><div class="bar-track"><div class="bar-fill" style="width:${v/mx*100}%;background:${cor||'var(--amarelo)'}"></div></div><span class="bar-val">${v}</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sem dados.</p>';};
+
+  const kpi=(cls,ico,val,lbl)=>`<div class="card kpi"><div class="kpi-top"><div class="kpi-ico ${cls}">${svg(ico)}</div></div><div class="kpi-val">${val}</div><div class="kpi-lbl">${lbl}</div></div>`;
+
+  document.getElementById('view').innerHTML=`
+    <div class="toolbar"><div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="exportarAprendizesCSV()">${svg('download')}Aprendizes (CSV)</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportarContratosCSV()">${svg('download')}Contratos (CSV)</button>
+    </div>
+    <div class="grid kpi-grid">
+      ${kpi('ico-g','users',ativos.length,'Aprendizes ativos')}
+      ${kpi('ico-b','briefcase',mediaMeses+' m','Tempo médio de programa')}
+      ${kpi('ico-y','sign',taxaAssin+'%','Documentos assinados')}
+      ${kpi('ico-o','mail',taxaAceite+'%','Taxa de aceite de convites')}
+    </div>
+    <div class="two-col">
+      <div class="card panel"><div class="panel-head"><h2>Aprendizes por área</h2></div>${barras(porArea)}</div>
+      <div class="card panel"><div class="panel-head"><h2>Por instituição de ensino</h2></div>${barras(porInst,'#2b6cb0')}</div>
+    </div>
+    <div class="card panel" style="margin-top:18px"><div class="panel-head"><h2>Aprendizes por líder</h2></div>${barras(porLider,'#1f9d57')}</div>`;
+}
+
+/* ---------- EXPORTAÇÃO CSV ---------- */
+function baixarCSV(nome,linhas){
+  const csv='﻿'+linhas.map(r=>r.map(c=>`"${String(c==null?'':c).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=nome;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('CSV exportado');
+}
+function exportarAprendizesCSV(){
+  const head=['Nome','CPF','Matrícula','E-mail','Telefone','Área','Líder','Instituição','Curso','Admissão','Fim contrato','Status'];
+  const rows=DB.data.aprendizes.map(a=>[a.nome,a.cpf,a.matricula,a.email,a.telefone,a.area,a.lider,a.instituicao,a.curso,fmtData(a.dataAdmissao),fmtData(a.dataFimContrato),a.status]);
+  baixarCSV('aprendizes_cimed.csv',[head,...rows]);
+}
+function exportarContratosCSV(){
+  const head=['Aprendiz','Tipo','Início','Fim','Situação','Arquivo'];
+  const rows=DB.data.contratos.map(c=>[nomeAp(c.aprendizId),c.tipo,fmtData(c.dataInicio),fmtData(c.dataFim),contratoStatus(c),c.arquivoNome||'—']);
+  baixarCSV('contratos_cimed.csv',[head,...rows]);
+}
+
+/* ============================================================
+   VIEW: CONFIGURAÇÕES
+   ============================================================ */
+function viewConfig(){
+  const c=DB.data.config;
+  document.getElementById('view').innerHTML=`
+    <div class="card panel" style="max-width:640px">
+      <div class="panel-head"><h2>Preferências da organização</h2></div>
+      <div class="form-grid">
+        <div class="field full"><label>Nome da empresa</label><input id="cfg_empresa" value="${esc(c.empresa||'')}"></div>
+        <div class="field"><label>Responsável pelo programa</label><input id="cfg_resp" value="${esc(c.responsavel||'')}"></div>
+        <div class="field"><label>E-mail do responsável (reply-to)</label><input id="cfg_respEmail" type="email" value="${esc(c.responsavelEmail||'')}"></div>
+        <div class="field"><label>Antecedência de alerta de vencimento (dias)</label><input id="cfg_dias" type="number" value="${esc(c.alertaDias||30)}"></div>
+        <div class="field"><label>Remetente configurado</label><input value="EMAIL_REMETENTE (Netlify)" disabled style="color:var(--cinza-sub)"></div>
+      </div>
+      <div style="margin-top:20px"><button class="btn btn-primary" onclick="salvarConfig()">${svg('check')}Salvar preferências</button></div>
+    </div>
+
+    <div class="card panel" style="max-width:640px;margin-top:18px">
+      <div class="panel-head"><h2>Envio de e-mail</h2></div>
+      <p style="font-size:13.5px;line-height:1.7;color:var(--cinza-texto)">
+      O envio real usa a Netlify Function <code>enviar-email</code> com o <b>Resend</b>. Para ativar:</p>
+      <ol style="font-size:13.5px;line-height:1.9;color:var(--cinza-texto);margin:10px 0 0 20px">
+        <li>Crie uma conta em <b>resend.com</b> e gere uma API Key.</li>
+        <li>Na Netlify: <b>Site settings → Environment variables</b>, adicione <code>RESEND_API_KEY</code>.</li>
+        <li>Opcional: <code>EMAIL_REMETENTE</code> com um domínio verificado (ex.: <code>Aprendizes CIMED &lt;aprendizes@cimed.com.br&gt;</code>).</li>
+      </ol>
+      <p style="font-size:12.5px;color:var(--cinza-sub);margin-top:12px">Sem a chave, o sistema abre seu programa de e-mail (mailto) como alternativa.</p>
+    </div>
+
+    <div class="card panel" style="max-width:640px;margin-top:18px">
+      <div class="panel-head"><h2>Dados</h2></div>
+      <p style="font-size:13.5px;color:var(--cinza-texto);line-height:1.6">Os dados ficam na nuvem (Supabase), compartilhados e sincronizados entre todo o time em tempo real. Exporte um backup quando quiser.</p>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="exportarAprendizesCSV()">${svg('download')}Exportar aprendizes</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportarBackup()">${svg('download')}Backup (JSON)</button>
+        <button class="btn btn-dark btn-sm" onclick="resetarDados()">${svg('users')}Carregar base de exemplo (30)</button>
+      </div>
+    </div>`;
+}
+function salvarConfig(){
+  const c=DB.data.config;
+  c.empresa=val('cfg_empresa');c.responsavel=val('cfg_resp');c.responsavelEmail=val('cfg_respEmail');
+  c.alertaDias=parseInt(val('cfg_dias'))||30;
+  DB.save();toast('Preferências salvas');renderNav();
+}
+function exportarBackup(){
+  const blob=new Blob([JSON.stringify(DB.data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='backup_aprendizes_cimed.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('Backup exportado');
+}
+function resetarDados(){
+  confirmar('Carregar dados de exemplo?','Isso grava um conjunto de dados de demonstração no banco compartilhado do time (útil só para testar). Registros existentes com mesmo código são sobrescritos.',async()=>{DB.data=seed();await syncAll();toast('Dados de exemplo carregados');renderNav();go('dashboard');});
+}
+
+/* ============================================================
+   MODAL / CONFIRM GENÉRICO
+   ============================================================ */
+let modalActions=[];
+function openModal(titulo,sub,bodyHTML,actions,wide){
+  modalActions=actions||[];
+  const ov=document.getElementById('overlay');
+  ov.innerHTML=`<div class="modal ${wide||''}">
+    <div class="modal-head"><div><h2>${esc(titulo)}</h2>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div><button class="close-x" onclick="closeModal()">${svg('x')}</button></div>
+    <div class="modal-body">${bodyHTML}</div>
+    ${modalActions.length?`<div class="modal-foot">${modalActions.map((a,i)=>`<button class="btn ${a.cls||'btn-ghost'}" data-act="${i}">${esc(a.label)}</button>`).join('')}</div>`:''}
+  </div>`;
+  ov.classList.add('open');
+  ov.querySelectorAll('[data-act]').forEach(b=>b.onclick=async()=>{const a=modalActions[+b.dataset.act];const r=await a.fn();/* fn retorna false p/ manter aberto */});
+  ov.onclick=e=>{if(e.target===ov)closeModal();};
+}
+function closeModal(){const ov=document.getElementById('overlay');ov.classList.remove('open');ov.innerHTML='';}
+function confirmar(titulo,sub,fn){
+  openModal(titulo,sub,`<p style="font-size:14px;color:var(--cinza-texto);line-height:1.6">${sub?'':'Confirme a ação.'}</p>`,
+    [{label:'Cancelar',cls:'btn-ghost',fn:()=>closeModal()},
+     {label:'Confirmar',cls:'btn-danger',fn:()=>{fn();closeModal();}}]);
+}
+function val(id){const e=document.getElementById(id);return e?e.value:'';}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+document.getElementById('hamburger').onclick=()=>{document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlayNav').classList.toggle('open');};
+document.getElementById('overlayNav').onclick=()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('overlayNav').classList.remove('open');};
+document.getElementById('quickAdd').onclick=()=>modalAprendiz();
+document.getElementById('bellBtn').onclick=()=>go('alertas');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ---------- AUTENTICAÇÃO + BOOT ---------- */
+function showLogin(){
+  if(document.getElementById('loginScreen'))return;
+  const el=document.createElement('div');
+  el.id='loginScreen';
+  el.innerHTML=`<div class="login-card">
+    <div class="login-brand"><span class="sb-logo">CIMED</span><span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza-sub)">Gestão de<br>Jovens Aprendizes</span></div>
+    <h2 style="font-size:21px;font-weight:800;margin:24px 0 4px">Entrar</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:22px">Acesse com seu e-mail e senha do time.</p>
+    <form id="loginForm">
+      <div class="field" style="margin-bottom:14px"><label>E-mail</label><input id="li_email" type="email" autocomplete="username" required></div>
+      <div class="field" style="margin-bottom:20px"><label>Senha</label><input id="li_pass" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-primary" type="submit" id="li_btn" style="width:100%;justify-content:center">Entrar</button>
+      <p id="li_err" style="color:var(--vermelho);font-size:12.5px;font-weight:600;margin-top:12px;min-height:16px"></p>
+    </form>
+  </div>`;
+  document.body.appendChild(el);
+  document.getElementById('loginForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const btn=document.getElementById('li_btn');btn.textContent='Entrando...';btn.disabled=true;
+    const {error}=await sb.auth.signInWithPassword({email:val('li_email').trim(),password:val('li_pass')});
+    if(error){document.getElementById('li_err').textContent='E-mail ou senha inválidos.';btn.textContent='Entrar';btn.disabled=false;return;}
+    el.remove();await startApp();
+  };
+}
+async function startApp(){
+  try{await DB.load();}catch(e){toast('Erro ao carregar dados: '+e.message,'err');return;}
+  try{const {data:{user}}=await sb.auth.getUser();const f=document.getElementById('sbUser');if(f&&user)f.textContent=user.email;}catch(e){}
+  renderNav();
+  subscribeRealtime();
+  const params=new URLSearchParams(location.search);
+  if(params.get('convite')){
+    const t=params.get('convite');const c=DB.data.convites.find(x=>x.token===t);
+    setTimeout(()=>{
+      openModal('Bem-vindo ao Programa Jovem Aprendiz','Cadastro via convite',
+        `<p style="font-size:14px;line-height:1.7">Olá${c?', '+esc(c.nome.split(' ')[0]):''}! Que bom ter você aqui. 🎉<br><br>O cadastro do candidato pode ser feito pela base de aprendizes.</p>`,
+        [{label:'Entendi',cls:'btn-primary',fn:()=>{history.replaceState(null,'',location.pathname);closeModal();}}]);
+    },300);
+  }
+  go('dashboard');
+}
+let rtT=null;
+function subscribeRealtime(){
+  try{
+    sb.channel('cimed-rt').on('postgres_changes',{event:'*',schema:'public'},()=>{
+      clearTimeout(rtT);rtT=setTimeout(async()=>{try{await DB.load();renderNav();go(ROTA);}catch(e){}},900);
+    }).subscribe();
+  }catch(e){}
+}
+async function logout(){try{await sb.auth.signOut();}catch(e){}location.reload();}
+(async function boot(){
+  if(!initSupabase())return;
+  let session=null;
+  try{const r=await sb.auth.getSession();session=r.data.session;}catch(e){}
+  if(!session){showLogin();return;}
+  await startApp();
+})();
+</script>
+</body>
+</html>
