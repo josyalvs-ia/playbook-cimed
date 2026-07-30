@@ -1,30 +1,36 @@
 # Plataforma de Gestão de Jovens Aprendizes — CIMED
 
-App web (SPA) para gerir o programa Jovem Aprendiz. Acessível em `/plataforma/` após o deploy no Netlify.
+App web (SPA) para gerir o programa Jovem Aprendiz. Acessível em `/plataforma/` após o deploy no Netlify. **Multiusuário**: login individual e dados compartilhados pelo time via Supabase.
 
 ## O que tem
 
-- **Dashboard** — KPIs (ativos, contratos a vencer, assinaturas pendentes, convites), distribuição por área, situação dos aprendizes e contratos próximos do vencimento.
-- **Base de Aprendizes** — cadastro completo (dados pessoais, área, líder, instituição, curso, vigência), busca, filtros, ficha detalhada e exportação CSV.
-- **Contratos** — upload de contratos (PDF/imagem/doc) vinculados ao aprendiz, com controle de vigência e alerta de vencimento. Arquivos ficam no navegador (IndexedDB).
-- **Documentos & Assinaturas** — registro de documentos que precisam da assinatura do líder, com prazo, status e **aviso por e-mail ao líder**.
-- **Convites** — envio de convites por e-mail a candidatos, com link de cadastro e acompanhamento (pendente / enviado / aceito).
-- **Alertas** — central de pendências (contratos vencendo, assinaturas atrasadas, convites, aniversários).
-- **Relatórios** — indicadores e exportação CSV.
-- **Configurações** — dados da organização e backup/restauração.
+- **Login** (Supabase Auth) — cada pessoa entra com e-mail e senha.
+- **Dashboard** — KPIs, distribuição por área, situação dos aprendizes e contratos próximos do vencimento.
+- **Base de Aprendizes** — cadastro completo, busca, filtros, ficha detalhada e exportação CSV.
+- **Contratos** — upload de contratos (PDF/imagem/doc) guardados na nuvem (Supabase Storage), com controle de vigência.
+- **Documentos & Assinaturas** — documentos que precisam da assinatura do líder, com prazo, status e aviso por e-mail.
+- **Convites** — envio de convites por e-mail a candidatos, com link e acompanhamento.
+- **Alertas**, **Relatórios** e **Configurações**.
 
-## Persistência
+## Arquitetura
 
-Os dados estruturados ficam em `localStorage` e os arquivos em `IndexedDB` (no navegador do usuário). Não há banco de dados no servidor nesta versão. Use **Configurações → Backup (JSON)** para salvar/restaurar.
+- Frontend: HTML/CSS/JS puro (sem build), servido pelo Netlify.
+- Dados + arquivos: **Supabase** (Postgres + Storage), compartilhados e sincronizados em tempo real entre o time.
+- Envio de e-mail: **Netlify Function** `enviar-email.js` (Resend).
 
-## Envio de e-mail (Resend)
+## Configuração
 
-O envio real usa a Netlify Function `netlify/functions/enviar-email.js` (provedor **Resend**).
+### 1. Supabase (login + dados)
+1. Crie um projeto grátis em [supabase.com](https://supabase.com).
+2. No **SQL Editor**, cole e rode o script `supabase/setup.sql` (cria tabelas, segurança e o armazenamento de contratos).
+3. Em **Project Settings → API**, copie a **Project URL** e a chave **`anon`/`publishable`** e preencha as constantes `SUPABASE_URL` e `SUPABASE_KEY` no topo do `<script>` em `plataforma/index.html`.
+4. Em **Authentication → Users → Add user**, crie um acesso (e-mail + senha, marcando *Auto Confirm User*) para cada pessoa do time. Todos têm acesso igual.
 
-1. Crie conta em [resend.com](https://resend.com) e gere uma **API Key**.
-2. No Netlify: **Site settings → Environment variables**, adicione:
-   - `RESEND_API_KEY` — sua chave (obrigatório)
-   - `EMAIL_REMETENTE` — opcional, ex.: `Aprendizes CIMED <aprendizes@seudominio.com.br>` (o domínio precisa estar verificado no Resend)
-3. Refaça o deploy.
+### 2. E-mail (Resend)
+No Netlify (**Site settings → Environment variables**): `RESEND_API_KEY` (obrigatório) e, opcionalmente, `EMAIL_REMETENTE` com um domínio verificado. Sem a chave, a plataforma usa `mailto` como alternativa.
 
-Sem a chave configurada, a plataforma abre automaticamente o programa de e-mail do usuário (mailto) como alternativa.
+## Segurança
+
+- As tabelas usam Row Level Security: só usuários autenticados leem/escrevem.
+- A chave `anon/publishable` do Supabase é pública por natureza (pode ficar no frontend). A chave `service_role`/secret **nunca** deve ir para o repositório.
+- As chaves de e-mail ficam em variáveis de ambiente do Netlify, fora do código.

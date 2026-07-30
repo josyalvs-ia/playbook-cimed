@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestão de Jovens Aprendizes — CIMED</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --amarelo:#ffc600; --amarelo-escuro:#e6b000; --amarelo-suave:#fff8e1; --amarelo-meio:#fff3c4;
@@ -226,6 +227,9 @@ tbody tr:hover{background:var(--amarelo-suave);}
 
 .mono{font-variant-numeric:tabular-nums;}
 .muted{color:var(--cinza-sub);}
+#loginScreen{position:fixed;inset:0;z-index:1000;background:var(--preto);display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{background:var(--branco);border-radius:18px;padding:38px 34px;width:100%;max-width:392px;box-shadow:var(--sombra-md);}
+.login-brand{display:flex;align-items:center;gap:12px;}
 .nowrap{white-space:nowrap;}
 .stack-sm{display:flex;flex-direction:column;gap:3px;}
 
@@ -251,7 +255,10 @@ tbody tr:hover{background:var(--amarelo-suave);}
       <span class="sb-brand-txt">Gestão de<br>Jovens Aprendizes</span>
     </div>
     <nav class="sb-nav" id="sbNav"></nav>
-    <div class="sb-foot">Programa Jovem Aprendiz<br>© CIMED · Liderança em Movimento</div>
+    <div class="sb-foot">
+      <div id="sbUser" style="color:rgba(255,255,255,.6);font-weight:600;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+      <button onclick="logout()" style="display:flex;align-items:center;justify-content:center;gap:7px;background:none;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.62);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;width:100%">Sair</button>
+    </div>
   </aside>
   <div class="overlay-nav" id="overlayNav"></div>
 
@@ -284,7 +291,7 @@ tbody tr:hover{background:var(--amarelo-suave);}
 <script>
 /* ============================================================
    GESTÃO DE JOVENS APRENDIZES — CIMED
-   App client-side. Dados: localStorage. Arquivos: IndexedDB.
+   App com login (Supabase Auth). Dados e arquivos: Supabase (nuvem, compartilhado).
    Envio de e-mail: Netlify Function /enviar-email (Resend).
    ============================================================ */
 
@@ -319,37 +326,63 @@ const IC = {
 };
 function svg(name,cls){return `<svg class="${cls||'ic'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[name]||''}</svg>`;}
 
-/* ---------- ARMAZENAMENTO (localStorage) ---------- */
+/* ---------- SUPABASE (login + dados compartilhados) ---------- */
+const SUPABASE_URL='https://vryahmikpmvddvrogdzg.supabase.co';
+const SUPABASE_KEY='sb_publishable_rTCFe9lyajJdz9oc1yIXvw_nE7XvYNH';
+const AREAS_PADRAO=['Comercial','Marketing','Financeiro','Logística','TI','RH','Jurídico'];
+let sb=null;
+function initSupabase(){
+  if(sb)return sb;
+  if(!window.supabase){toast('Falha ao carregar a biblioteca do Supabase (verifique a conexão).','err');return null;}
+  sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  return sb;
+}
 const DB={
-  key:'cimed_aprendizes_v1',
   data:null,
-  load(){
-    try{this.data=JSON.parse(localStorage.getItem(this.key));}catch(e){this.data=null;}
-    if(!this.data){this.data=seed();this.save();}
+  async load(){
+    const q=(t)=>sb.from(t).select('id,data');
+    const [r1,r2,r3,r4,r5]=await Promise.all([
+      q('aprendizes'),q('contratos'),q('documentos'),q('convites'),
+      sb.from('app_config').select('data').eq('id',1).maybeSingle(),
+    ]);
+    const err=[r1,r2,r3,r4,r5].find(r=>r.error);
+    if(err&&err.error)throw new Error(err.error.message||'Erro ao carregar dados');
+    const rows=r=>(r.data||[]).map(x=>Object.assign({},x.data,{id:x.id}));
+    const cfg=(r5&&r5.data&&r5.data.data)?r5.data.data:{};
+    this.data={
+      aprendizes:rows(r1),contratos:rows(r2),documentos:rows(r3),convites:rows(r4),
+      areas:(cfg.areas&&cfg.areas.length)?cfg.areas:AREAS_PADRAO.slice(),
+      lideres:cfg.lideres||[],
+      config:{empresa:cfg.empresa||'CIMED',responsavel:cfg.responsavel||'',responsavelEmail:cfg.responsavelEmail||'',alertaDias:cfg.alertaDias||30},
+    };
     return this.data;
   },
-  save(){localStorage.setItem(this.key,JSON.stringify(this.data));},
-  reset(){this.data=seed();this.save();},
+  save(){ syncAll().catch(e=>toast('Não foi possível sincronizar: '+e.message,'err')); },
+  async reset(){ this.data=seed(); await syncAll(); },
 };
+async function syncAll(){
+  const D=DB.data; if(!D)return;
+  const cfg=Object.assign({},D.config,{areas:D.areas,lideres:D.lideres});
+  const up=(t,arr)=>arr.length?sb.from(t).upsert(arr.map(o=>({id:o.id,data:o,updated_at:new Date().toISOString()}))):Promise.resolve({});
+  const res=await Promise.all([
+    sb.from('app_config').upsert({id:1,data:cfg,updated_at:new Date().toISOString()}),
+    up('aprendizes',D.aprendizes),up('contratos',D.contratos),up('documentos',D.documentos),up('convites',D.convites),
+  ]);
+  const e=res.find(r=>r&&r.error); if(e&&e.error)throw new Error(e.error.message);
+}
+async function dbDelete(table,ids){
+  ids=[].concat(ids).filter(Boolean); if(!ids.length)return;
+  const {error}=await sb.from(table).delete().in('id',ids);
+  if(error)toast('Erro ao excluir no servidor: '+error.message,'err');
+}
 function uid(){return 'x'+Math.random().toString(36).slice(2,10);}
 function nowISO(){return new Date().toISOString();}
 
-/* ---------- ARQUIVOS (IndexedDB) ---------- */
+/* ---------- ARQUIVOS (Supabase Storage) ---------- */
 const Files={
-  db:null,
-  open(){
-    return new Promise((res,rej)=>{
-      if(this.db)return res(this.db);
-      const r=indexedDB.open('cimed_files',1);
-      r.onupgradeneeded=()=>{r.result.createObjectStore('files');};
-      r.onsuccess=()=>{this.db=r.result;res(this.db);};
-      r.onerror=()=>rej(r.error);
-    });
-  },
-  async put(id,blob){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('files','readwrite');t.objectStore('files').put(blob,id);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});},
-  async get(id){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('files','readonly');const rq=t.objectStore('files').get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);});},
-  async del(id){const db=await this.open();return new Promise((res)=>{const t=db.transaction('files','readwrite');t.objectStore('files').delete(id);t.oncomplete=()=>res();});},
-  async open_(id,nome){const b=await this.get(id);if(!b){toast('Arquivo não encontrado','err');return;}const url=URL.createObjectURL(b);const a=document.createElement('a');a.href=url;a.download=nome||'arquivo';a.target='_blank';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);},
+  async put(path,blob){const {error}=await sb.storage.from('contratos').upload(path,blob,{upsert:true,contentType:blob.type||'application/octet-stream'});if(error)throw error;return path;},
+  async del(path){if(!path)return;await sb.storage.from('contratos').remove([path]);},
+  async open_(path,nome){const {data,error}=await sb.storage.from('contratos').createSignedUrl(path,3600);if(error||!data){toast('Arquivo indisponível','err');return;}window.open(data.signedUrl,'_blank');},
 };
 
 /* ---------- DADOS DEMO ---------- */
@@ -703,10 +736,15 @@ function modalAprendiz(id){
 }
 function excluirAprendiz(id){
   const a=ap(id);
-  confirmar(`Excluir "${a.nome}"?`,'Isso remove o aprendiz e seus contratos/documentos vinculados. Ação irreversível.',()=>{
+  confirmar(`Excluir "${a.nome}"?`,'Isso remove o aprendiz e seus contratos/documentos vinculados. Ação irreversível.',async()=>{
+    const ctIds=DB.data.contratos.filter(c=>c.aprendizId===id).map(c=>c.id);
+    const ctPaths=DB.data.contratos.filter(c=>c.aprendizId===id&&c.arquivoId).map(c=>c.arquivoId);
+    const docIds=DB.data.documentos.filter(d=>d.aprendizId===id).map(d=>d.id);
     DB.data.aprendizes=DB.data.aprendizes.filter(x=>x.id!==id);
     DB.data.contratos=DB.data.contratos.filter(c=>c.aprendizId!==id);
     DB.data.documentos=DB.data.documentos.filter(d=>d.aprendizId!==id);
+    for(const p of ctPaths){await Files.del(p);}
+    await dbDelete('aprendizes',id);await dbDelete('contratos',ctIds);await dbDelete('documentos',docIds);
     DB.save();toast('Aprendiz excluído');renderNav();go('aprendizes');
   });
 }
@@ -760,7 +798,7 @@ function abrirAprendiz(id){
 let filtroCt={q:'',status:''};
 function viewContratos(){
   document.getElementById('view').innerHTML=`
-    <div class="alert-banner">${svg('file')}Anexe os contratos de aprendizagem (PDF). Os arquivos ficam salvos com segurança neste navegador (IndexedDB).</div>
+    <div class="alert-banner">${svg('file')}Anexe os contratos de aprendizagem (PDF). Os arquivos ficam guardados com segurança na nuvem (Supabase) e ficam disponíveis para todo o time.</div>
     <div class="toolbar">
       <div class="search">${svg('search')}<input id="qCt" placeholder="Buscar por aprendiz, tipo..." value="${esc(filtroCt.q)}"></div>
       <select class="filter" id="fCtStatus"><option value="">Todas as situações</option><option value="vigente">Vigentes</option><option value="vencido">Vencidos</option></select>
@@ -820,9 +858,11 @@ function modalContrato(id,aprendizId){
       const apId=val('c_ap'); if(!apId){toast('Selecione o aprendiz','err');return false;}
       const obj={aprendizId:apId,tipo:val('c_tipo'),dataInicio:val('c_ini'),dataFim:val('c_fim')};
       if(arquivoBuffer){
-        const fid=uid();
-        try{await Files.put(fid,arquivoBuffer.blob);}catch(e){toast('Falha ao salvar arquivo','err');return false;}
-        obj.arquivoId=fid;obj.arquivoNome=arquivoBuffer.nome;
+        const safe=(arquivoBuffer.nome||'arquivo').replace(/[^\w.\-]+/g,'_');
+        const path=uid()+'-'+safe;
+        try{await Files.put(path,arquivoBuffer.blob);}catch(e){toast('Falha ao enviar arquivo: '+e.message,'err');return false;}
+        if(id&&c.arquivoId)await Files.del(c.arquivoId);
+        obj.arquivoId=path;obj.arquivoNome=arquivoBuffer.nome;
       }
       if(id){Object.assign(c,obj);toast('Contrato atualizado');}
       else{obj.id=uid();obj.createdAt=nowISO();if(!obj.arquivoId){obj.arquivoId=null;obj.arquivoNome=null;}DB.data.contratos.push(obj);toast('Contrato anexado');}
@@ -845,6 +885,7 @@ function excluirContrato(id){
   confirmar('Excluir contrato?','O arquivo anexado também será removido.',async()=>{
     if(c.arquivoId)await Files.del(c.arquivoId);
     DB.data.contratos=DB.data.contratos.filter(x=>x.id!==id);
+    await dbDelete('contratos',id);
     DB.save();toast('Contrato excluído');renderNav();renderTabelaCt();
   });
 }
@@ -921,7 +962,7 @@ function marcarAssinado(id){
   DB.save();toast('Documento marcado como assinado');renderNav();renderTabelaDoc();
 }
 function excluirDoc(id){
-  confirmar('Excluir documento?','',()=>{DB.data.documentos=DB.data.documentos.filter(x=>x.id!==id);DB.save();toast('Documento excluído');renderNav();renderTabelaDoc();});
+  confirmar('Excluir documento?','',async()=>{DB.data.documentos=DB.data.documentos.filter(x=>x.id!==id);await dbDelete('documentos',id);DB.save();toast('Documento excluído');renderNav();renderTabelaDoc();});
 }
 function avisarLider(id){
   const d=DB.data.documentos.find(x=>x.id===id); const a=ap(d.aprendizId);
@@ -1026,7 +1067,7 @@ ${cfg.empresa||'CIMED'}`;
     onOk:()=>{c.status='enviado';c.enviadoEm=new Date().toISOString().slice(0,10);DB.save();renderNav();if(ROTA==='convites')renderTabelaConv();}});
 }
 function aceitarConvite(id){const c=DB.data.convites.find(x=>x.id===id);c.status='aceito';DB.save();toast('Convite aceito');renderNav();renderTabelaConv();}
-function excluirConvite(id){confirmar('Excluir convite?','',()=>{DB.data.convites=DB.data.convites.filter(x=>x.id!==id);DB.save();toast('Convite excluído');renderNav();renderTabelaConv();});}
+function excluirConvite(id){confirmar('Excluir convite?','',async()=>{DB.data.convites=DB.data.convites.filter(x=>x.id!==id);await dbDelete('convites',id);DB.save();toast('Convite excluído');renderNav();renderTabelaConv();});}
 
 /* ============================================================
    ENVIO DE E-MAIL (Netlify Function + fallback mailto)
@@ -1162,7 +1203,7 @@ function viewConfig(){
 
     <div class="card panel" style="max-width:640px;margin-top:18px">
       <div class="panel-head"><h2>Dados</h2></div>
-      <p style="font-size:13.5px;color:var(--cinza-texto);line-height:1.6">Os dados ficam salvos neste navegador. Exporte para backup ou restaure os dados de demonstração.</p>
+      <p style="font-size:13.5px;color:var(--cinza-texto);line-height:1.6">Os dados ficam na nuvem (Supabase), compartilhados e sincronizados entre todo o time em tempo real. Exporte um backup quando quiser.</p>
       <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="exportarAprendizesCSV()">${svg('download')}Exportar aprendizes</button>
         <button class="btn btn-ghost btn-sm" onclick="exportarBackup()">${svg('download')}Backup (JSON)</button>
@@ -1182,7 +1223,7 @@ function exportarBackup(){
   toast('Backup exportado');
 }
 function resetarDados(){
-  confirmar('Restaurar dados de demonstração?','Isso substitui todos os dados atuais pelos dados de exemplo.',()=>{DB.reset();toast('Dados restaurados');renderNav();go('dashboard');});
+  confirmar('Carregar dados de exemplo?','Isso grava um conjunto de dados de demonstração no banco compartilhado do time (útil só para testar). Registros existentes com mesmo código são sobrescritos.',async()=>{DB.data=seed();await syncAll();toast('Dados de exemplo carregados');renderNav();go('dashboard');});
 }
 
 /* ============================================================
@@ -1218,19 +1259,63 @@ document.getElementById('quickAdd').onclick=()=>modalAprendiz();
 document.getElementById('bellBtn').onclick=()=>go('alertas');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
-DB.load();
-renderNav();
-// landing por convite (?convite=token)
-const params=new URLSearchParams(location.search);
-if(params.get('convite')){
-  const t=params.get('convite');const c=DB.data.convites.find(x=>x.token===t);
-  setTimeout(()=>{
-    openModal('Bem-vindo ao Programa Jovem Aprendiz','Cadastro via convite',
-      `<p style="font-size:14px;line-height:1.7">Olá${c?', '+esc(c.nome.split(' ')[0]):''}! Que bom ter você aqui. 🎉<br><br>Este é o link de cadastro do programa Jovem Aprendiz da CIMED. Numa versão conectada ao backend, aqui o candidato preencheria seus dados. Por enquanto, o RH pode registrá-lo pela base de aprendizes.</p>`,
-      [{label:'Entendi',cls:'btn-primary',fn:()=>{history.replaceState(null,'',location.pathname);closeModal();}}]);
-  },300);
+/* ---------- AUTENTICAÇÃO + BOOT ---------- */
+function showLogin(){
+  if(document.getElementById('loginScreen'))return;
+  const el=document.createElement('div');
+  el.id='loginScreen';
+  el.innerHTML=`<div class="login-card">
+    <div class="login-brand"><span class="sb-logo">CIMED</span><span style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza-sub)">Gestão de<br>Jovens Aprendizes</span></div>
+    <h2 style="font-size:21px;font-weight:800;margin:24px 0 4px">Entrar</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:22px">Acesse com seu e-mail e senha do time.</p>
+    <form id="loginForm">
+      <div class="field" style="margin-bottom:14px"><label>E-mail</label><input id="li_email" type="email" autocomplete="username" required></div>
+      <div class="field" style="margin-bottom:20px"><label>Senha</label><input id="li_pass" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-primary" type="submit" id="li_btn" style="width:100%;justify-content:center">Entrar</button>
+      <p id="li_err" style="color:var(--vermelho);font-size:12.5px;font-weight:600;margin-top:12px;min-height:16px"></p>
+    </form>
+  </div>`;
+  document.body.appendChild(el);
+  document.getElementById('loginForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const btn=document.getElementById('li_btn');btn.textContent='Entrando...';btn.disabled=true;
+    const {error}=await sb.auth.signInWithPassword({email:val('li_email').trim(),password:val('li_pass')});
+    if(error){document.getElementById('li_err').textContent='E-mail ou senha inválidos.';btn.textContent='Entrar';btn.disabled=false;return;}
+    el.remove();await startApp();
+  };
 }
-go('dashboard');
+async function startApp(){
+  try{await DB.load();}catch(e){toast('Erro ao carregar dados: '+e.message,'err');return;}
+  try{const {data:{user}}=await sb.auth.getUser();const f=document.getElementById('sbUser');if(f&&user)f.textContent=user.email;}catch(e){}
+  renderNav();
+  subscribeRealtime();
+  const params=new URLSearchParams(location.search);
+  if(params.get('convite')){
+    const t=params.get('convite');const c=DB.data.convites.find(x=>x.token===t);
+    setTimeout(()=>{
+      openModal('Bem-vindo ao Programa Jovem Aprendiz','Cadastro via convite',
+        `<p style="font-size:14px;line-height:1.7">Olá${c?', '+esc(c.nome.split(' ')[0]):''}! Que bom ter você aqui. 🎉<br><br>O cadastro do candidato pode ser feito pela base de aprendizes.</p>`,
+        [{label:'Entendi',cls:'btn-primary',fn:()=>{history.replaceState(null,'',location.pathname);closeModal();}}]);
+    },300);
+  }
+  go('dashboard');
+}
+let rtT=null;
+function subscribeRealtime(){
+  try{
+    sb.channel('cimed-rt').on('postgres_changes',{event:'*',schema:'public'},()=>{
+      clearTimeout(rtT);rtT=setTimeout(async()=>{try{await DB.load();renderNav();go(ROTA);}catch(e){}},900);
+    }).subscribe();
+  }catch(e){}
+}
+async function logout(){try{await sb.auth.signOut();}catch(e){}location.reload();}
+(async function boot(){
+  if(!initSupabase())return;
+  let session=null;
+  try{const r=await sb.auth.getSession();session=r.data.session;}catch(e){}
+  if(!session){showLogin();return;}
+  await startApp();
+})();
 </script>
 </body>
 </html>
