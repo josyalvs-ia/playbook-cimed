@@ -229,8 +229,7 @@
   global.Views = global.Views || {};
   global.App = App;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    global.Store.init();
-    App.montar();
-  });
+  function boot() { global.Store.init(); App.montar(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })(window);
