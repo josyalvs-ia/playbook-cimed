@@ -171,7 +171,10 @@ for (const [nome, perfil] of [
   else console.log('✓ PDF: nada escapa das caixas');
 
   // E o arquivo em si: uma página por slide, do tamanho de uma A4 deitada.
-  const bytes = await p.pdf({ preferCSSPageSize: true, printBackground: true });
+  // O mesmo arquivo é gravado em assets/, que é o que o botão baixa — assim
+  // ele nunca fica atrasado em relação ao manual.
+  const bytes = await p.pdf({ path: 'assets/manual-da-marca.pdf',
+                              preferCSSPageSize: true, printBackground: true });
   const texto = bytes.toString('latin1');
   const paginas = (texto.match(/\/Type \/Page[^s]/g) || []).length;
   if (paginas !== 14) problemas.push(`PDF: saíram ${paginas} páginas, não 14`);
@@ -180,6 +183,31 @@ for (const [nome, perfil] of [
   const deitada = folha && Number(folha[1]) > Number(folha[2]);
   if (!deitada) problemas.push('PDF: a folha não saiu deitada');
   else console.log(`✓ PDF: folha deitada (${Math.round(folha[1])}x${Math.round(folha[2])}pt)`);
+  await ctx.close();
+}
+
+// ── O botão baixa o arquivo pronto, não a janela de impressão ──────────────
+{
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.route('**/rest/v1/equipe_publica**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  const p = await ctx.newPage();
+  await p.goto('http://127.0.0.1:8899/apresentacao-marca.html#14', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+
+  const link = p.locator('a[download]');
+  if (await link.count() !== 1) problemas.push('o último slide não oferece o PDF pronto');
+  else {
+    const href = await link.getAttribute('href');
+    const r = await p.request.get('http://127.0.0.1:8899/' + href);
+    if (!r.ok()) problemas.push(`o PDF do botão não existe no site (${r.status()})`);
+    else {
+      const arquivo = await r.body();
+      const ehPdf = arquivo.slice(0, 5).toString() === '%PDF-';
+      if (!ehPdf) problemas.push('o arquivo do botão não é um PDF');
+      else console.log(`✓ botão: baixa ${href} (${Math.round(arquivo.length / 1024)}KB), pronto e deitado`);
+    }
+  }
   await ctx.close();
 }
 
