@@ -385,12 +385,118 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
 @keyframes acenar { 0%,100% { transform: translate(-50%, 0); opacity: .5; }
                     50% { transform: translate(-50%, 4px); opacity: .95; } }
 
-@media (max-width: 560px) {
-  .slide { padding: calc(28px + var(--topo)) 18px 92px; }
-  .destaque { width: 86px; }
-  .anel { width: 62px; height: 62px; }
-  .anel svg { width: 26px; height: 26px; }
-  .retrato { width: 78px; height: 78px; font-size: 30px; }
+/* Num celular o slide precisa CABER. Rolar por dentro de um slide é o
+   contrário de apresentar — e a barra de baixo ainda comia o fim do último
+   cartão. Aqui o ar é apertado até o conteúdo entrar inteiro na tela. */
+@media (max-width: 620px), (max-height: 720px) {
+  .slide { padding: calc(20px + var(--topo)) 16px 104px; }
+  .slide h2 { font-size: clamp(24px, 6.4vw, 32px); margin-bottom: 8px; }
+  .numero { margin-bottom: 6px; }
+  .lead { font-size: 14.5px; line-height: 1.5; }
+  .enorme { font-size: clamp(30px, 8.6vw, 44px); }
+
+  .cartoes { gap: 9px; margin-top: 16px; }
+  .cartao { padding: 14px 16px; border-radius: 14px; }
+  .cartao h3 { font-size: 16.5px; margin-bottom: 4px; }
+  .cartao p, .cartao li { font-size: 13.5px; line-height: 1.45; }
+  .cartao li { margin-bottom: 6px; }
+
+  .aviso { margin-top: 14px; padding: 13px 15px; gap: 11px; }
+  .aviso strong { font-size: 14px; }
+  .aviso p { font-size: 12.5px; }
+  .aviso-ico { width: 20px; height: 20px; }
+
+  .cores { gap: 9px; margin-top: 16px; }
+  .cor-amostra { height: 58px; }
+  .cor-nome { padding: 9px 12px 0; font-size: 15.5px; }
+  .cor-hex { padding: 1px 12px 0; }
+  .cor-uso { padding: 5px 12px 12px; font-size: 12px; }
+
+  .equipe, .frases, .nao-lista, .fontes { gap: 9px; margin-top: 16px; }
+  .pessoa { padding: 14px; gap: 14px; }
+  .retrato { width: 72px; height: 72px; font-size: 28px; }
+  .pessoa-nome { font-size: 19px; }
+  .pessoa-bio { font-size: 13px; margin-top: 6px; }
+
+  .frase { padding: 14px; gap: 6px; }
+  .frase .display { font-size: 17px; }
+  .nao-item { padding: 12px 14px; gap: 10px; }
+  .fonte { padding: 16px; }
+  .fonte-cabeca { margin-bottom: 10px; }
+  .fonte-cabeca h3 { font-size: 19px; }
+  .palco { margin-top: 16px; }
+  .palco-piso { padding: 22px 16px; }
+  .nota { margin-top: 9px; font-size: 12.5px; }
+
+  /* Empilhar tudo numa coluna é o que estoura a tela. Onde os itens são
+     pequenos e independentes, duas colunas cabem e continuam legíveis. */
+  .cores, .nao-lista, .frases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cor-amostra { height: 44px; }
+  .cor-uso { display: none; }              /* o uso está no manual corrido */
+  .nao-item { flex-direction: column; gap: 6px; padding: 11px 12px; }
+  .nao-item p { display: none; }           /* o título já diz o que não fazer */
+  .frase .rot { display: none; }
+  .frase .display { font-size: 15px; }
+
+  /* Tipografia: a régua e a amostra bastam; a explicação fica no manual. */
+  .fonte .nota { display: none; }
+  .amostra { margin-bottom: 9px; }
+
+  /* Versões do logo: sem o selo desenhado, que já apareceu no slide anterior. */
+  .cartao .selo-vitrine { display: none; }
+  .cartao .nota { display: none; }
+
+  .destaques { gap: 6px; margin: 18px 0 4px; }
+  .destaque { width: 78px; gap: 8px; }
+  .anel { width: 58px; height: 58px; }
+  .anel svg { width: 24px; height: 24px; }
+  .botoes { margin-top: 18px; }
+}
+
+/* Telas curtas — um iPhone SE com a barra do navegador sobra pouco mais de
+   550px de altura. Aqui vale o essencial de cada slide; o resto do texto
+   continua no que é falado por quem apresenta. */
+@media (max-height: 700px) and (max-width: 620px) {
+  .slide { padding: calc(14px + var(--topo)) 14px 96px; }
+  .slide h2 { font-size: clamp(21px, 5.8vw, 27px); margin-bottom: 6px; }
+  .numero { font-size: 11px; margin-bottom: 4px; }
+  .lead { font-size: 13.5px; line-height: 1.45; }
+
+  .cartoes { gap: 7px; margin-top: 12px; }
+  .cartao { padding: 11px 13px; }
+  .cartao h3 { font-size: 15px; }
+  .cartao p, .cartao li { font-size: 12.5px; line-height: 1.4; }
+
+  .aviso { margin-top: 9px; padding: 10px 12px; gap: 10px; }
+  .aviso strong { font-size: 13px; margin-bottom: 2px; }
+  .aviso p { font-size: 11.5px; line-height: 1.38; }
+
+  .cor-amostra { height: 30px; }
+  .cor-nome { padding: 6px 11px 0; font-size: 13.5px; }
+  .cor-hex { padding: 0 11px 9px; font-size: 11.5px; }
+  .cores { gap: 7px; margin-top: 12px; }
+
+  .fonte { padding: 13px; }
+  .fonte-cabeca h3 { font-size: 17px; }
+  .fonte-cabeca { margin-bottom: 8px; }
+  .amostra { margin-bottom: 7px; }
+
+  .nao-item { padding: 9px 11px; }
+  .nao-item strong { font-size: 12.5px; line-height: 1.3; }
+  .nao-item .x { width: 19px; height: 19px; font-size: 12px; }
+
+  .frase { padding: 11px 13px; }
+  .frase .display { font-size: 14px; }
+
+  .destaque { width: 66px; }
+  .anel { width: 50px; height: 50px; }
+  .anel svg { width: 21px; height: 21px; }
+  .retrato { width: 60px; height: 60px; font-size: 23px; }
+  .pessoa { padding: 12px; gap: 12px; }
+  .pessoa-nome { font-size: 17px; }
+  .pessoa-bio { font-size: 12.5px; }
+  .palco-piso { padding: 16px 14px; }
+  .pattern-palco { min-height: 130px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -761,9 +867,7 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
     <p class="lead centro">Rua dos Manacás, 464 — Sala 3, 2º andar (frente)<br>
       Jd. da Glória, Cotia/SP · CEP 06711-500</p>
     <div class="botoes">
-      <a class="btn" href="vitrine.html">Site das clientes</a>
-      <a class="btn" href="manual-da-marca.html">Manual completo</a>
-      <button class="btn btn-fantasma" onclick="window.print()">Salvar em PDF</button>
+      <button class="btn" onclick="window.print()">Salvar em PDF</button>
     </div>
   </div>
 </section>
@@ -812,10 +916,17 @@ function irPara(i, suave = true) {
   // ninguém: salto longo é instantâneo, passo a passo é suave.
   const perto = Math.abs(destino - atual) <= 2;
   atual = destino;
+  // 'auto' não quer dizer instantâneo: quer dizer "use o valor do CSS", que
+  // aqui é `smooth`. Quem corta a animação de verdade é 'instant'.
+  euQueRolei = true;
   deck.scrollTo({ left: atual * deck.clientWidth,
-                  behavior: suave && perto ? 'smooth' : 'auto' });
+                  behavior: suave && perto ? 'smooth' : 'instant' });
   marcar();
 }
+
+// Enquanto a rolagem é minha, o ouvinte não recalcula em cima do movimento —
+// senão o contador pisca os slides do caminho.
+let euQueRolei = false;
 
 function marcar() {
   elContador.textContent = `${atual + 1} / ${slides.length}`;
@@ -837,6 +948,7 @@ deck.addEventListener('scroll', () => {
   clearTimeout(esperando);
   esperando = setTimeout(() => {
     const i = Math.round(deck.scrollLeft / deck.clientWidth);
+    if (euQueRolei) { euQueRolei = i !== atual; return; }
     if (i !== atual) { atual = i; marcar(); }
   }, 90);
 }, { passive: true });
@@ -948,7 +1060,7 @@ document.getElementById('ver-respiro').onclick = (e) => {
 };
 
 // ── Tipografia ao vivo ─────────────────────────────────────────────────────
-function ligarTamanho(faixaId, amostraId, valorId) {
+function ligarTamanho(faixaId, amostraId, valorId, porLargura) {
   const faixa = document.getElementById(faixaId);
   const amostra = document.getElementById(amostraId);
   const valor = document.getElementById(valorId);
@@ -956,11 +1068,17 @@ function ligarTamanho(faixaId, amostraId, valorId) {
     amostra.style.fontSize = faixa.value + 'px';
     valor.textContent = faixa.value + 'px';
   };
+  // Começa num tamanho que caiba na largura de quem está olhando: numa tela
+  // estreita, o corpo de estreia empurrava a amostra para três linhas e o
+  // slide inteiro para fora da tela.
+  const cabe = Math.max(Number(faixa.min), Math.min(Number(faixa.value),
+    Math.floor(innerWidth / porLargura)));
+  faixa.value = cabe;
   faixa.oninput = aplicar;
   aplicar();
 }
-ligarTamanho('tam-display', 'amostra-display', 'tam-display-valor');
-ligarTamanho('tam-ui', 'amostra-ui', 'tam-ui-valor');
+ligarTamanho('tam-display', 'amostra-display', 'tam-display-valor', 11);
+ligarTamanho('tam-ui', 'amostra-ui', 'tam-ui-valor', 17);
 
 // ── Pattern ao vivo ────────────────────────────────────────────────────────
 const palcoPattern = document.getElementById('pattern-palco');

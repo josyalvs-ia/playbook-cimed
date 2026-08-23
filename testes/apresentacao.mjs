@@ -74,6 +74,30 @@ for (const [nome, perfil, alvo] of [
   }
   await ctx.close();
 }
+// ── Cada slide tem de caber inteiro na tela ────────────────────────────────
+// Rolar por dentro de um slide é o contrário de apresentar: quem lê acha que
+// o slide acabou e passa adiante sem ver o fim.
+for (const [nome, perfil] of [
+  ['iPhone 13', devices['iPhone 13']],
+  ['iPhone SE', devices['iPhone SE']],
+  ['Galaxy S9+', devices['Galaxy S9+']],
+  ['320x600', { viewport: { width: 320, height: 600 }, isMobile: true, hasTouch: true }],
+]) {
+  const ctx = await b.newContext(perfil);
+  await ctx.route('**/rest/v1/equipe_publica**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EQUIPE) }));
+  const p = await ctx.newPage();
+  await p.goto('http://127.0.0.1:8899/apresentacao-marca.html', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1100);
+  const estouram = await p.evaluate(() => [...document.querySelectorAll('.slide')].map((s, i) => {
+    const sobra = s.scrollHeight - s.clientHeight;
+    return sobra > 4 ? `${i + 1} (${s.dataset.titulo}) +${sobra}px` : null;
+  }).filter(Boolean));
+  if (estouram.length) problemas.push(`${nome}: slide não cabe → ${estouram.join(' · ')}`);
+  else console.log(`✓ ${nome}: os 14 slides cabem inteiros`);
+  await ctx.close();
+}
+
 console.log(problemas.length ? '\nPROBLEMAS:\n  ' + problemas.join('\n  ') : '\nnenhum problema');
 await b.close();
 process.exit(problemas.length ? 1 : 0);
