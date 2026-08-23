@@ -136,6 +136,53 @@ for (const [nome, perfil] of [
   await ctx.close();
 }
 
+// ── O PDF: uma folha A4 deitada por slide, sangrando até a borda ───────────
+// Sem `@page { size: landscape; margin: 0 }` o navegador imprime em retrato e
+// cerca tudo de branco: o verde da marca vira uma tarja no meio da folha.
+{
+  const A4 = { width: 1123, height: 794 };   // 297x210mm a 96dpi
+  const ctx = await b.newContext({ viewport: A4 });
+  await ctx.route('**/rest/v1/equipe_publica**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(EQUIPE) }));
+  const p = await ctx.newPage();
+  await p.goto('http://127.0.0.1:8899/apresentacao-marca.html', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(900);
+  await p.emulateMedia({ media: 'print' });
+  await p.waitForTimeout(500);
+
+  const naFolha = await p.evaluate(() => [...document.querySelectorAll('.slide')].map((s, i) => {
+    const m = s.querySelector('.meio');
+    const sobra = m.scrollHeight - (s.clientHeight - 2 * 53);   // 14mm de folga
+    return sobra > 6 ? `${i + 1} (${s.dataset.titulo}) +${Math.round(sobra)}px` : null;
+  }).filter(Boolean));
+  if (naFolha.length) problemas.push(`PDF: slide não cabe na folha → ${naFolha.join(' · ')}`);
+  else console.log('✓ PDF: os 14 slides cabem na folha deitada');
+
+  const vazam = await p.evaluate(() => {
+    const fora = [];
+    for (const c of document.querySelectorAll('.cor, .cartao, .nao-item, .frase, .aviso, .pessoa')) {
+      if (c.scrollHeight > c.clientHeight + 2 || c.scrollWidth > c.clientWidth + 2) {
+        fora.push(`${c.className.split(' ')[0]}: "${c.textContent.trim().slice(0, 24)}"`);
+      }
+    }
+    return [...new Set(fora)];
+  });
+  if (vazam.length) problemas.push(`PDF: conteúdo escapa da caixa → ${vazam.join(' · ')}`);
+  else console.log('✓ PDF: nada escapa das caixas');
+
+  // E o arquivo em si: uma página por slide, do tamanho de uma A4 deitada.
+  const bytes = await p.pdf({ preferCSSPageSize: true, printBackground: true });
+  const texto = bytes.toString('latin1');
+  const paginas = (texto.match(/\/Type \/Page[^s]/g) || []).length;
+  if (paginas !== 14) problemas.push(`PDF: saíram ${paginas} páginas, não 14`);
+  else console.log('✓ PDF: 14 páginas, uma por slide');
+  const folha = texto.match(/\/MediaBox \[[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)\]/);
+  const deitada = folha && Number(folha[1]) > Number(folha[2]);
+  if (!deitada) problemas.push('PDF: a folha não saiu deitada');
+  else console.log(`✓ PDF: folha deitada (${Math.round(folha[1])}x${Math.round(folha[2])}pt)`);
+  await ctx.close();
+}
+
 console.log(problemas.length ? '\nPROBLEMAS:\n  ' + problemas.join('\n  ') : '\nnenhum problema');
 await b.close();
 process.exit(problemas.length ? 1 : 0);

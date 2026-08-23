@@ -234,11 +234,16 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
 
 /* ── Cores ───────────────────────────────────────────────────────────── */
 .cores { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); margin-top: 24px; }
+/* Um <button> não cresce com o conteúdo do jeito que uma <div> cresce: sem
+   dizer que ele é uma coluna flexível, a última linha do texto escapava por
+   baixo da borda do cartão. */
 .cor {
+  display: flex; flex-direction: column; height: auto;
   text-align: left; border: 1px solid var(--linha); border-radius: 16px;
   overflow: hidden; background: var(--superficie);
   transition: transform .3s var(--suave), border-color .3s ease;
 }
+.cor-uso { margin-top: auto; }
 .cor:hover { transform: translateY(-4px); border-color: var(--linha-forte); }
 .cor-amostra { display: block; height: 84px; background: var(--c); position: relative; }
 .cor-amostra::after {
@@ -508,18 +513,70 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* Impresso: um slide por página, nas cores da marca. */
-@media print {
-  html, body { height: auto; overflow: visible; background: #2E3322 !important;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; }
-  .deck { display: block; height: auto; overflow: visible; }
-  .slide { width: auto; height: auto; min-height: 0; page-break-after: always; break-after: page;
-           padding: 26px 0; display: block; }
-  .ceu { position: absolute; }
-  .controles, .barra-progresso, .indice, .copiado, .dica-nav, .palco-barra { display: none; }
-}
+/* ── Impresso ──────────────────────────────────────────────────────────────
+   Um slide por página, deitado e sangrando até a borda. Sem `size: landscape`
+   e `margin: 0` o navegador imprime em retrato e cerca tudo de branco — o
+   verde da marca vira uma tarja no meio de uma folha em branco.
 
+   As medidas são as da folha A4 deitada, não da tela: assim o conteúdo se
+   distribui na largura do papel em vez de escorrer numa coluna. */
+@page { size: A4 landscape; margin: 0; }
+
+@media print {
+  html, body {
+    width: 297mm; height: auto; overflow: visible;
+    background: #2E3322 !important; color: #E8DFC4 !important;
+    font-size: 11.5pt;
+  }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; }
+
+  .deck { display: block; height: auto; overflow: visible; }
+
+  .slide {
+    width: 297mm; height: 210mm; max-height: 210mm;
+    display: flex; align-items: center; justify-content: center;
+    padding: 14mm 18mm; overflow: hidden;
+    background-color: #2E3322;
+    break-after: page; page-break-after: always;
+    position: relative;
+  }
+  /* O pattern numa camada própria, com a mesma discrição da tela: aplicado
+     direto no fundo do slide ele sai quase o dobro mais forte, porque perde
+     a opacidade que o céu tem por cima do verde. */
+  .slide::before {
+    content: ''; position: absolute; inset: 0; z-index: 0;
+    background-image: var(--pattern); background-size: 74mm; opacity: .45;
+  }
+  .meio, .capa .marca { position: relative; z-index: 1; }
+  .slide:last-child { break-after: auto; page-break-after: avoid; }
+  .meio { width: 100%; max-width: none; }
+
+  /* Numa folha deitada há largura de sobra: os grupos se espalham em vez de
+     empilhar, que é o que fazia o conteúdo estourar a página. */
+  .cartoes.tres { grid-template-columns: repeat(3, 1fr); }
+  .cartoes.dois { grid-template-columns: repeat(2, 1fr); }
+  .cores { grid-template-columns: repeat(4, 1fr); }
+  .nao-lista { grid-template-columns: repeat(4, 1fr); }
+  .frases { grid-template-columns: repeat(3, 1fr); }
+  .fontes { grid-template-columns: repeat(2, 1fr); }
+  .equipe { grid-template-columns: repeat(2, 1fr); }
+
+  /* O que só existe para navegar não vai para o papel. */
+  .ceu, .controles, .barra-progresso, .indice, .copiado,
+  .dica-nav, .palco-barra, .desce, .botoes { display: none !important; }
+  .slide.tem-mais::after { display: none; }
+
+  .capa .marca { width: 120mm; }
+  .cor-uso, .cartao .nota, .fonte .nota, .nao-item p { display: revert; }
+  .cor-amostra { height: 22mm; }
+  .selo-vitrine { display: revert; width: 26mm; }
+  .pattern-palco { min-height: 46mm; }
+  .palco-piso { padding: 10mm; }
+  .destaque { min-width: 30mm; }
+
+  /* A área de respiro fica desenhada no impresso: é o slide que a explica. */
+  .respiro { padding: 7%; outline: 1px dashed rgba(232,223,196,.55); }
+}
 </style>
 </head>
 <body>
