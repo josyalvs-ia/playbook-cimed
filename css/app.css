@@ -611,7 +611,9 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
   font-family: var(--display); font-weight: 700; color: var(--creme);
   overflow: hidden;
 }
-.retrato.vazio { background: var(--creme); color: var(--verde); border-color: transparent; }
+/* Sem foto, a inicial. `sem-foto` e não `vazio`: essa já é a classe do estado
+   vazio das telas, com 46px de recheio — herdá-la esticava o retrato. */
+.retrato.sem-foto { background: var(--creme); color: var(--verde); border-color: transparent; }
 
 /* Escolher a foto: prévia grande ao lado do botão, para ver o enquadramento. */
 .foto-campo {

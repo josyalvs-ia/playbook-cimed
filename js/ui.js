@@ -144,7 +144,7 @@ export function retrato(prof, { tam = 40, cls = '' } = {}) {
   const estilo = `width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.4)}px`;
   return prof?.foto
     ? `<img class="retrato ${cls}" src="${esc(prof.foto)}" alt="${esc(nome)}" style="${estilo}">`
-    : `<span class="retrato vazio ${cls}" style="${estilo}" aria-hidden="true"
+    : `<span class="retrato sem-foto ${cls}" style="${estilo}" aria-hidden="true"
         >${esc(nome[0].toUpperCase())}</span>`;
 }
 

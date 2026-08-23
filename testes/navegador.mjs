@@ -692,6 +692,24 @@ await p2.waitForTimeout(700);
   checagens.push(['foto: a coluna da agenda mostra o rosto',
     await p2.locator('.agenda-colunas img.retrato, img.retrato').count() > 0]);
   await p2.screenshot({ path: '/tmp/shot-foto.png' });
+
+  // O retrato tem de sair quadrado do jeito que foi pedido. Já saiu oval uma
+  // vez: a classe da inicial se chamava `vazio`, que é a do estado vazio das
+  // telas e traz 46px de recheio.
+  const medidas = await p2.evaluate(() => {
+    const out = [];
+    for (const r of document.querySelectorAll('.retrato')) {
+      const b = r.getBoundingClientRect();
+      const pedido = parseFloat(r.style.width);
+      if (!b.width) continue;
+      if (Math.abs(b.width - pedido) > 1 || Math.abs(b.height - pedido) > 1) {
+        out.push(`${r.className}: pedi ${pedido}px, saiu ${Math.round(b.width)}×${Math.round(b.height)}`);
+      }
+    }
+    return out;
+  });
+  checagens.push(['foto: o retrato sai redondo, no tamanho pedido',
+    medidas.length === 0, medidas.join(' | ')]);
 }
 
 // ── 20. Todo campo editável tem contraste real ──
