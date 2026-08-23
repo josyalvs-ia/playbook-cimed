@@ -435,8 +435,10 @@ function telaLogin() {
       <label class="campo"><span>Senha</span>
         <input name="senha" type="password" required autocomplete="current-password"></label>
       <button class="btn btn-primario btn-bloco" type="submit" id="btn-entrar">Entrar</button>
-      <p class="t3 pequeno mt centro">Esqueceu a senha?
-        <button type="button" class="btn-fantasma" id="btn-reset" style="text-decoration:underline;padding:0">Receber link por e-mail</button></p>
+      <p class="t3 pequeno mt centro"><strong>Esqueceu a senha?</strong> Escreva seu e-mail
+        no campo acima e toque em
+        <button type="button" class="btn-fantasma" id="btn-reset"
+          style="text-decoration:underline;padding:0">receber link por e-mail</button>.</p>
     </form>
     <p class="pequeno t3 mt centro"><a href="vitrine.html">Ver a tabela de preços pública</a></p>`);
 
@@ -453,11 +455,66 @@ function telaLogin() {
     }
   };
 
-  document.getElementById('btn-reset').onclick = async () => {
+  document.getElementById('btn-reset').onclick = async (ev) => {
     const email = document.querySelector('[name=email]').value.trim();
     if (!email) return avisar('Escreva seu e-mail primeiro', 'erro');
-    await db.cliente.auth.resetPasswordForEmail(email, { redirectTo: location.href });
-    avisar('Link enviado para ' + email);
+    const b = ev.currentTarget;
+    b.disabled = true;
+
+    // O erro daqui era jogado fora: quando o servidor recusava — endereço de
+    // volta não liberado, ou limite de e-mails do plano gratuito estourado —
+    // a tela dizia "link enviado" e nada chegava.
+    const { error } = await db.cliente.auth.resetPasswordForEmail(
+      email, { redirectTo: location.origin + location.pathname });
+    b.disabled = false;
+
+    if (error) {
+      console.error('resetPasswordForEmail:', error);
+      const msg = /rate|limit|too many|segundos|seconds/i.test(error.message)
+        ? 'O servidor limitou os envios por agora. Tente daqui a uns minutos.'
+        : /redirect|not allowed/i.test(error.message)
+        ? 'O endereço de retorno não está liberado no Supabase (Authentication → URL Configuration).'
+        : error.message;
+      return avisar(msg, 'erro');
+    }
+    avisar('Link enviado para ' + email + '. Confira também a caixa de spam.');
+  };
+}
+
+/** O link do e-mail chega com `type=recovery` no pedaço depois do #. */
+function veioDoLinkDeSenha() {
+  const h = location.hash || '';
+  return /type=recovery/.test(h) || /[?&]type=recovery/.test(location.search);
+}
+
+function telaNovaSenha() {
+  molduraCentral(`
+    <div class="regua mb">${estrela()}</div>
+    <h2 class="centro" style="margin-bottom:4px">Escolha sua nova senha</h2>
+    <p class="t3 pequeno centro mb">É esta que você vai usar daqui em diante.</p>
+    <form id="form-senha">
+      <label class="campo"><span>Nova senha</span>
+        <input name="s1" type="password" autocomplete="new-password" required>
+        <span class="dica t3">Pelo menos 8 caracteres.</span></label>
+      <label class="campo"><span>Repita a nova senha</span>
+        <input name="s2" type="password" autocomplete="new-password" required></label>
+      <button class="btn btn-primario btn-bloco" type="submit" id="btn-nova-senha">Salvar e entrar</button>
+    </form>`);
+
+  document.getElementById('form-senha').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-nova-senha');
+    if (e.target.s1.value !== e.target.s2.value) return avisar('As duas senhas não são iguais', 'erro');
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      await db.trocarSenha(e.target.s1.value);
+      // Limpa o código do endereço antes de recarregar, senão volta para cá.
+      history.replaceState(null, '', location.pathname);
+      location.reload();
+    } catch (err) {
+      avisar(err.message, 'erro');
+      btn.disabled = false; btn.textContent = 'Salvar e entrar';
+    }
   };
 }
 
@@ -496,6 +553,12 @@ async function boot() {
   } catch (e) {
     return telaErro('Não foi possível falar com o servidor: ' + (e.message || e));
   }
+
+  // Quem chegou pelo link de "esqueci a senha" cai aqui já logada, com um
+  // endereço cheio de código. Sem esta tela ela ficava dentro do sistema sem
+  // entender que faltava escolher a senha nova — e no dia seguinte estaria
+  // trancada de novo.
+  if (veioDoLinkDeSenha()) return telaNovaSenha();
 
   if (r.estado === 'sem-config') return telaConfig();
   if (r.estado === 'sem-sessao') return telaLogin();

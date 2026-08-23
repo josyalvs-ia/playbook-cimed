@@ -53,11 +53,15 @@ export function createClient(){
   return {
     from: (n) => query(n),
     auth: {
-      getSession: async () => ({ data: { session: { user: { id: 'u1', email: 'laura@alento.com', user_metadata:{nome:'Laura'} } } } }),
+      getSession: async () => (globalThis.__SEM_SESSAO
+        ? { data: { session: null } }
+        : { data: { session: { user: {
+            id: globalThis.__INTRUSO ? 'estranho' : 'u1',
+            email: 'laura@alento.com', user_metadata:{nome:'Laura'} } } } }),
       signInWithPassword: async () => ({ data: {}, error: null }),
       signOut: async () => ({}),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe(){} } } }),
-      resetPasswordForEmail: async () => ({}),
+      resetPasswordForEmail: async () => ({ error: globalThis.__RESET_ERRO || null }),
       updateUser: async (d) => { globalThis.__SENHA_NOVA = d.password; return { error: null }; },
     },
     rpc: async (nome, args) => {
@@ -300,12 +304,8 @@ await mob.screenshot({ path: '/tmp/shot-mobile-vitrine.png', fullPage: false });
   await p3.addInitScript(() => {
     globalThis.__INTRUSO = true;
   });
-  await ctx.route('**/esm.sh/**', (route) => route.fulfill({
-    status: 200, contentType: 'application/javascript',
-    body: FAKE.replace(
-      "getSession: async () => ({ data: { session: { user: { id: 'u1'",
-      "getSession: async () => ({ data: { session: { user: { id: globalThis.__INTRUSO ? 'estranho' : 'u1'"),
-  }));
+  // O próprio falso já sabe fingir uma conta estranha quando `__INTRUSO` está
+  // ligado — não precisa de cirurgia de texto, que quebrava a cada mudança.
   await p3.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await p3.waitForTimeout(1400);
   const txt = nb(await p3.textContent('#app'));
@@ -1028,7 +1028,53 @@ await p2.waitForTimeout(700);
   checagens.push(['senha: a janela fecha depois', await p2.locator('.veu').count() === 0]);
 }
 
-// ── 26. Todo campo editável tem contraste real ──
+// ── 26. Link de "esqueci a senha" ──
+// Quem volta pelo link do e-mail chega logada, com um endereço cheio de
+// código, e antes ficava dentro do sistema sem saber que faltava escolher a
+// senha nova — no dia seguinte estaria trancada de novo.
+{
+  const ctxR = await browser.newContext();
+  await ctxR.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  await ctxR.addInitScript(() => localStorage.setItem('alento.supabase',
+    JSON.stringify({ url: 'https://t.supabase.co', anonKey: 'x'.repeat(50) })));
+  const pr = await ctxR.newPage();
+
+  await pr.goto(BASE + '/index.html#access_token=abc&type=recovery', { waitUntil: 'networkidle' });
+  await pr.waitForTimeout(1200);
+  checagens.push(['recuperar senha: o link do e-mail leva direto a escolher a senha',
+    await pr.locator('#form-senha').count() === 1]);
+
+  await pr.fill('input[name=s1]', 'senhanovaboa1');
+  await pr.fill('input[name=s2]', 'outracoisa123');
+  await pr.click('#btn-nova-senha');
+  await pr.waitForTimeout(400);
+  checagens.push(['recuperar senha: cobra que as duas batam',
+    /não são iguais/i.test(nb(await pr.textContent('#toasts')))]);
+
+  await pr.fill('input[name=s2]', 'senhanovaboa1');
+  await pr.click('#btn-nova-senha');
+  await pr.waitForTimeout(1400);
+  checagens.push(['recuperar senha: salva e tira o código do endereço',
+    !/type=recovery/.test(pr.url()), pr.url()]);
+
+  // E o pedido de link deixa de mentir quando o servidor recusa.
+  await pr.evaluate(() => { globalThis.__RESET_ERRO = { message: 'For security purposes, you can only request this after 47 seconds.' }; });
+  await pr.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await pr.evaluate(() => { globalThis.__SEM_SESSAO = true; });
+  await pr.reload({ waitUntil: 'networkidle' });
+  await pr.waitForTimeout(900);
+  if (await pr.locator('#btn-reset').count()) {
+    await pr.fill('input[name=email]', 'laura@alento.com');
+    await pr.click('#btn-reset');
+    await pr.waitForTimeout(500);
+    checagens.push(['recuperar senha: avisa quando o servidor limita os envios',
+      /limitou os envios/i.test(nb(await pr.textContent('#toasts')))]);
+  }
+  await ctxR.close();
+}
+
+// ── 27. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {
