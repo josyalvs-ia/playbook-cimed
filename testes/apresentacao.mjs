@@ -195,6 +195,11 @@ for (const [nome, perfil] of [
   await p.goto('http://127.0.0.1:8899/apresentacao-marca.html#14', { waitUntil: 'networkidle' });
   await p.waitForTimeout(900);
 
+  // Nada de janela de impressão: ela devolve resultado diferente conforme o
+  // navegador e o que a pessoa escolheu da última vez.
+  if (await p.locator('[onclick*="print"]').count()) {
+    problemas.push('sobrou botão de imprimir no último slide');
+  }
   const link = p.locator('a[download]');
   if (await link.count() !== 1) problemas.push('o último slide não oferece o PDF pronto');
   else {

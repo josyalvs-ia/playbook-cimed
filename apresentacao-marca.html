@@ -927,15 +927,14 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
     <p class="enorme">Beleza que acolhe<br>e renova.</p>
     <p class="lead centro">Rua dos Manacás, 464 — Sala 3, 2º andar (frente)<br>
       Jd. da Glória, Cotia/SP · CEP 06711-500</p>
-    <!-- O arquivo pronto, e não a janela de impressão. Ela depende de o
-         navegador respeitar o tamanho de folha do CSS, e ainda lembra a
-         orientação que a pessoa escolheu da última vez — foi assim que o PDF
-         saiu em retrato com margem branca mesmo com o CSS certo. Baixar o
-         arquivo tira o navegador da jogada. -->
+    <!-- Só o arquivo pronto. A janela de impressão do navegador depende de ele
+         respeitar o tamanho de folha do CSS, e o Chrome ainda lembra a
+         orientação escolhida da última vez — era por isso que o mesmo manual
+         saía em retrato com margem branca para uns e certo para outros. O
+         @media print continua abaixo porque é dele que este PDF é gerado. -->
     <div class="botoes">
       <a class="btn" href="assets/manual-da-marca.pdf" download="Alento - Manual da marca.pdf">
         Baixar o manual em PDF</a>
-      <button class="btn btn-fantasma" onclick="window.print()">Imprimir</button>
     </div>
     <p class="nota">14 páginas, A4 deitada. Pode mandar direto no WhatsApp.</p>
   </div>
