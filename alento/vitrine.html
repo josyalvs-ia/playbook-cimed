@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alento — Studio de Beleza | Tabela de valores</title>
+<meta name="description" content="Tabela de valores do Alento Studio de Beleza. Manicure, pedicure, esmaltação em gel, banho de gel e alongamento. Agende seu horário.">
+<meta name="theme-color" content="#2E3322">
+<meta property="og:title" content="Alento — Studio de Beleza">
+<meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e agende seu horário.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/selo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
+
+  .capa { text-align: center; padding: 58px 0 40px; }
+  .capa img { width: min(400px, 88%); margin: 0 auto 18px; }
+  .capa .frase {
+    font-family: var(--display); font-size: clamp(26px, 5.4vw, 40px);
+    font-weight: 700; line-height: 1.16; max-width: 15ch; margin: 0 auto 12px;
+  }
+  .capa p { color: var(--texto-2); max-width: 44ch; margin: 0 auto; }
+
+  .secao { margin-bottom: 34px; }
+  .secao-titulo {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .secao-titulo::before, .secao-titulo::after { content: ''; flex: 1; height: 1px; background: var(--linha); }
+  .secao-titulo span {
+    font-size: 11.5px; font-weight: 500; letter-spacing: 0.26em;
+    text-transform: uppercase; color: var(--texto-2); white-space: nowrap;
+  }
+
+  .preco-linha {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 11px 4px;
+    border-bottom: 1px solid rgba(232, 223, 196, 0.09);
+  }
+  .preco-linha:last-child { border-bottom: none; }
+  .preco-linha .nome { flex: 1; font-size: 15px; }
+  .preco-linha .pontos { flex: none; width: 0; }
+  .preco-linha .valor {
+    font-family: var(--display); font-weight: 700; font-size: 17px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .preco-linha .obs { display: block; font-size: 12px; color: var(--texto-3); margin-top: 2px; }
+
+  .destaque-combo {
+    background: var(--creme); color: var(--verde);
+    border-radius: var(--r-lg); padding: 26px; text-align: center;
+  }
+  .destaque-combo .valor-grande {
+    font-family: var(--display); font-size: 46px; font-weight: 700; line-height: 1;
+  }
+  .destaque-combo .riscado { text-decoration: line-through; opacity: .5; }
+
+  .regra { font-size: 13.5px; color: var(--texto-2); line-height: 1.6; }
+  .regra li { list-style: none; padding-left: 20px; position: relative; margin-bottom: 9px; }
+  .regra li::before {
+    content: ''; position: absolute; left: 2px; top: 8px;
+    width: 7px; height: 7px; background: var(--creme); opacity: .55;
+    clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+  }
+
+  .cta { position: sticky; bottom: 0; z-index: 20; padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+         background: linear-gradient(to top, var(--fundo) 62%, transparent); }
+  .cta .btn { font-size: 15px; padding: 13px 24px; }
+
+  .rodape { text-align: center; color: var(--texto-3); font-size: 13px; padding-top: 26px; }
+  .rodape a { color: var(--texto-2); }
+  .rodape .contatos { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="vitrine" id="vitrine">
+  <div class="vazio"><p>Carregando a tabela…</p></div>
+</div>
+<div id="toasts"></div>
+
+<script type="module">
+import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
+import { fmt, esc, estrela, ico } from './js/ui.js';
+
+// A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
+// aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
+async function carregar() {
+  const cfg = (() => {
+    try {
+      const l = JSON.parse(localStorage.getItem('alento.supabase') || 'null');
+      if (l?.url && l?.anonKey) return l;
+    } catch {}
+    const g = window.ALENTO_CONFIG;
+    return (g?.url && !g.url.includes('SUA-')) ? g : null;
+  })();
+
+  if (!cfg) return { servicos: SERVICOS, adicionais: ADICIONAIS, studio: {} };
+
+  try {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
+    const sb = createClient(cfg.url, cfg.anonKey);
+    const [{ data: servicos }, { data: conf }] = await Promise.all([
+      sb.from('servicos').select('*').eq('ativo', true),
+      sb.from('config').select('*').in('chave', ['studio', 'categorias']),
+    ]);
+    if (!servicos?.length) throw new Error('vazio');
+    const studio = conf?.find((c) => c.chave === 'studio')?.valor || {};
+    return {
+      servicos: servicos.filter((s) => s.tipo !== 'adicional').sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
+      adicionais: servicos.filter((s) => s.tipo === 'adicional'),
+      studio,
+    };
+  } catch {
+    return { servicos: SERVICOS, adicionais: ADICIONAIS, studio: {} };
+  }
+}
+
+function grupo(titulo, itens) {
+  if (!itens.length) return '';
+  return `<section class="secao">
+    <div class="secao-titulo"><span>${esc(titulo)}</span></div>
+    <div>${itens.map((s) => `
+      <div class="preco-linha">
+        <span class="nome">${esc(s.nome)}
+          ${s.nota ? `<span class="obs">${esc(s.nota)}</span>` : ''}</span>
+        <span class="valor">${fmt.brl(s.preco)}</span>
+      </div>`).join('')}</div>
+  </section>`;
+}
+
+const { servicos, adicionais, studio } = await carregar();
+
+const porCat = new Map();
+for (const s of servicos) {
+  if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);
+  porCat.get(s.categoria).push(s);
+}
+
+const zap = String(studio.whatsapp || '').replace(/\D/g, '');
+const trinks = studio.trinks || '';
+
+document.getElementById('vitrine').innerHTML = `
+  <header class="capa">
+    <img src="assets/marca.svg" alt="Alento — Studio de Beleza">
+    <div class="frase">Realce sua melhor versão.</div>
+    <p>Cuidado que transforma. Beleza que acolhe e renova.</p>
+  </header>
+
+  ${CATEGORIAS_SERVICO
+    .filter((c) => porCat.has(c.id))
+    .map((c) => grupo(c.nome, porCat.get(c.id))).join('')}
+
+  ${[...porCat.entries()]
+    .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
+    .map(([id, itens]) => grupo(id, itens)).join('')}
+
+  ${adicionais.length ? `<section class="secao">
+    <div class="secao-titulo"><span>Adicionais</span></div>
+    ${adicionais.map((a) => `<div class="preco-linha">
+        <span class="nome">${esc(a.nome)}${a.unidade ? `<span class="obs">${esc(a.unidade)}</span>` : ''}</span>
+        <span class="valor">+ ${fmt.brl(a.preco)}</span>
+      </div>`).join('')}
+  </section>` : ''}
+
+  <section class="secao">
+    <div class="destaque-combo">
+      <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;opacity:.62;margin-bottom:8px">
+        Combo de alongamento</div>
+      <div class="valor-grande">${fmt.brl(COMBO_ALONGAMENTO.combo)}</div>
+      <p style="margin:8px 0 14px;font-size:14px">
+        Alongamento em gel moldado + manicure + esmaltação em gel<br>
+        <span class="riscado">${fmt.brl(COMBO_ALONGAMENTO.separado)} separado</span> ·
+        <strong>você economiza ${fmt.brl(COMBO_ALONGAMENTO.economia)}</strong>
+      </p>
+      <div style="font-size:12.5px;opacity:.7">
+        ${COMBO_ALONGAMENTO.componentes.map((c) => `${esc(c.nome)} ${fmt.brl(c.valor)}`).join(' · ')}
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="secao-titulo"><span>Boas de saber</span></div>
+    ${REGRAS.map((r) => `
+      <div style="margin-bottom:20px">
+        <div class="rotulo" style="margin-bottom:8px">${esc(r.titulo)}</div>
+        <ul class="regra">${r.itens.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+      </div>`).join('')}
+  </section>
+
+  <div class="cta">
+    ${trinks
+      ? `<a class="btn btn-primario btn-bloco" href="${esc(trinks)}" target="_blank" rel="noopener">
+           ${ico('agenda')} Agende seu horário</a>`
+      : zap
+        ? `<a class="btn btn-primario btn-bloco" href="https://wa.me/55${zap}" target="_blank" rel="noopener">
+             ${ico('whatsapp')} Agende pelo WhatsApp</a>`
+        : `<div class="aviso">${ico('info')}<div>Link de agendamento ainda não configurado.</div></div>`}
+  </div>
+
+  <footer class="rodape">
+    <div class="regua" style="margin-bottom:20px">${estrela()}</div>
+    <div class="contatos">
+      ${studio.instagram ? `<a href="https://instagram.com/${esc(String(studio.instagram).replace('@', ''))}"
+        target="_blank" rel="noopener">${esc(studio.instagram)}</a>` : ''}
+      ${zap ? `<a href="https://wa.me/55${zap}" target="_blank" rel="noopener">${esc(fmt.telefone(studio.whatsapp))}</a>` : ''}
+      ${studio.endereco ? `<span>${esc(studio.endereco)}</span>` : ''}
+    </div>
+    <p>${esc(studio.nome || 'Alento Studio de Beleza')}</p>
+    <p style="margin-top:6px;font-size:12px;opacity:.7">
+      Serviços de fibra de vidro, acrílico e troca de formato não fazem parte desta tabela.</p>
+  </footer>`;
+
+document.title = `${studio.nome || 'Alento — Studio de Beleza'} | Tabela de valores`;
+</script>
+</body>
+</html>

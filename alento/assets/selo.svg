@@ -1,0 +1,7 @@
+<!-- Selo / avatar: "A" com estrela dentro do círculo creme. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Alento">
+  <circle cx="100" cy="100" r="98" fill="#E8DFC4"/>
+  <text x="88" y="140" font-family="Playfair Display, Georgia, serif" font-size="122"
+        font-weight="700" text-anchor="middle" fill="#2E3322">A</text>
+  <path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z" transform="translate(140,118) scale(.34)" fill="#2E3322"/>
+</svg>

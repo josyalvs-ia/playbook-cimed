@@ -1,0 +1,22 @@
+{
+  "name": "Alento — Studio de Beleza",
+  "short_name": "Alento",
+  "description": "Gestão do Alento Studio de Beleza: atendimentos, estoque, caixa e precificação.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2E3322",
+  "theme_color": "#2E3322",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icone-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Novo atendimento", "url": "./index.html#/comandas" },
+    { "name": "Caixa", "url": "./index.html#/caixa" },
+    { "name": "Estoque", "url": "./index.html#/estoque" }
+  ]
+}

@@ -1,0 +1,31 @@
+<!-- Wordmark Alento. Reconstrução em SVG do lettering do manual: mesmo relevo
+     em preto #1D1D1B, as estrelas de 4 pontas e a linha "STUDIO DE BELEZA"
+     entre réguas. As larguras dos textos são fixadas com textLength para o
+     desenho não se deslocar quando a fonte da marca não estiver disponível. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Alento — Studio de Beleza">
+  <defs>
+    <path id="s4" d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/>
+  </defs>
+
+  <!-- relevo -->
+  <text x="316" y="151" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#1D1D1B" opacity=".9">Alento</text>
+  <!-- letra -->
+  <text x="310" y="145" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#E8DFC4">Alento</text>
+
+  <g fill="#E8DFC4">
+    <use href="#s4" transform="translate(112,54) scale(.28)"/>
+    <use href="#s4" transform="translate(500,44) scale(.44)"/>
+    <use href="#s4" transform="translate(96,178) scale(.22)"/>
+  </g>
+
+  <g stroke="#E8DFC4" stroke-width="1.5" opacity=".8">
+    <line x1="128" y1="200" x2="168" y2="200"/>
+    <line x1="452" y1="200" x2="492" y2="200"/>
+  </g>
+  <text x="310" y="206" text-anchor="middle" textLength="264" lengthAdjust="spacing"
+        font-family="Jost, Helvetica, Arial, sans-serif" font-size="20" fill="#E8DFC4">STUDIO DE BELEZA</text>
+</svg>
