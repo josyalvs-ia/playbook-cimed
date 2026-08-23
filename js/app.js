@@ -10,8 +10,9 @@ const raizApp = document.getElementById('app');
 // ─── Mapa de telas ─────────────────────────────────────────────────────────
 const TELAS = {
   painel:       { titulo: 'Painel',        icone: 'painel',   mod: () => import('./views/painel.js'),       tab: true },
+  agenda:       { titulo: 'Agenda',        icone: 'agenda',   mod: () => import('./views/agenda.js'),       tab: true },
   comandas:     { titulo: 'Atendimentos',  icone: 'comanda',  mod: () => import('./views/comandas.js'),     tab: true },
-  clientes:     { titulo: 'Clientes',      icone: 'clientes', mod: () => import('./views/clientes.js'),     tab: true },
+  clientes:     { titulo: 'Clientes',      icone: 'clientes', mod: () => import('./views/clientes.js') },
   estoque:      { titulo: 'Estoque',       icone: 'estoque',  mod: () => import('./views/estoque.js'),      tab: true },
   caixa:        { titulo: 'Caixa',         icone: 'caixa',    mod: () => import('./views/caixa.js'),        tab: true },
   servicos:     { titulo: 'Tabela de preços', icone: 'tabela',   mod: () => import('./views/servicos.js') },
@@ -22,7 +23,7 @@ const TELAS = {
 };
 
 const GRUPOS = [
-  { rotulo: 'Dia a dia',  telas: ['painel', 'comandas', 'clientes'] },
+  { rotulo: 'Dia a dia',  telas: ['painel', 'agenda', 'comandas', 'clientes'] },
   { rotulo: 'Operação',   telas: ['estoque', 'caixa'] },
   { rotulo: 'Negócio',    telas: ['servicos', 'precificacao', 'comissoes', 'relatorios'] },
   { rotulo: '',           telas: ['ajustes'] },

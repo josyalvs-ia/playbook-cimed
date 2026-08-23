@@ -81,6 +81,97 @@
   .rodape { text-align: center; color: var(--texto-3); font-size: 13px; padding-top: 26px; }
   .rodape a { color: var(--texto-2); }
   .rodape .contatos { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center; margin-bottom: 16px; }
+
+  /* ── Agendamento ────────────────────────────────────────────────────── */
+  .ag-tela { position: fixed; inset: 0; z-index: 90; background: var(--fundo);
+             overflow-y: auto; padding: 18px 18px 40px; }
+  .ag-topo { display: flex; align-items: center; gap: 12px; max-width: 640px;
+             margin: 0 auto 18px; }
+  .ag-topo img { height: 46px; }
+  .ag-fechar { margin-left: auto; }
+  .ag-conteudo { max-width: 640px; margin: 0 auto; }
+
+  .ag-passos { display: flex; gap: 6px; margin-bottom: 22px; }
+  .ag-passo { flex: 1; display: flex; align-items: center; gap: 7px;
+              font-size: 11.5px; color: var(--texto-3);
+              padding-top: 9px; border-top: 2px solid var(--linha); }
+  .ag-passo b { width: 19px; height: 19px; border-radius: 50%; flex: none;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 10.5px; background: rgba(232,223,196,.12); }
+  .ag-passo.atual { color: var(--creme); border-top-color: var(--creme); }
+  .ag-passo.atual b { background: var(--creme); color: var(--verde); }
+  .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); }
+
+  .ag-grupo { margin-bottom: 22px; }
+  .ag-grupo-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+                     color: var(--texto-3); margin-bottom: 9px; }
+  .ag-opcao { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+              background: var(--superficie); border: 1px solid var(--linha);
+              border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+              color: var(--texto); transition: border-color .14s, background .14s; }
+  .ag-opcao:hover, .ag-opcao:focus-visible { border-color: var(--creme); background: var(--superficie-2); }
+  .ag-opcao strong { display: block; font-size: 15px; }
+  .ag-dur { font-size: 12.5px; color: var(--texto-3); }
+  .ag-preco { font-family: var(--display); font-weight: 700; font-size: 16px;
+              white-space: nowrap; }
+
+  .ag-voltar { color: var(--texto-3); font-size: 13.5px; margin-bottom: 14px; }
+  .ag-voltar:hover { color: var(--texto); }
+  .ag-escolhido { background: var(--superficie); border: 1px solid var(--linha);
+                  border-radius: 12px; padding: 13px 16px; margin-bottom: 18px; }
+  .ag-escolhido strong { display: block; }
+  .ag-escolhido span { font-size: 13px; color: var(--texto-3); }
+
+  .ag-dias { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;
+             margin-bottom: 18px; scroll-snap-type: x proximity; }
+  .ag-dia { flex: none; width: 62px; scroll-snap-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            padding: 10px 4px; border-radius: 12px; color: var(--texto-2);
+            border: 1px solid var(--linha); background: var(--superficie); }
+  .ag-dia .sem, .ag-dia .mes { font-size: 10.5px; text-transform: uppercase;
+                               letter-spacing: .08em; color: var(--texto-3); }
+  .ag-dia .num { font-family: var(--display); font-size: 21px; font-weight: 700; }
+  .ag-dia.atual { background: var(--creme); border-color: var(--creme); color: var(--verde); }
+  .ag-dia.atual .sem, .ag-dia.atual .mes { color: rgba(46,51,34,.62); }
+
+  .ag-turno { margin-bottom: 20px; }
+  .ag-turno-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+                     color: var(--texto-3); margin-bottom: 10px; }
+  .ag-horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 8px; }
+  .ag-hora { padding: 11px 6px; border-radius: 10px; border: 1px solid var(--linha-forte);
+             background: var(--superficie); color: var(--texto);
+             font-family: var(--display); font-size: 17px; font-weight: 700;
+             display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .ag-hora span { font-family: var(--ui); font-size: 11px; font-weight: 400;
+                  color: var(--texto-3); }
+  .ag-hora:hover, .ag-hora:focus-visible { background: var(--creme); color: var(--verde);
+                                           border-color: var(--creme); }
+  .ag-hora:hover span, .ag-hora:focus-visible span { color: rgba(46,51,34,.6); }
+
+  .ag-vazio { text-align: center; padding: 34px 16px; color: var(--texto-3); }
+  .ag-vazio a { color: var(--creme); }
+
+  .ag-resumo { background: var(--superficie); border: 1px solid var(--linha);
+               border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
+  .ag-resumo .linha { display: flex; justify-content: space-between; gap: 14px;
+                      padding: 6px 0; font-size: 14px; }
+  .ag-resumo .linha span { color: var(--texto-3); }
+  .ag-resumo .linha.total { border-top: 1px solid var(--linha); margin-top: 6px;
+                            padding-top: 11px; font-size: 16px; }
+
+  .ag-pronto { text-align: center; padding: 24px 0; }
+  .ag-selo { width: 62px; height: 62px; border-radius: 50%; margin: 0 auto 18px;
+             background: var(--creme); color: var(--verde);
+             display: flex; align-items: center; justify-content: center;
+             font-size: 30px; font-weight: 700; }
+  .ag-pronto h2 { font-family: var(--display); font-size: 28px; margin: 0 0 10px; }
+  .ag-codigo { font-size: 11px; word-break: break-all; }
+
+  @media (max-width: 560px) {
+    .ag-tela { padding: 14px 14px 34px; }
+    .ag-passo { font-size: 0; gap: 0; justify-content: center; }
+    .ag-passo b { font-size: 10.5px; }
+  }
 </style>
 </head>
 <body>
@@ -92,9 +183,12 @@
 <script type="module">
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
 import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado } from './js/ui.js';
+import { iniciarAgendamento } from './js/agendar.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
 // aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
+let sbCliente = null;
+
 async function carregar() {
   const cfg = (() => {
     try {
@@ -110,6 +204,7 @@ async function carregar() {
   try {
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
     const sb = createClient(cfg.url, cfg.anonKey);
+    sbCliente = sb;
     const [{ data: servicos }, { data: conf }] = await Promise.all([
       sb.from('servicos').select('*').eq('ativo', true),
       sb.from('config').select('*').in('chave', ['studio', 'categorias']),
@@ -204,13 +299,8 @@ document.getElementById('vitrine').innerHTML = `
   </section>
 
   <div class="cta">
-    ${trinks
-      ? `<a class="btn btn-primario btn-bloco" href="${esc(trinks)}" target="_blank" rel="noopener">
-           ${ico('agenda')} Agende seu horário</a>`
-      : zap
-        ? `<a class="btn btn-primario btn-bloco" href="https://wa.me/55${zap}" target="_blank" rel="noopener">
-             ${ico('whatsapp')} Agende pelo WhatsApp</a>`
-        : `<div class="aviso">${ico('info')}<div>Link de agendamento ainda não configurado.</div></div>`}
+    <button class="btn btn-primario btn-bloco" id="btn-agendar">
+      ${ico('agenda')} Agende seu horário</button>
   </div>
 
   <footer class="rodape">
@@ -227,6 +317,39 @@ document.getElementById('vitrine').innerHTML = `
   </footer>`;
 
 document.title = `${studio.nome || 'Alento — Studio de Beleza'} | Tabela de valores`;
+
+// ── Agendamento ────────────────────────────────────────────────────────────
+// Só funciona com o banco conectado: sem ele a página é apenas a tabela, e o
+// botão manda para o WhatsApp em vez de prometer algo que não vai acontecer.
+document.getElementById('btn-agendar').onclick = async () => {
+  if (!sbCliente) {
+    if (zap) return window.open(`https://wa.me/55${zap}`, '_blank', 'noopener');
+    if (trinks) return window.open(trinks, '_blank', 'noopener');
+    return alert('Agendamento indisponível no momento.');
+  }
+
+  const tela = document.createElement('div');
+  tela.className = 'ag-tela';
+  tela.innerHTML = `
+    <div class="ag-topo">
+      <img src="assets/marca.svg" alt="Alento">
+      <button class="btn btn-sm ag-fechar" id="ag-sair">Fechar</button>
+    </div>
+    <div class="ag-conteudo" id="ag-raiz"></div>`;
+  document.body.appendChild(tela);
+  document.body.style.overflow = 'hidden';
+
+  const sair = () => { tela.remove(); document.body.style.overflow = ''; };
+  tela.querySelector('#ag-sair').onclick = sair;
+
+  await iniciarAgendamento({
+    sb: sbCliente,
+    servicos: servicos.filter((s) => s.preco_tipo !== 'avaliacao'),
+    categorias: CATEGORIAS_SERVICO,
+    studio,
+    raiz: tela.querySelector('#ag-raiz'),
+  });
+};
 </script>
 </body>
 </html>

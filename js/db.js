@@ -15,7 +15,8 @@ const CHAVE_CACHE  = 'alento.cache.v1';
 const CHAVE_FILA   = 'alento.fila.v1';
 
 export const TABELAS = ['profissionais', 'clientes', 'servicos', 'materiais', 'ficha_tecnica',
-                        'estoque_mov', 'comandas', 'comanda_itens', 'caixa', 'config'];
+                        'estoque_mov', 'comandas', 'comanda_itens', 'caixa', 'config',
+                        'horarios', 'bloqueios', 'agendamentos'];
 
 /** Coleções em memória. As telas leem daqui, sempre. */
 export const estado = Object.fromEntries(TABELAS.map((t) => [t, []]));
@@ -150,6 +151,7 @@ function ordenar() {
   estado.comandas.sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
   estado.caixa.sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
   estado.estoque_mov.sort((a, b) => (b.criado_em || '').localeCompare(a.criado_em || ''));
+  estado.agendamentos.sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
 }
 
 // ─── Escrita ───────────────────────────────────────────────────────────────

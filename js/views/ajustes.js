@@ -2,6 +2,7 @@
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm } from '../ui.js';
 import { abrirEquipe } from './comissoes.js';
+import { abrirBloqueio } from './agenda.js';
 
 export function render(raiz) {
   const s = db.cfg('studio') || {};
@@ -17,10 +18,10 @@ export function render(raiz) {
           <label class="campo"><span>WhatsApp</span><input name="whatsapp" value="${esc(s.whatsapp || '')}" placeholder="(11) 99999-9999"></label>
         </div>
         <label class="campo"><span>Endereço</span><input name="endereco" value="${esc(s.endereco || '')}" placeholder="Rua, número — Cidade/UF"></label>
-        <label class="campo"><span>Link de agendamento no Trinks</span>
+        <label class="campo"><span>Link do Trinks (reserva)</span>
           <input name="trinks" value="${esc(s.trinks || '')}" placeholder="https://www.trinks.com/...">
-          <span class="dica t3">É este link que o botão "Agendar" da página pública abre.
-            Cole quando tiver em mãos.</span></label>
+          <span class="dica t3">O agendamento agora acontece no próprio site. Este link só é
+            usado se o banco estiver fora do ar — deixe em branco se já saiu do Trinks.</span></label>
         <button class="btn btn-primario" id="salvar-studio">Salvar</button>
       </div>
 
@@ -41,6 +42,17 @@ export function render(raiz) {
           Para dar acesso a mais alguém: <strong>Supabase → Authentication → Users →
           Invite user</strong>. Ela recebe o convite por e-mail e o cadastro aparece aqui
           sozinho no primeiro login.</div></div>
+      </div>
+
+      <div class="cartao">
+        <div class="cartao-cabeca">${ico('agenda')}<h3>Horário de funcionamento</h3></div>
+        <p class="pequeno t2 mb">É isto que define os horários que a cliente vê no site.
+          Dia sem horário marcado é dia fechado.</p>
+        <div id="horarios-lista"></div>
+        <div class="flex mt" style="gap:8px">
+          <button class="btn btn-primario" id="salvar-horarios">Salvar horários</button>
+          <button class="btn" id="folga">${ico('relogio')}Folga ou férias</button>
+        </div>
       </div>
 
       <div class="cartao">
@@ -108,6 +120,9 @@ export function render(raiz) {
   };
 
   raiz.querySelector('#equipe').onclick = () => abrirEquipe();
+  raiz.querySelector('#folga').onclick = () => abrirBloqueio();
+  pintarHorarios(raiz);
+  raiz.querySelector('#salvar-horarios').onclick = () => salvarHorarios(raiz);
 
   raiz.querySelector('#backup').onclick = () => {
     const dados = { gerado_em: new Date().toISOString(), ...db.estado };
@@ -142,4 +157,77 @@ export function render(raiz) {
   };
 
   raiz.querySelector('#sair').onclick = () => db.sair();
+}
+
+
+// ─── Horário de funcionamento ──────────────────────────────────────────────
+const DIAS = [['1', 'Segunda'], ['2', 'Terça'], ['3', 'Quarta'], ['4', 'Quinta'],
+              ['5', 'Sexta'], ['6', 'Sábado'], ['0', 'Domingo']];
+
+function pintarHorarios(raiz) {
+  const profs = db.estado.profissionais.filter((p) => p.atende !== false && p.ativo !== false);
+  const alvo = raiz.querySelector('#horarios-lista');
+  if (!alvo) return;
+
+  if (!profs.length) {
+    alvo.innerHTML = '<p class="t3 pequeno">Nenhuma profissional atendendo.</p>';
+    return;
+  }
+
+  alvo.innerHTML = profs.map((p) => `
+    <div style="margin-bottom:18px">
+      <div class="rotulo mb">${esc(p.nome)}</div>
+      <div class="tabela-wrap"><table><thead><tr>
+        <th style="width:38px"></th><th>Dia</th><th>Abre</th><th>Fecha</th>
+        <th>Almoço de</th><th>até</th>
+      </tr></thead><tbody>
+      ${DIAS.map(([d, nome]) => {
+        const h = db.estado.horarios.find((x) => x.profissional_id === p.id && String(x.dia_semana) === d);
+        const on = h && h.ativo !== false;
+        return `<tr data-prof="${p.id}" data-dia="${d}">
+          <td><input type="checkbox" data-campo="ativo" ${on ? 'checked' : ''}></td>
+          <td>${nome}</td>
+          <td><input type="time" data-campo="abre"  value="${h?.abre?.slice(0, 5) || '09:00'}" step="900"></td>
+          <td><input type="time" data-campo="fecha" value="${h?.fecha?.slice(0, 5) || '19:00'}" step="900"></td>
+          <td><input type="time" data-campo="pausa_inicio" value="${h?.pausa_inicio?.slice(0, 5) || ''}" step="900"></td>
+          <td><input type="time" data-campo="pausa_fim"    value="${h?.pausa_fim?.slice(0, 5) || ''}" step="900"></td>
+        </tr>`;
+      }).join('')}
+      </tbody></table></div>
+    </div>`).join('');
+}
+
+async function salvarHorarios(raiz) {
+  const linhas = [...raiz.querySelectorAll('#horarios-lista tr[data-prof]')];
+  const guardar = [];
+  const apagar = [];
+
+  for (const tr of linhas) {
+    const prof = tr.dataset.prof;
+    const dia = Number(tr.dataset.dia);
+    const v = (c) => tr.querySelector(`[data-campo=${c}]`);
+    const existente = db.estado.horarios.find(
+      (x) => x.profissional_id === prof && x.dia_semana === dia);
+
+    if (!v('ativo').checked) {
+      if (existente) apagar.push(existente.id);
+      continue;
+    }
+    const abre = v('abre').value, fecha = v('fecha').value;
+    if (!abre || !fecha) continue;
+    if (fecha <= abre) {
+      return avisar(`${DIAS.find(([d]) => Number(d) === dia)[1]}: o fechamento precisa ser depois da abertura`, 'erro');
+    }
+    guardar.push({
+      id: existente?.id, profissional_id: prof, dia_semana: dia,
+      abre, fecha,
+      pausa_inicio: v('pausa_inicio').value || null,
+      pausa_fim: v('pausa_fim').value || null,
+      ativo: true,
+    });
+  }
+
+  for (const id of apagar) await db.remover('horarios', id);
+  if (guardar.length) await db.salvarLote('horarios', guardar);
+  avisar('Horários salvos');
 }

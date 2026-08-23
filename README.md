@@ -4,8 +4,8 @@ Sistema de gestão do studio: atendimentos, clientes, estoque, caixa,
 precificação e comissão. Feito na identidade visual da marca, funciona no
 celular como aplicativo e continua funcionando quando a internet cai.
 
-Os **agendamentos continuam no Trinks**. Este sistema cuida do resto — e a
-página pública tem um botão que leva as clientes direto para o Trinks.
+A cliente **marca o próprio horário** pela página pública, e o horário já fica
+fechado na agenda. Não depende do Trinks.
 
 ---
 
@@ -14,6 +14,7 @@ página pública tem um botão que leva as clientes direto para o Trinks.
 | Tela | Para quê |
 |---|---|
 | **Painel** | Quanto entrou hoje e no mês, o que falta comprar, quem sumiu, aniversariantes |
+| **Agenda** | O dia de cada profissional em colunas; folga e férias; o horário vira comanda quando a cliente chega |
 | **Atendimentos** | Comanda: cliente, serviços, pagamento. Ao fechar, cai no caixa e baixa o estoque |
 | **Clientes** | Ficha, telefone, aniversário, alergias, histórico e ritmo de retorno |
 | **Estoque** | Os 176 insumos da planilha, saldo, mínimo, lista de compras e ficha técnica |
@@ -22,7 +23,7 @@ página pública tem um botão que leva as clientes direto para o Trinks.
 | **Precificação** | A planilha 2026 viva: mexeu numa premissa, a tabela toda recalcula |
 | **Comissões** | Quanto cada uma produziu e quanto tem a receber |
 | **Relatórios** | O mês inteiro: faturamento, taxa de retorno, ranking, resultado |
-| **Vitrine** (`vitrine.html`) | Página pública com a tabela de valores e o botão de agendar |
+| **Vitrine** (`vitrine.html`) | Página pública com a tabela de valores e o agendamento da cliente |
 
 ---
 
@@ -217,6 +218,38 @@ insumo ele consome. A partir daí, fechar a comanda desconta sozinho — e o
 custo do serviço passa a ser o custo real da ficha, não uma estimativa.
 
 Comece pelos 5 serviços que vocês mais fazem. O resto vem com o tempo.
+
+---
+
+## Agendamento
+
+A cliente escolhe o serviço, o dia e a hora. O sistema mostra **só o que está
+realmente livre**: cruza o horário de funcionamento de cada profissional, o
+tempo que aquele serviço leva, os atendimentos já marcados e as folgas.
+
+Quem faz o serviço é deduzido do próprio serviço — "Escova longo" é da Laura,
+"Manicure" é da Julia. A cliente não precisa saber disso.
+
+Três coisas que o banco resolve e o navegador não conseguiria:
+
+1. **Duas clientes no mesmo horário.** Uma restrição de exclusão no Postgres
+   recusa a segunda, mesmo que os cliques sejam simultâneos.
+2. **A agenda não é pública.** A página da cliente nunca lê a tabela de
+   agendamentos — seria expor nome e telefone de todo mundo. Ela conversa com
+   três funções que devolvem só o necessário.
+3. **Horário que sumiu enquanto ela decidia.** A validação é refeita no
+   servidor no momento de marcar, não na hora de listar.
+
+Configure o horário de funcionamento em **Ajustes → Horário de funcionamento**.
+Dia sem horário cadastrado é dia fechado. Folga e férias entram em
+**Agenda → Folga**.
+
+### Lembrete de horário
+
+Mandar mensagem sozinho exige a API oficial do WhatsApp, que é paga. O que o
+sistema faz é o caminho mais curto sem isso: cada horário na agenda tem um
+botão que **abre o WhatsApp com a mensagem já escrita**, com nome, serviço,
+dia e hora. Um toque em vez de automático.
 
 ---
 

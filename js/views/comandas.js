@@ -121,18 +121,35 @@ function linhasComanda(lista) {
 }
 
 // ─── Modal da comanda ──────────────────────────────────────────────────────
-export function abrirComanda(id) {
+/**
+ * `inicial` vem da agenda: a cliente chegou e o atendimento já começa
+ * preenchido com quem, quando e o que ela marcou.
+ */
+export function abrirComanda(id, inicial) {
   const existente = id ? db.estado.comandas.find((c) => c.id === id) : null;
   const c = existente
     ? { ...existente }
-    : { id: uid(), data: hoje(), status: 'aberta', desconto: 0,
+    : { id: uid(), data: inicial?.data || hoje(), status: 'aberta', desconto: 0,
+        cliente_nome: inicial?.cliente_nome || null,
+        cliente_id: inicial?.cliente_id || null,
         // Quem está logada só é a profissional padrão se ela mesma atender.
-        profissional_id: (db.eu?.atende !== false ? db.eu?.id : null)
+        profissional_id: inicial?.profissional_id
+                         || (db.eu?.atende !== false ? db.eu?.id : null)
                          || atendentes()[0]?.id || null };
 
   let itens = existente
     ? db.estado.comanda_itens.filter((i) => i.comanda_id === id).map((i) => ({ ...i }))
     : [];
+
+  if (!existente && inicial?.servico_id) {
+    const s = db.estado.servicos.find((x) => x.id === inicial.servico_id);
+    if (s) {
+      itens.push({ id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
+                   tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
+                   custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
+                   confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' });
+    }
+  }
 
   const catalogo = db.estado.servicos.filter((s) => s.ativo !== false);
   const fechada = c.status === 'fechada';
