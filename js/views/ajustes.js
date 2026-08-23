@@ -91,6 +91,7 @@ export function render(raiz) {
         <div class="cartao-cabeca">${ico('ajustes')}<h3>Este aparelho</h3></div>
         <p class="pequeno t2 mb">Conectado em <code>${esc(db.lerConfig()?.url || '—')}</code></p>
         <div class="flex envolve" style="gap:8px">
+          <button class="btn" id="trocar-senha">${ico('ajustes')}Trocar minha senha</button>
           <button class="btn btn-fantasma" id="trocar">Trocar servidor</button>
           <button class="btn btn-perigo" id="sair">${ico('sair')}Sair da conta</button>
         </div>
@@ -119,6 +120,28 @@ export function render(raiz) {
     await db.setCfg('categorias_caixa', { entrada: lst('#cat-entrada'), saida: lst('#cat-saida') });
     avisar('Categorias salvas');
   };
+
+  // Senha que a pessoa não escolheu é senha que ela anota num papel.
+  raiz.querySelector('#trocar-senha').onclick = () => abrirModal({
+    titulo: 'Trocar minha senha',
+    corpo: `
+      <p class="t2 pequeno mb">A nova senha vale a partir de agora, neste e em qualquer
+        outro aparelho onde você entrar.</p>
+      <label class="campo"><span>Nova senha</span>
+        <input type="password" name="s1" autocomplete="new-password" required>
+        <span class="dica t3">Pelo menos 8 caracteres.</span></label>
+      <label class="campo"><span>Repita a nova senha</span>
+        <input type="password" name="s2" autocomplete="new-password" required></label>`,
+    acoes: [{ texto: 'Trocar senha', classe: 'btn-primario', onClick: async (fechar, veu) => {
+      const d = lerForm(veu);
+      if (d.s1 !== d.s2) return avisar('As duas senhas não são iguais', 'erro');
+      try {
+        await db.trocarSenha(d.s1);
+        fechar();
+        avisar('Senha trocada. É esta que você usa da próxima vez.');
+      } catch (e) { avisar(e.message, 'erro'); }
+    } }],
+  });
 
   raiz.querySelector('#equipe').onclick = () => abrirEquipe();
   raiz.querySelector('#folga').onclick = () => abrirBloqueio();

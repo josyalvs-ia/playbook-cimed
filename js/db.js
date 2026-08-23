@@ -69,6 +69,24 @@ export async function sair() {
   location.reload();
 }
 
+/**
+ * Troca a senha de quem está logada.
+ *
+ * Só existia o "esqueci a senha", que manda link por e-mail. Quem entrou com
+ * a senha provisória do convite não tinha como escolher a sua — e senha que a
+ * pessoa não escolheu é senha que ela anota num papel.
+ */
+export async function trocarSenha(nova) {
+  if (!cliente) throw new Error('Sem conexão com o servidor.');
+  if (String(nova).length < 8) throw new Error('A senha precisa de pelo menos 8 caracteres.');
+  const { error } = await cliente.auth.updateUser({ password: nova });
+  if (error) {
+    throw new Error(/should be different|same as/i.test(error.message)
+      ? 'Escolha uma senha diferente da atual.'
+      : (error.message || 'Não consegui trocar a senha.'));
+  }
+}
+
 export async function sessaoAtual() {
   if (!cliente) return null;
   const { data } = await cliente.auth.getSession();

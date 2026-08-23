@@ -58,6 +58,7 @@ export function createClient(){
       signOut: async () => ({}),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe(){} } } }),
       resetPasswordForEmail: async () => ({}),
+      updateUser: async (d) => { globalThis.__SENHA_NOVA = d.password; return { error: null }; },
     },
     rpc: async (nome, args) => {
       if (nome === 'horarios_livres') {
@@ -993,7 +994,41 @@ await p2.waitForTimeout(700);
   await p2.waitForTimeout(400);
 }
 
-// ── 25. Todo campo editável tem contraste real ──
+// ── 25. Trocar a própria senha ──
+// Só existia "esqueci a senha", que manda link por e-mail. Quem entrou com a
+// senha provisória do convite não tinha como escolher a sua.
+{
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#trocar-senha');
+  await p2.waitForSelector('input[name=s1]');
+
+  await p2.fill('input[name=s1]', 'umasenhaboa8');
+  await p2.fill('input[name=s2]', 'outracoisa99');
+  await p2.click('text=Trocar senha');
+  await p2.waitForTimeout(500);
+  checagens.push(['senha: recusa quando as duas não batem',
+    /não são iguais/i.test(nb(await p2.textContent('#toasts')))]);
+
+  await p2.fill('input[name=s1]', 'curta');
+  await p2.fill('input[name=s2]', 'curta');
+  await p2.click('text=Trocar senha');
+  await p2.waitForTimeout(500);
+  checagens.push(['senha: recusa senha curta demais',
+    /8 caracteres/i.test(nb(await p2.textContent('#toasts')))]);
+
+  await p2.fill('input[name=s1]', 'umasenhaboa8');
+  await p2.fill('input[name=s2]', 'umasenhaboa8');
+  await p2.click('text=Trocar senha');
+  await p2.waitForTimeout(700);
+  checagens.push(['senha: troca quando está tudo certo',
+    /Senha trocada/i.test(nb(await p2.textContent('#toasts')))]);
+  checagens.push(['senha: chegou ao servidor',
+    await p2.evaluate(() => globalThis.__SENHA_NOVA === 'umasenhaboa8')]);
+  checagens.push(['senha: a janela fecha depois', await p2.locator('.veu').count() === 0]);
+}
+
+// ── 26. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {
