@@ -122,7 +122,7 @@ export function abrirEquipe() {
     titulo: 'Equipe do studio',
     corpo: `
       <div class="tabela-wrap"><table><thead><tr>
-        <th>Nome</th><th>Função</th><th class="n">Comissão</th><th></th>
+        <th>Nome</th><th>Função</th><th class="n">Comissão</th><th>Acesso</th><th></th>
       </tr></thead><tbody>
       ${db.estado.profissionais.map((p) => `<tr>
         <td><div class="flex" style="gap:9px">
@@ -132,6 +132,9 @@ export function abrirEquipe() {
         </div></td>
         <td class="pequeno t2">${p.funcao === 'cabelo' ? 'Cabelos' : p.funcao === 'ambos' ? 'Unhas e cabelos' : 'Unhas'}</td>
         <td class="n num">${fmt.pct(p.comissao_pct, 0)}</td>
+        <td>${p.ativo === false
+          ? '<span class="selo erro">sem acesso</span>'
+          : '<span class="selo ok">ativa</span>'}</td>
         <td style="width:34px"><button class="btn-icone" data-prof="${p.id}">${ico('editar')}</button></td>
       </tr>`).join('')}
       </tbody></table></div>
@@ -161,13 +164,17 @@ export function abrirProfissional(id) {
           </select></label>
         <label class="campo"><span>Comissão (%)</span>
           <input type="number" name="pct" step="1" min="0" max="100" value="${Math.round((p.comissao_pct ?? 0) * 100)}"></label>
-      </div>`,
+      </div>
+      <label class="check"><input type="checkbox" name="ativo" ${p.ativo !== false ? 'checked' : ''}>
+        <span>Pode usar o sistema
+          <div class="pequeno t3">Desmarcado, a conta continua existindo mas não enxerga nada do studio.</div>
+        </span></label>`,
     acoes: [{ texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
       const d = lerForm(veu);
       if (!d.nome) return avisar('Informe o nome', 'erro');
       await db.salvar('profissionais', {
         ...p, nome: d.nome, funcao: d.funcao,
-        comissao_pct: (Number(d.pct) || 0) / 100, ativo: true,
+        comissao_pct: (Number(d.pct) || 0) / 100, ativo: !!d.ativo,
       });
       fechar(); avisar('Profissional salva');
     } }],

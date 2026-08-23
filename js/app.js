@@ -249,6 +249,22 @@ function telaLogin() {
   };
 }
 
+function telaSemAcesso({ email, inativa }) {
+  molduraCentral(`
+    <div class="regua mb">${estrela()}</div>
+    <h2 class="centro" style="margin-bottom:6px">Acesso não liberado</h2>
+    <p class="t2 pequeno centro mb">
+      A conta <strong>${esc(email)}</strong> entrou, mas ainda não faz parte da
+      equipe do studio${inativa ? ' — o cadastro existe, porém está inativo' : ''}.</p>
+    <div class="aviso mb">${ico('info')}<div>
+      Se este acesso deveria funcionar, quem administra o studio precisa liberar em
+      <strong>Ajustes → Equipe</strong>, ou convidar este e-mail pelo painel do Supabase
+      em <strong>Authentication → Users → Invite user</strong>.</div></div>
+    <button class="btn btn-bloco" id="btn-sair-sem-acesso">Sair desta conta</button>
+    <p class="pequeno t3 mt centro"><a href="vitrine.html">Ver a tabela de preços pública</a></p>`);
+  document.getElementById('btn-sair-sem-acesso').onclick = () => db.sair();
+}
+
 function telaErro(msg) {
   molduraCentral(`
     <div class="aviso erro mb">${ico('alerta')}<div>${esc(msg)}</div></div>
@@ -271,6 +287,7 @@ async function boot() {
 
   if (r.estado === 'sem-config') return telaConfig();
   if (r.estado === 'sem-sessao') return telaLogin();
+  if (r.estado === 'sem-acesso') return telaSemAcesso(r);
 
   desenharCasca();
   db.aoMudar(redesenhar);

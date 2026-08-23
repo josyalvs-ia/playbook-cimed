@@ -250,13 +250,11 @@ export async function iniciar() {
   await drenarFila();
 
   eu = estado.profissionais.find((p) => p.user_id === s.user.id) || null;
-  if (!eu) {
-    // Primeiro acesso sem o gatilho ter rodado: cria o registro na hora.
-    eu = await salvar('profissionais', {
-      user_id: s.user.id,
-      nome: s.user.user_metadata?.nome || s.user.email.split('@')[0],
-      funcao: 'unhas', comissao_pct: 0.5, ativo: true,
-    });
+
+  // Só quem está cadastrada como profissional ativa enxerga o studio. Quem
+  // criou conta por conta própria fica aqui, sem acesso a nada.
+  if (!eu || eu.ativo === false) {
+    return { estado: 'sem-acesso', email: s.user.email, inativa: !!eu };
   }
 
   window.addEventListener('online', drenarFila);

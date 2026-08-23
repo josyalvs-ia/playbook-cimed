@@ -83,7 +83,17 @@ URL e a chave, e faça o commit. Aí qualquer aparelho já abre conectado.
 o app pergunta a URL e a chave e guarda no próprio aparelho. Precisa repetir
 em cada celular.
 
-### 5. Criar os acessos da Laura e da Julia
+### 5. Fechar o auto-cadastro
+
+**Faça isso antes de convidar alguém.** Em **Authentication → Sign In /
+Providers → Email**, desligue **Allow new users to sign up**.
+
+Sem isso, qualquer pessoa que descubra o endereço do projeto pode criar uma
+conta sozinha. O banco já barra essas contas (veja *Como o acesso é
+protegido*, abaixo), mas fechar o cadastro é a primeira porta e não custa
+nada.
+
+### 6. Criar os acessos da Laura e da Julia
 
 No Supabase: **Authentication → Users → Add user → Send invitation**.
 
@@ -91,7 +101,11 @@ Convide os dois e-mails. Cada uma recebe o convite, define a senha e entra.
 O cadastro da profissional aparece sozinho no sistema no primeiro login —
 depois é só ajustar função e percentual de comissão em **Ajustes → Equipe**.
 
-### 6. Primeira abertura
+> Se alguém aparecer com a tela **"Acesso não liberado"**, é porque a conta
+> existe mas não está marcada como profissional ativa. Quem já está dentro
+> resolve em **Ajustes → Equipe**, marcando *Pode usar o sistema*.
+
+### 7. Primeira abertura
 
 Ao entrar pela primeira vez, o app oferece instalar os dados iniciais:
 
@@ -122,6 +136,33 @@ login e é só para vocês duas.
   Tela de Início*
 
 Vira um ícone igual a qualquer app, abre em tela cheia e funciona offline.
+
+---
+
+## Como o acesso é protegido
+
+O endereço do projeto e a chave publicável ficam no `config.js`, que vai para
+o repositório. Isso é normal: em qualquer aplicativo web que usa Supabase,
+esses dois valores precisam estar no navegador de quem abre a página. Eles não
+dão acesso a nada sozinhos.
+
+A proteção real está no banco:
+
+1. **Sem login, ninguém lê nada** — a única exceção é a tabela de preços e os
+   dados de contato do studio, que são públicos de propósito para a vitrine
+   funcionar.
+2. **Estar logada não basta.** Só enxerga o studio quem estiver cadastrada em
+   `profissionais` com acesso ativo. Uma conta criada por um estranho entra
+   **inativa** e não lê absolutamente nada — nem clientes, nem caixa, nem
+   agenda. Ela vê apenas a tela "Acesso não liberado".
+3. **Entra como ativa** quem foi convidada pelo painel do Supabase, e quem
+   instalou o sistema. Mais ninguém.
+4. **Você pode revogar** o acesso de alguém a qualquer momento em
+   **Ajustes → Equipe**, sem apagar o histórico de atendimentos dela.
+
+O que nunca pode sair do painel do Supabase é a chave **secreta**
+(`sb_secret_...` / `service_role`). Essa ignora todas as regras acima. O app
+inclusive se recusa a aceitá-la, caso alguém cole por engano.
 
 ---
 

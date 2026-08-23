@@ -158,9 +158,29 @@ create table if not exists config (
 );
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- Segurança: o studio tem duas profissionais, ambas com acesso total ao que
--- está logado. Nada é público. Quem não estiver autenticado não lê nada.
+-- SEGURANÇA
+--
+-- Estar logado NÃO basta. O Supabase permite auto-cadastro por padrão, e o
+-- endereço do projeto mais a chave pública ficam visíveis no código do app —
+-- é assim que qualquer aplicativo web funciona. Se a regra fosse apenas
+-- "usuário autenticado", bastaria alguém criar uma conta para ler a agenda,
+-- os clientes e o caixa do studio.
+--
+-- Então o acesso exige estar cadastrada como profissional ATIVA. E só entra
+-- como ativa quem foi convidada pelo painel do Supabase (ou a primeira pessoa
+-- a acessar, que é quem está instalando). Quem se cadastrar sozinha depois
+-- entra inativa e não enxerga absolutamente nada.
 -- ═══════════════════════════════════════════════════════════════════════════
+
+create or replace function public.e_da_equipe()
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profissionais
+    where user_id = auth.uid() and ativo
+  );
+$$;
+
 do $$
 declare t text;
 begin
@@ -172,10 +192,18 @@ begin
     execute format($f$
       create policy "equipe" on %I
         for all to authenticated
-        using (true) with check (true)
+        using (public.e_da_equipe()) with check (public.e_da_equipe())
     $f$, t);
   end loop;
 end $$;
+
+-- Exceção necessária: quem acabou de logar precisa conseguir ler a PRÓPRIA
+-- linha para o app saber quem ela é — inclusive para descobrir que está
+-- inativa e mostrar "acesso não liberado" em vez de uma tela quebrada.
+drop policy if exists "minha_linha" on profissionais;
+create policy "minha_linha" on profissionais
+  for select to authenticated
+  using (user_id = auth.uid());
 
 -- A tabela de preços e os dados de contato são públicos por natureza: é o que
 -- a vitrine mostra para quem ainda não é cliente. Só leitura, só isso.
@@ -190,9 +218,19 @@ create policy "vitrine_config" on config
 -- Cria automaticamente o registro de profissional quando alguém é convidado.
 create or replace function public.novo_profissional()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  primeira boolean;
 begin
-  insert into public.profissionais (user_id, nome)
-  values (new.id, coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1)))
+  select not exists (select 1 from public.profissionais) into primeira;
+
+  insert into public.profissionais (user_id, nome, ativo)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1)),
+    -- Ativa se foi convidada pelo painel, ou se é a primeira pessoa do studio
+    -- (quem está instalando). Cadastro espontâneo entra inativo.
+    new.invited_at is not null or primeira
+  )
   on conflict (user_id) do nothing;
   return new;
 end $$;
@@ -201,3 +239,15 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.novo_profissional();
+
+-- Quem já tinha conta antes deste arquivo rodar não passou pelo gatilho e
+-- ficaria trancada do lado de fora. Cadastra essas pessoas agora, como ativas:
+-- na hora da instalação, os únicos usuários que existem são os do studio.
+insert into public.profissionais (user_id, nome, ativo)
+select u.id,
+       coalesce(u.raw_user_meta_data->>'nome', split_part(u.email, '@', 1)),
+       true
+from auth.users u
+left join public.profissionais p on p.user_id = u.id
+where p.id is null
+on conflict (user_id) do nothing;
