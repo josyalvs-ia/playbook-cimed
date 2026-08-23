@@ -77,12 +77,12 @@ export function render(raiz) {
 
       <div class="cartao">
         <div class="cartao-cabeca">${ico('clientes')}<h3>Taxa de retorno do mês</h3></div>
-        <div class="flex" style="gap:20px">
-          <div>
+        <div class="flex envolve" style="gap:16px 20px">
+          <div style="min-width:0">
             <div class="display" style="font-size:38px;line-height:1">${fmt.pct(retorno.taxa, 0)}</div>
             <div class="pequeno t3">das clientes já tinham vindo antes</div>
           </div>
-          <div class="crescer pequeno t2">
+          <div class="crescer pequeno t2" style="min-width:150px">
             <div class="flex-entre"><span>Recorrentes</span><strong>${retorno.recorrentes}</strong></div>
             <div class="flex-entre"><span>Novas</span><strong>${retorno.novas}</strong></div>
             <div class="flex-entre"><span>Total atendido</span><strong>${retorno.total}</strong></div>

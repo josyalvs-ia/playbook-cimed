@@ -223,7 +223,8 @@ h3 { font-size: 15px; font-weight: 600; }
   position: sticky; top: 0; z-index: 40;
 }
 .topo h1 { font-size: 21px; }
-.topo-acoes { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.topo-acoes { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.topo h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .conteudo { flex: 1; padding: 26px; max-width: 1280px; width: 100%; }
 .conteudo.largo { max-width: none; }
@@ -231,29 +232,6 @@ h3 { font-size: 15px; font-weight: 600; }
 /* ── Barra inferior (mobile) ───────────────────────────────────────────────*/
 .tabbar { display: none; }
 
-@media (max-width: 860px) {
-  .lateral { display: none; }
-  .conteudo { padding: 16px 14px 92px; }
-  .topo { padding: 0 14px; }
-  .topo h1 { font-size: 18px; }
-  h1 { font-size: 24px; }
-
-  .tabbar {
-    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-    background: rgba(29, 29, 27, 0.95);
-    backdrop-filter: blur(14px);
-    border-top: 1px solid var(--linha);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-  }
-  .tabbar button {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 6px 2px; color: var(--texto-3);
-    font-size: 10px; font-weight: 500; letter-spacing: 0.02em;
-  }
-  .tabbar button.ativo { color: var(--creme); }
-  .tabbar .ico { width: 19px; height: 19px; }
-}
 
 /* ── Cartões ───────────────────────────────────────────────────────────────*/
 .cartao {
@@ -264,19 +242,32 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 .cartao-cabeca {
   display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;   /* busca + filtro + botão não cabem lado a lado no celular */
   margin-bottom: 14px;
 }
 .cartao-cabeca > .ico { width: 18px; height: 18px; opacity: 0.55; }
 .cartao-cabeca > .estrela { font-size: 13px; opacity: 0.75; }
 .cartao-cabeca h2, .cartao-cabeca h3 { margin-right: auto; }
 
-.grade { display: grid; gap: 14px; }
+.grade { display: grid; gap: 14px; min-width: 0; }
+.grade > * { min-width: 0; }
 .grade.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grade.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grade.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grade.auto { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-@media (max-width: 900px) { .grade.c3, .grade.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .grade.c2, .grade.c3, .grade.c4 { grid-template-columns: 1fr; } }
+/* Uma coluna por profissional. No celular elas empilham: duas colunas num
+   aparelho estreito deixam cada horário ilegível. */
+.agenda-colunas { grid-template-columns: repeat(var(--colunas, 1), minmax(0, 1fr)); }
+/* `1fr` sozinho equivale a minmax(AUTO,1fr): um filho largo — uma tabela, por
+   exemplo — estica a coluna e a página inteira passa a rolar de lado. O
+   minmax(0,…) é o que prende a coluna à largura da tela. */
+@media (max-width: 900px) {
+  .grade.c3, .grade.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .grade.c2, .grade.c3, .grade.c4 { grid-template-columns: minmax(0, 1fr); }
+  .grade.auto { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* Indicador numérico */
 .kpi {
@@ -542,6 +533,10 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .vazio p { font-size: 14px; max-width: 380px; margin: 0 auto 16px; }
 
 /* ── Utilidades ────────────────────────────────────────────────────────────*/
+/* Sem min-width:0 um filho de flex se recusa a encolher abaixo do próprio
+   conteúdo, estica o pai e a página inteira passa a rolar de lado. */
+.flex, .flex-entre, .flex-fim { min-width: 0; }
+.flex > *, .flex-entre > *, .flex-fim > * { min-width: 0; }
 .flex { display: flex; align-items: center; gap: 10px; }
 .flex-entre { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .flex-fim { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
@@ -581,3 +576,61 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
   body { background: #fff; color: #1D1D1B; }
   .cartao, .kpi { border-color: #ccc; background: #fff; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CELULAR
+   No fim do arquivo de propósito: aqui estas regras vencem as de base sem
+   precisar de seletor mais forte. É onde a maioria vai usar o sistema.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .lateral { display: none; }
+  .conteudo { padding: 16px 14px 92px; }
+  .topo { padding: 0 14px; }
+  .topo h1 { font-size: 18px; }
+  h1 { font-size: 24px; }
+
+  /* O texto do botão principal sai; sobra o "+", que já diz o que faz. */
+  .esconde-mobile { display: none; }
+  .agenda-colunas { grid-template-columns: minmax(0, 1fr); }
+
+  /* Dedo, não ponteiro: nada de alvo abaixo de ~40px de altura. */
+  .btn-sm { padding: 9px 13px; min-height: 40px; }
+  .btn { min-height: 42px; }
+  .btn-icone { width: 40px; height: 40px; }
+  .pilula { padding: 9px 15px; min-height: 38px; }
+  .check input { width: 22px; height: 22px; }
+  .check { padding: 9px 0; }
+  input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--campo); }
+  /* Numa tabela a caixinha é o único alvo: a célula inteira vira área de toque. */
+  table td input[type=checkbox] { margin: 7px; }
+
+  /* Rótulos miúdos ficam legíveis de fato. */
+  .eyebrow { font-size: 11.5px; }
+  .rotulo { font-size: 11.5px; }
+  .pequeno { font-size: 13px; }
+  table th { font-size: 12px; letter-spacing: 0.08em; }
+  .kpi .nota { font-size: 12.5px; }
+
+  .tabbar {
+    /* minmax(0,…) de novo: com `1fr` puro um rótulo comprido estica a coluna
+       e empurra a barra para fora da tela. */
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: rgba(29, 29, 27, 0.95);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--linha);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .tabbar button {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 2px; min-height: 52px; color: var(--texto-3);
+    font-size: 10.5px; font-weight: 500; letter-spacing: 0.01em;
+    min-width: 0; overflow: hidden;
+  }
+  .tabbar button span {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .tabbar button.ativo { color: var(--creme); }
+  .tabbar .ico { width: 19px; height: 19px; }
+}
+

@@ -80,7 +80,7 @@ export function render(raiz) {
         <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button></div>`).join('')}
     </div>` : ''}
 
-    <div class="grade" style="grid-template-columns:repeat(${Math.max(1, profs.length)},minmax(0,1fr))">
+    <div class="grade agenda-colunas" style="--colunas:${Math.max(1, profs.length)}">
       ${profs.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
         || vazio('Nenhuma profissional cadastrada para atender.')}
     </div>`;
