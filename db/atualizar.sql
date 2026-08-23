@@ -1,5 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- FOTO E APRESENTAÇÃO DA EQUIPE
+-- ATUALIZAÇÃO DO BANCO
+--
+-- Foto e apresentação da equipe, e a conferência dos horários da cliente.
 --
 -- Rode este arquivo no SQL Editor do Supabase se o seu banco já foi criado
 -- antes desta parte existir. Quem for criar o banco do zero não precisa: já
@@ -24,3 +26,23 @@ with (security_invoker = off) as
   where ativo and atende;
 
 grant select on public.equipe_publica to anon, authenticated;
+
+
+-- ── O horário que a cliente guardou ainda existe? ──────────────────────────
+-- A página das clientes guardava o horário só no celular. Se ele fosse
+-- cancelado do lado do studio, o cartão continuava lá e o botão de desmarcar
+-- respondia "não consegui" para sempre, sem explicar nada.
+--
+-- Esta função devolve a situação de cada código que a cliente tem no aparelho.
+-- Não abre nada: só responde sobre o horário de quem já tem o código dele.
+create or replace function public.situacao_agendamentos(p_tokens uuid[])
+returns table (codigo uuid, quando timestamptz, servico text, prof_nome text, situacao text)
+language sql security definer set search_path = public stable as $$
+  select a.token, a.inicio, a.servico_nome, split_part(p.nome, ' ', 1), a.status
+    from agendamentos a
+    join profissionais p on p.id = a.profissional_id
+   where a.token = any(p_tokens)
+$$;
+
+revoke all on function public.situacao_agendamentos(uuid[]) from public;
+grant execute on function public.situacao_agendamentos(uuid[]) to anon, authenticated;

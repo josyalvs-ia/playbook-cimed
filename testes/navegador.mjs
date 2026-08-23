@@ -47,7 +47,9 @@ export function createClient(){
     rpc: async (nome, args) => {
       if (nome === 'horarios_livres') {
         const base = new Date(args.p_data + 'T09:00:00');
-        const tomados = (memoria.agendamentos || []).map(a => a.inicio);
+        // Horário cancelado volta a ficar livre, como no banco de verdade.
+        const tomados = (memoria.agendamentos || [])
+          .filter(a => a.status !== 'cancelado').map(a => a.inicio);
         const out = [];
         for (let h = 0; h < 8; h++) {
           const d = new Date(base); d.setHours(9 + h);
@@ -71,9 +73,18 @@ export function createClient(){
       }
       if (nome === 'cancelar_agendamento') {
         const t = memoria.agendamentos || [];
-        const i = t.findIndex(a => a.token === args.p_token || a.codigo === args.p_token);
-        if (i >= 0) { t.splice(i, 1); persistir(); return { data: true, error: null }; }
-        return { data: false, error: null };
+        const a = t.find(x => (x.token === args.p_token || x.codigo === args.p_token)
+                              && x.status !== 'cancelado');
+        if (a) { a.status = 'cancelado'; persistir(); return { data: true, error: null }; }
+        return { data: false, error: null };   // já não estava de pé
+      }
+      if (nome === 'situacao_agendamentos') {
+        const t = memoria.agendamentos || [];
+        return { data: (args.p_tokens || []).map((tk) => {
+          const a = t.find(x => x.token === tk || x.codigo === tk);
+          return a && { codigo: tk, quando: a.inicio, servico: a.servico_nome,
+                        prof_nome: 'Julia', situacao: a.status || 'confirmado' };
+        }).filter(Boolean), error: null };
       }
       return { data: [], error: null };
     },
@@ -434,6 +445,46 @@ await p2.waitForTimeout(900);
   await pv.waitForTimeout(700);
   checagens.push(['vitrine: desmarcar limpa o cartão',
     await pv.locator('.meu-horario').count() === 0]);
+
+  // ── O cartão preso ──────────────────────────────────────────────────────
+  // Foi o que aconteceu de verdade: o horário some do banco (o studio
+  // cancelou), mas o cartão continua no celular. Antes, apertar "Desmarcar"
+  // devolvia "Não consegui desmarcar" para sempre, sem saída nenhuma.
+  await pv.evaluate(() => {
+    localStorage.setItem('alento.meus-horarios', JSON.stringify([{
+      codigo: 'cod-fantasma', servico: 'Manicure', prof: 'Julia',
+      nome: 'Josianny', quando: new Date(Date.now() + 3 * 864e5).toISOString(),
+    }]));
+  });
+  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.waitForTimeout(900);
+  checagens.push(['cartão preso: some sozinho quando o horário não existe mais',
+    await pv.locator('.meu-horario').count() === 0]);
+  checagens.push(['cartão preso: também sai do celular',
+    await pv.evaluate(() =>
+      JSON.parse(localStorage.getItem('alento.meus-horarios') || '[]').length === 0)]);
+
+  // E o mesmo pelo botão, para quem já estava com a página aberta.
+  await pv.evaluate(async () => {
+    localStorage.setItem('alento.meus-horarios', JSON.stringify([{
+      codigo: 'cod-fantasma', servico: 'Manicure', prof: 'Julia',
+      nome: 'Josianny', quando: new Date(Date.now() + 3 * 864e5).toISOString(),
+    }]));
+  });
+  await pv.reload({ waitUntil: 'networkidle' });
+  await pv.waitForTimeout(300);
+  const desmarcado = await pv.evaluate(async () => {
+    const m = await import('./js/agendar.js');
+    const sb = { rpc: async () => ({ data: false, error: null }) };
+    let recado = null;
+    await m.desmarcar(sb, 'cod-fantasma', () => {});
+    recado = document.querySelector('#toasts')?.textContent || '';
+    return { recado, sobrou: JSON.parse(localStorage.getItem('alento.meus-horarios') || '[]').length };
+  });
+  checagens.push(['cartão preso: o botão explica em vez de só dar erro',
+    /já não estava mais marcado/i.test(desmarcado.recado), desmarcado.recado]);
+  checagens.push(['cartão preso: o botão também tira do celular', desmarcado.sobrou === 0]);
+
   await pv.evaluate(() => localStorage.removeItem('alento.meus-horarios'));
   await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
   await pv.waitForTimeout(500);

@@ -45,9 +45,10 @@ fechado na agenda. Não depende do Trinks.
 3. Clique em **Run**. Deve aparecer *Success*.
 
 > **Se o seu banco já existia antes de agosto de 2026**, rode também
-> [`db/equipe.sql`](db/equipe.sql) do mesmo jeito: é o que acrescenta a foto
-> e a apresentação de cada profissional. Quem está criando o banco agora não
-> precisa — já vem no `schema.sql`. Rodar duas vezes não faz mal.
+> [`db/atualizar.sql`](db/atualizar.sql) do mesmo jeito: é o que acrescenta a
+> foto e a apresentação de cada profissional, e a conferência que tira do
+> celular da cliente o horário que já foi cancelado. Quem está criando o banco
+> agora não precisa — já vem no `schema.sql`. Rodar duas vezes não faz mal.
 
 ### 3. Pegar a URL e a chave pública
 
@@ -285,7 +286,7 @@ mas uma cópia sua não custa nada.
 ├── manifest.webmanifest  faz virar aplicativo no celular
 ├── sw.js                 service worker (funciona offline)
 ├── db/schema.sql         estrutura do banco — cole no Supabase
-├── db/equipe.sql         foto e apresentação da equipe (bancos antigos)
+├── db/atualizar.sql      o que mudou desde a primeira versão (bancos antigos)
 ├── css/app.css           identidade visual da marca
 ├── assets/               logo, selo e ícones
 └── js/

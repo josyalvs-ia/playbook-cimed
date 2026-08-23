@@ -529,12 +529,29 @@ begin
   return coalesce(v_ok, false);
 end $$;
 
+-- ── O horário que a cliente guardou ainda existe? ──────────────────────────
+-- A página das clientes guarda o horário no próprio celular. Sem esta
+-- conferência, um horário cancelado do lado do studio continuaria no cartão
+-- dela para sempre, com o botão de desmarcar respondendo "não consegui".
+--
+-- Não abre nada: só responde sobre o horário de quem já tem o código dele.
+create or replace function public.situacao_agendamentos(p_tokens uuid[])
+returns table (codigo uuid, quando timestamptz, servico text, prof_nome text, situacao text)
+language sql security definer set search_path = public stable as $$
+  select a.token, a.inicio, a.servico_nome, split_part(p.nome, ' ', 1), a.status
+    from agendamentos a
+    join profissionais p on p.id = a.profissional_id
+   where a.token = any(p_tokens)
+$$;
+
 revoke all on function public.horarios_livres(text, date) from public;
 revoke all on function public.criar_agendamento(text, uuid, timestamptz, text, text, text) from public;
 revoke all on function public.cancelar_agendamento(uuid) from public;
 grant execute on function public.horarios_livres(text, date) to anon, authenticated;
 grant execute on function public.criar_agendamento(text, uuid, timestamptz, text, text, text) to anon, authenticated;
 grant execute on function public.cancelar_agendamento(uuid) to anon, authenticated;
+revoke all on function public.situacao_agendamentos(uuid[]) from public;
+grant execute on function public.situacao_agendamentos(uuid[]) to anon, authenticated;
 
 -- ── Tempo real ─────────────────────────────────────────────────────────────
 -- Tabela nova não entra sozinha na publicação do Realtime, e sem isso o app de

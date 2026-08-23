@@ -326,7 +326,8 @@
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
 import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa,
          destaque, icoDestaque, familiaDe, retrato } from './js/ui.js';
-import { iniciarAgendamento, meusHorarios, desmarcar, hora, dataLonga } from './js/agendar.js';
+import { iniciarAgendamento, meusHorarios, desmarcar, conferirMeusHorarios,
+         hora, dataLonga } from './js/agendar.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
 // aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
@@ -533,6 +534,9 @@ function pintarMeusHorarios() {
   });
 }
 pintarMeusHorarios();
+// O cartão é memória do celular; o banco é quem manda. Confere assim que a
+// página abre e repinta — assim um horário desmarcado pelo studio some daqui.
+conferirMeusHorarios(sbCliente).then(pintarMeusHorarios);
 
 // ── Destaques: a fileira de círculos do manual, virada em navegação ─────────
 // Clicar num deles esconde o que não é daquela família e leva a página até a

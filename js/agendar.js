@@ -38,6 +38,40 @@ export function esquecer(codigo) {
   } catch {}
 }
 
+/**
+ * Confere no banco os horários que estão guardados neste aparelho.
+ *
+ * Sem isto o cartão "Seu próximo horário" era só memória do celular: um
+ * horário cancelado do lado do studio continuava aparecendo, e o botão de
+ * desmarcar respondia "não consegui" para sempre, porque no banco já não havia
+ * nada para cancelar. Agora o que sumiu ou foi cancelado sai da tela, e o que
+ * o studio remarcou aparece com o horário novo.
+ *
+ * Se a função ainda não existir no banco, não faz nada: a página continua
+ * funcionando como antes em vez de ficar sem o cartão.
+ */
+export async function conferirMeusHorarios(sb) {
+  const meus = meusHorarios();
+  if (!sb || !meus.length) return meus;
+
+  const { data, error } = await sb.rpc('situacao_agendamentos',
+    { p_tokens: meus.map((h) => h.codigo) });
+  if (error || !Array.isArray(data)) return meus;
+
+  const noBanco = new Map(data.map((x) => [x.codigo, x]));
+  const atualizados = meus
+    .map((h) => {
+      const x = noBanco.get(h.codigo);
+      if (!x) return null;                          // apagado no banco
+      if (x.situacao !== 'confirmado') return null; // cancelado, faltou, concluído
+      return { ...h, quando: x.quando, servico: x.servico, prof: x.prof_nome };
+    })
+    .filter(Boolean);
+
+  try { localStorage.setItem(GUARDADOS, JSON.stringify(atualizados)); } catch {}
+  return meusHorarios();
+}
+
 export async function iniciarAgendamento({ sb, servicos, categorias, studio, equipe = [], raiz }) {
   let etapa = 1;
   let escolha = { servico: null, dia: null, horario: null };
@@ -326,9 +360,20 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
 /** Desmarca de verdade, no banco, e tira do que está guardado no navegador. */
 export async function desmarcar(sb, codigo, depois) {
   const { data, error } = await sb.rpc('cancelar_agendamento', { p_token: codigo });
-  if (error || data === false) {
-    return avisar('Não consegui desmarcar. Chame o studio no WhatsApp, por favor.', 'erro');
+
+  // Erro técnico é uma coisa; horário que já não está mais de pé é outra. Antes
+  // as duas davam o mesmo recado, e no segundo caso o cartão ficava preso na
+  // tela — a cliente apertava, dava erro, e não havia saída.
+  if (error) {
+    console.error('cancelar_agendamento:', error);
+    return avisar(limparErro(error.message) || 'Não consegui desmarcar agora. Tente de novo.', 'erro');
   }
+  if (data === false) {
+    esquecer(codigo);
+    depois?.();
+    return avisar('Este horário já não estava mais marcado. Tirei do seu celular.', 'alerta');
+  }
+
   esquecer(codigo);
   avisar('Horário desmarcado');
   depois?.();
