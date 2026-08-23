@@ -325,6 +325,23 @@ tbody tr { transition: background .18s ease; }
 }
 .titulo-marca .ico { width: 16px; height: 16px; }
 
+/* ── Endereços do studio ───────────────────────────────────────────────────*/
+.enderecos { display: grid; gap: 8px; }
+.endereco {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--superficie); border: 1px solid var(--linha);
+  border-radius: var(--r); padding: 13px 15px; min-height: 52px;
+  transition: border-color .25s ease, background .25s ease;
+}
+.endereco:hover { border-color: var(--linha-forte); background: var(--elevado); }
+.endereco strong { display: block; font-size: 14.5px; }
+.endereco .pequeno { display: block; }
+.endereco .url {
+  color: var(--creme); opacity: .62; margin-top: 3px;
+  font-size: 12px; word-break: break-all;
+}
+.endereco .ico { flex: none; opacity: .5; }
+
 /* ── Aniversariantes ───────────────────────────────────────────────────────*/
 .aniversarios { display: grid; gap: 8px; }
 .aniv {

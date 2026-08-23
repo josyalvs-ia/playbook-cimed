@@ -4,6 +4,10 @@ import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, retrato
 import { abrirEquipe } from './comissoes.js';
 import { abrirBloqueio } from './agenda.js';
 
+/** Onde o site está publicado. Serve para a equipe achar os endereços sem
+    ter de decorar nada — e sem cair no github.com, que é outro lugar. */
+const BASE_PUBLICA = location.origin + location.pathname.replace(/[^/]*$/, '');
+
 export function render(raiz) {
   const s = db.cfg('studio') || {};
   const cats = db.cfg('categorias_caixa') || { entrada: [], saida: [] };
@@ -98,6 +102,31 @@ export function render(raiz) {
       </div>
 
       <div class="cartao">
+        <div class="cartao-cabeca">${ico('nuvem')}<h3>Os endereços do studio</h3></div>
+        <p class="pequeno t2 mb">Toque para copiar. Todos começam com
+          <code>josyalvs-ia.github.io</code> — se aparecer <code>github.com</code>,
+          é o lugar onde o código mora, não o site.</p>
+        <div class="enderecos">
+          ${[
+            ['Site das clientes', 'vitrine.html', 'O que vocês divulgam. Tabela de valores e agendamento.'],
+            ['Sistema de vocês', '', 'Este aqui. Só para a equipe.'],
+            ['Manual da marca', 'apresentacao-marca.html', 'Logo, cores, tipografia e voz, em 14 telas.'],
+            ['Guia do domínio', 'guia-dominio.html', 'Passo a passo para comprar o alentoostudio.com.br.'],
+          ].map(([nome, caminho, oque]) => {
+            const url = BASE_PUBLICA + caminho;
+            return `<button class="endereco" data-copiar="${esc(url)}">
+              <span class="crescer">
+                <strong>${esc(nome)}</strong>
+                <span class="pequeno t3">${esc(oque)}</span>
+                <span class="pequeno url">${esc(url.replace('https://', ''))}</span>
+              </span>
+              ${ico('baixar')}
+            </button>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="cartao">
         <div class="cartao-cabeca">${estrela()}<h3>Sobre</h3></div>
         <p class="pequeno t2">Sistema do Alento Studio de Beleza. Precificação, estoque, caixa,
         clientes e comissão em um lugar só. Os agendamentos continuam no Trinks — a página
@@ -122,6 +151,19 @@ export function render(raiz) {
   };
 
   // Senha que a pessoa não escolheu é senha que ela anota num papel.
+  raiz.querySelectorAll('.endereco').forEach((b) => b.onclick = async () => {
+    const url = b.dataset.copiar;
+    try {
+      await navigator.clipboard.writeText(url);
+      avisar('Endereço copiado');
+    } catch {
+      // Sem permissão para a área de transferência: mostra para copiar à mão.
+      abrirModal({ titulo: 'Endereço', corpo:
+        `<p class="t2 pequeno mb">Selecione e copie:</p>
+         <input value="${esc(url)}" readonly onclick="this.select()">` });
+    }
+  });
+
   raiz.querySelector('#trocar-senha').onclick = () => abrirModal({
     titulo: 'Trocar minha senha',
     corpo: `

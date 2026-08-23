@@ -264,7 +264,9 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
 
 /* ── Destaques ───────────────────────────────────────────────────────── */
 .destaques { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 26px 0 6px; }
-.destaque { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100px; padding: 6px 4px; }
+.destaque { display: flex; flex-direction: column; align-items: center; gap: 10px;
+             min-width: 82px; padding: 6px 8px; }
+.destaque .rot { line-height: 1.3; text-align: center; }
 .anel {
   width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--linha-forte);
   display: grid; place-items: center; color: var(--creme);
@@ -447,7 +449,8 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
   .cartao .nota { display: none; }
 
   .destaques { gap: 6px; margin: 18px 0 4px; }
-  .destaque { width: 78px; gap: 8px; }
+  .destaque { min-width: 68px; gap: 8px; padding: 6px 5px; }
+  .destaque .rot { font-size: 9px; letter-spacing: .12em; }
   .anel { width: 58px; height: 58px; }
   .anel svg { width: 24px; height: 24px; }
   .botoes { margin-top: 18px; }
@@ -488,7 +491,8 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
   .frase { padding: 11px 13px; }
   .frase .display { font-size: 14px; }
 
-  .destaque { width: 66px; }
+  .destaque { min-width: 58px; padding: 5px 4px; }
+  .destaque .rot { font-size: 8.5px; letter-spacing: .08em; }
   .anel { width: 50px; height: 50px; }
   .anel svg { width: 21px; height: 21px; }
   .retrato { width: 60px; height: 60px; font-size: 23px; }

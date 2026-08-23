@@ -98,6 +98,44 @@ for (const [nome, perfil] of [
   await ctx.close();
 }
 
+// ── Os cinco destaques não podem encostar uns nos outros ───────────────────
+// "TRATAMENTOS" é uma palavra só, e mais larga que o círculo: com caixa de
+// largura fixa ela transbordava por cima da vizinha.
+for (const [nome, perfil] of [
+  ['desktop', { viewport: { width: 1280, height: 800 } }],
+  ['iPhone 13', devices['iPhone 13']],
+  ['iPhone SE', devices['iPhone SE']],
+  ['320x600', { viewport: { width: 320, height: 600 }, isMobile: true, hasTouch: true }],
+]) {
+  const ctx = await b.newContext(perfil);
+  await ctx.route('**/rest/v1/equipe_publica**', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  const p = await ctx.newPage();
+  await p.goto('http://127.0.0.1:8899/apresentacao-marca.html#9', { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1000);
+  const r = await p.evaluate(() => {
+    const itens = [...document.querySelectorAll('.destaque')];
+    const encostam = [];
+    // Rótulo maior que a própria caixa é o que invade a vizinha.
+    for (const d of itens) {
+      const cx = d.getBoundingClientRect();
+      const rot = d.querySelector('.rot').getBoundingClientRect();
+      if (rot.width > cx.width + 1) encostam.push(`${d.dataset.nome}: rótulo ${Math.round(rot.width)}px numa caixa de ${Math.round(cx.width)}px`);
+    }
+    // E o teste de verdade: alguma caixa cruza a outra?
+    for (let i = 0; i < itens.length; i++)
+      for (let j = i + 1; j < itens.length; j++) {
+        const a = itens[i].getBoundingClientRect(), c = itens[j].getBoundingClientRect();
+        const cruzam = a.left < c.right - 1 && c.left < a.right - 1 && a.top < c.bottom - 1 && c.top < a.bottom - 1;
+        if (cruzam) encostam.push(`${itens[i].dataset.nome} cruza ${itens[j].dataset.nome}`);
+      }
+    return encostam;
+  });
+  if (r.length) problemas.push(`${nome}: destaques encostam → ${r.join(' · ')}`);
+  else console.log(`✓ ${nome}: os cinco destaques sem encostar`);
+  await ctx.close();
+}
+
 console.log(problemas.length ? '\nPROBLEMAS:\n  ' + problemas.join('\n  ') : '\nnenhum problema');
 await b.close();
 process.exit(problemas.length ? 1 : 0);
