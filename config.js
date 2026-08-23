@@ -13,7 +13,6 @@
   pergunta a URL e a chave, e guarda no próprio aparelho.
 */
 window.ALENTO_CONFIG = {
-  // Falta preencher: Supabase → Settings → Data API → Project URL
-  url: 'https://SUA-URL.supabase.co',
+  url: 'https://nwlstgqvfwjsybmvcnyj.supabase.co',
   anonKey: 'sb_publishable_hkO6u9gfAIy_4jSYOPISfQ_qTXYWVBM',
 };

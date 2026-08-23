@@ -59,12 +59,26 @@ lateral esquerda.
 - **Não use** a `service_role` nem a `sb_secret_...`. Essas são secretas e
   não podem sair do servidor. O app recusa se você colar uma delas.
 
-**A URL** — em **Settings → Data API**, campo **Project URL**:
+**A URL** — o jeito mais rápido é **olhar a barra de endereço do navegador**.
+Estando dentro do projeto, o endereço tem esta forma:
 
-- Algo como `https://abcdefgh.supabase.co`.
-- Atalho: ela também aparece no alto da própria página de API Keys, e você
-  pode montá-la com o *Reference ID* que está em **Settings → General**:
-  `https://SEU-REFERENCE-ID.supabase.co`.
+```
+supabase.com/dashboard/project/SEU-CODIGO/settings/general
+                               └────┬────┘
+```
+
+Esse pedaço do meio é o código do seu projeto. A URL é ele seguido de
+`.supabase.co`:
+
+```
+https://SEU-CODIGO.supabase.co
+```
+
+Se preferir achar pelo menu, está em **Settings → Data API**, campo
+**Project URL** (no painel em português: **Configurações → API de dados**).
+
+> Nota: o painel do Supabase pode estar traduzido. **Chaves de API** é a
+> página das chaves e **API de dados** é onde fica a Project URL.
 
 > A chave pública é pública por natureza — ela não dá acesso a nada sozinha.
 > Quem protege os dados é o login e as regras de acesso criadas pelo
