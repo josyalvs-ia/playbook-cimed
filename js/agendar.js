@@ -228,11 +228,12 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
         <div class="ag-resumo mt">
           <div class="linha"><span>Serviço</span><strong>${esc(r.servico)}</strong></div>
           ${studio.endereco ? `
-            <div class="linha"><span>Onde</span>
-              <strong style="text-align:right">${esc(studio.endereco)}</strong></div>
-            <div class="linha"><span></span>
-              <a href="${esc(linkMapa(studio.endereco))}" target="_blank" rel="noopener"
-                 style="color:var(--creme)">Como chegar &rarr;</a></div>` : ''}
+            <div class="linha onde">
+              <span>Onde</span>
+              <strong>${esc(studio.endereco)}</strong>
+              <a href="${esc(linkMapa(studio.endereco))}" target="_blank"
+                 rel="noopener">Como chegar &rarr;</a>
+            </div>` : ''}
         </div>
         <div class="flex mt" style="gap:8px;justify-content:center;flex-wrap:wrap">
           ${zap ? `<a class="btn btn-primario" target="_blank" rel="noopener"

@@ -602,10 +602,15 @@ await p2.waitForTimeout(700);
   await p2.waitForTimeout(500);
   checagens.push(['sino: apaga depois de lidas', await p2.locator('#sino-ponto').isHidden()]);
 
-  // Desmarcação também precisa virar novidade.
+  // Desmarcação sozinha também precisa virar novidade. O ag-site-2 entra junto
+  // para a remarcação logo abaixo ter de onde sair.
   await p2.evaluate(async () => {
-    const a = globalThis.__DB.agendamentos.find((x) => x.id === 'ag-site-1');
-    a.status = 'cancelado';
+    const t = globalThis.__DB.agendamentos;
+    t.find((x) => x.id === 'ag-site-1').status = 'cancelado';
+    t.push({ id: 'ag-site-2', cliente_nome: 'Josianny', servico_nome: 'Manicure',
+             profissional_id: 'p2', status: 'confirmado', origem: 'studio',
+             inicio: new Date(Date.now() + 2 * 864e5).toISOString(),
+             duracao_min: 45, valor: 40 });
     const db = await import('./js/db.js'); await db.recarregar();
   });
   await p2.waitForTimeout(900);
@@ -616,6 +621,32 @@ await p2.waitForTimeout(700);
   checagens.push(['sino: registra a desmarcação',
     nb(await p2.textContent('.novidades')).includes('desmarcou')]);
   await p2.screenshot({ path: '/tmp/shot-sino.png' });
+  await p2.click('text=Limpar');
+  await p2.waitForTimeout(400);
+  await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(300);
+
+  // Remarcação: a mesma cliente sai de um horário e entra em outro na mesma
+  // rodada. Tem de virar UM aviso só, não um "desmarcou" seguido de "marcou".
+  await p2.evaluate(async () => {
+    const t = globalThis.__DB.agendamentos;
+    t.find((x) => x.id === 'ag-site-2').status = 'cancelado';
+    t.push({ id: 'ag-site-3', cliente_nome: 'Josianny', servico_nome: 'Manicure',
+             profissional_id: 'p2', status: 'confirmado', origem: 'site',
+             inicio: new Date(Date.now() + 3 * 864e5).toISOString(),
+             duracao_min: 45, valor: 40 });
+    const db = await import('./js/db.js'); await db.recarregar();
+  });
+  await p2.waitForTimeout(900);
+  await p2.click('#btn-sino');
+  await p2.waitForSelector('.novidades');
+  const remarc = nb(await p2.textContent('.novidades'));
+  checagens.push(['sino: junta desmarcar + marcar numa remarcação',
+    remarc.includes('Josianny remarcou Manicure')]);
+  checagens.push(['sino: a remarcação não vira dois avisos',
+    await p2.locator('.novidade').count() === 1]);
+  checagens.push(['sino: a remarcação mostra o horário antigo',
+    remarc.includes('era ')]);
   await p2.keyboard.press('Escape');
   await p2.waitForTimeout(300);
 }

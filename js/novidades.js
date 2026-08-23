@@ -2,7 +2,7 @@
 // NOVIDADES
 //
 // O que mudou na agenda desde a última vez que a equipe olhou: cliente que
-// marcou pelo site, horário desmarcado, falta registrada.
+// marcou pelo site, remarcou, desmarcou, ou faltou.
 //
 // Não precisa de coluna nova no banco. O app guarda no aparelho uma foto do
 // que já viu — id e situação de cada agendamento — e compara a cada carga.
@@ -45,24 +45,46 @@ export function conferir() {
 
   if (foto === null) { gravar(FOTO, agora); return 0; }
 
-  const achadas = [];
   const nome = (a) => a.cliente_nome || 'Cliente';
+  const chave = (a) => String(a.cliente_nome || '').trim().toLowerCase();
+
+  // Primeiro separa o que aconteceu; só depois monta os textos. É esse passo
+  // que permite reconhecer uma remarcação: desmarcar e marcar de novo chegam
+  // como dois fatos soltos, e quem lê quer ver um só.
+  const marcados = [];
+  const desmarcados = [];
+  const achadas = [];
 
   for (const a of db.estado.agendamentos) {
     const antes = foto[a.id];
 
     if (antes === undefined) {
       // Horário que a equipe marcou pelo app não é novidade para ela mesma.
-      if (a.origem === 'site' && a.status === 'confirmado') {
-        achadas.push(nova('marcou', a, `${nome(a)} marcou ${a.servico_nome}`));
-      }
+      if (a.origem === 'site' && a.status === 'confirmado') marcados.push(a);
     } else if (antes !== a.status) {
-      if (a.status === 'cancelado') {
-        achadas.push(nova('desmarcou', a, `${nome(a)} desmarcou ${a.servico_nome}`));
-      } else if (a.status === 'faltou') {
+      if (a.status === 'cancelado') desmarcados.push(a);
+      else if (a.status === 'faltou') {
         achadas.push(nova('faltou', a, `${nome(a)} não veio`));
       }
     }
+  }
+
+  // Remarcação: a mesma cliente saiu de um horário e entrou em outro na mesma
+  // rodada. Vira um aviso só, com o horário antigo ao lado do novo.
+  for (const saiu of desmarcados) {
+    const i = marcados.findIndex((entrou) => chave(entrou) === chave(saiu) && chave(saiu));
+    if (i === -1) {
+      achadas.push(nova('desmarcou', saiu, `${nome(saiu)} desmarcou ${saiu.servico_nome}`));
+      continue;
+    }
+    const entrou = marcados.splice(i, 1)[0];
+    achadas.push({
+      ...nova('remarcou', entrou, `${nome(entrou)} remarcou ${entrou.servico_nome}`),
+      antes: saiu.inicio,
+    });
+  }
+  for (const a of marcados) {
+    achadas.push(nova('marcou', a, `${nome(a)} marcou ${a.servico_nome}`));
   }
 
   gravar(FOTO, agora);
@@ -83,15 +105,24 @@ function nova(tipo, a, texto) {
   };
 }
 
+const TITULO = {
+  marcou:    'Alento — novo horário',
+  remarcou:  'Alento — horário remarcado',
+  desmarcou: 'Alento — horário desmarcado',
+  faltou:    'Alento — falta registrada',
+};
+
 /**
  * Aviso do sistema operacional, para quem deixa o app aberto numa aba de
  * fundo. Só com permissão dada, e só quando a aba não está à vista.
  */
-export function avisarNaTela(texto) {
+export function avisarNaTela(novidade) {
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     if (document.visibilityState === 'visible') return;
-    new Notification('Alento — novo horário', { body: texto, icon: 'assets/icone-192.png' });
+    const n = typeof novidade === 'string' ? { texto: novidade } : (novidade || {});
+    new Notification(TITULO[n.tipo] || 'Alento — mudou a agenda',
+      { body: n.texto, icon: 'assets/icone-192.png', tag: n.id });
   } catch {}
 }
 

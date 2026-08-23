@@ -161,6 +161,13 @@
   .ag-resumo .linha span { color: var(--texto-3); }
   .ag-resumo .linha.total { border-top: 1px solid var(--linha); margin-top: 6px;
                             padding-top: 11px; font-size: 16px; }
+  /* O endereço é longo demais para dividir a linha com o rótulo: ganha a
+     largura toda do cartão e cabe de uma vez só. */
+  .ag-resumo .linha.onde { display: block; text-align: left; }
+  .ag-resumo .linha.onde strong { display: block; font-size: 13.5px;
+                                  line-height: 1.5; margin-top: 2px; }
+  .ag-resumo .linha.onde a { color: var(--creme); font-size: 13px;
+                             display: inline-block; margin-top: 4px; }
 
   .ag-pronto { text-align: center; padding: 10px 0 24px; }
   .ag-marca { width: min(340px, 78%); margin: 0 auto 22px; display: block; }
@@ -170,10 +177,13 @@
              font-size: 25px; font-weight: 700; }
   .ag-pronto h2 { font-family: var(--display); font-size: 30px; margin: 0 0 8px; }
   /* A frase de espera é o momento mais caloroso da página: fica em display. */
+  /* Uma linha só: a frase é uma assinatura, não um parágrafo. O corpo encolhe
+     com a tela para caber inteira até num celular estreito. */
   .ag-recado {
-    font-family: var(--display); font-style: italic; font-size: 19px;
-    line-height: 1.35; color: var(--creme); opacity: .92;
-    max-width: 26ch; margin: 0 auto 16px; text-wrap: balance;
+    font-family: var(--display); font-style: italic;
+    font-size: clamp(14px, 4.2vw, 21px);
+    white-space: nowrap; line-height: 1.35; color: var(--creme); opacity: .92;
+    margin: 0 auto 16px;
   }
   .ag-desmarcar {
     margin-top: 16px; color: var(--texto-3); font-size: 13px;
