@@ -6,6 +6,7 @@
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, chave, avisar, abrirModal, confirmar, lerForm, vazio, hoje } from '../ui.js';
 import * as M from '../metricas.js';
+import { custoUnitario, custoDeUso, unidadeDe } from '../pricing.js';
 
 let aba = 'itens';
 let busca = '';
@@ -70,7 +71,7 @@ function abaItens(alvo, cats) {
       ${lista.length ? `<div class="tabela-wrap"><table><thead><tr>
           <th>Insumo</th><th>Apresentação</th><th>Tipo</th>
           <th class="n">Saldo</th><th class="n">Mínimo</th><th style="width:100px">Nível</th>
-          <th class="n">Preço pago</th><th></th>
+          <th class="n">Preço da embalagem</th><th></th>
         </tr></thead><tbody>
         ${lista.map((m) => {
           const est = Number(m.estoque) || 0, min = Number(m.estoque_minimo) || 0;
@@ -80,11 +81,13 @@ function abaItens(alvo, cats) {
             <td><strong>${esc(m.nome)}</strong><div class="pequeno t3">${esc(m.categoria)}</div></td>
             <td class="pequeno t2">${esc(m.apresentacao || '—')}</td>
             <td><span class="selo">${esc(m.tipo || '—')}</span></td>
-            <td class="n num"><strong class="${cls === 'erro' ? 'erro-c' : ''}">${fmt.num(est)}</strong></td>
+            <td class="n num"><strong class="${cls === 'erro' ? 'erro-c' : ''}">${fmt.num(est)}</strong>
+              <span class="t3 pequeno"> ${esc(unidadeDe(m))}</span></td>
             <td class="n num t3">${min || '—'}</td>
             <td><div class="barra ${cls}"><i style="width:${pct}%"></i></div></td>
             <td class="n num t2">${m.preco_pago != null ? fmt.brl(m.preco_pago)
-              : `<span class="t3" title="valor de referência de mercado">${fmt.brl(m.preco_ref)}*</span>`}</td>
+              : `<span class="t3" title="valor de referência de mercado">${fmt.brl(m.preco_ref)}*</span>`}
+              <div class="pequeno t3">${fmt.brl(custoUnitario(m))}/${esc(unidadeDe(m))}</div></td>
             <td style="width:118px"><div class="flex-fim">
               <button class="btn btn-sm" data-entrada="${m.id}" title="Registrar compra">${ico('subir')}</button>
               <button class="btn-icone" data-editar="${m.id}">${ico('editar')}</button>
@@ -92,7 +95,8 @@ function abaItens(alvo, cats) {
           </tr>`;
         }).join('')}
       </tbody></table></div>
-      <p class="pequeno t3 mt">* preço de referência da planilha. Registre uma compra para o app passar a usar o valor real.</p>`
+      <p class="pequeno t3 mt">* preço de referência da planilha — registre uma compra para o app passar a usar o valor real.
+      O saldo é contado na unidade de uso (ml, g, unidades), não em embalagens.</p>`
       : vazio('Nenhum insumo encontrado com esses filtros.')}
     </div>`;
 
@@ -109,10 +113,15 @@ function abaItens(alvo, cats) {
 // ─── Lista de compras ──────────────────────────────────────────────────────
 function abaComprar(alvo) {
   const falta = M.materiaisEmFalta();
-  const custo = falta.reduce((s, m) => {
-    const repor = Math.max(1, (Number(m.estoque_minimo) || 1) * 2 - Number(m.estoque || 0));
-    return s + repor * Number(m.preco_pago ?? m.preco_ref ?? 0);
-  }, 0);
+  // Repor até o dobro do mínimo, arredondando para embalagens inteiras —
+  // ninguém compra meio frasco.
+  const repor = (m) => {
+    const falta_ = Math.max(0, (Number(m.estoque_minimo) || 0) * 2 - Number(m.estoque || 0));
+    const emb = Number(m.qtd_embalagem) || 1;
+    const caixas = Math.max(1, Math.ceil(falta_ / emb));
+    return { caixas, unidades: caixas * emb, custo: caixas * Number(m.preco_pago ?? m.preco_ref ?? 0) };
+  };
+  const custo = falta.reduce((s, m) => s + repor(m).custo, 0);
 
   alvo.innerHTML = `
     <div class="cartao">
@@ -128,15 +137,14 @@ function abaComprar(alvo) {
           <th class="n">Comprar</th><th class="n">Custo estimado</th>
         </tr></thead><tbody>
         ${falta.map((m) => {
-          const repor = Math.max(1, (Number(m.estoque_minimo) || 1) * 2 - Number(m.estoque || 0));
-          const preco = Number(m.preco_pago ?? m.preco_ref ?? 0);
+          const r = repor(m);
           return `<tr>
             <td><strong>${esc(m.nome)}</strong><div class="pequeno t3">${esc(m.categoria)}</div></td>
             <td class="pequeno t2">${esc(m.apresentacao || '—')}</td>
-            <td class="n num erro-c">${fmt.num(m.estoque)}</td>
+            <td class="n num erro-c">${fmt.num(m.estoque)} <span class="t3">${esc(unidadeDe(m))}</span></td>
             <td class="n num t3">${fmt.num(m.estoque_minimo)}</td>
-            <td class="n num"><strong>${fmt.num(repor)}</strong></td>
-            <td class="n num t2">${fmt.brl(repor * preco)}</td>
+            <td class="n num"><strong>${r.caixas}</strong> <span class="t3 pequeno">emb.</span></td>
+            <td class="n num t2">${fmt.brl(r.custo)}</td>
           </tr>`;
         }).join('')}
         </tbody></table></div>`
@@ -147,8 +155,8 @@ function abaComprar(alvo) {
 
   alvo.querySelector('#copiar')?.addEventListener('click', () => {
     const txt = 'Lista de compras — Alento\n\n' + falta.map((m) => {
-      const repor = Math.max(1, (Number(m.estoque_minimo) || 1) * 2 - Number(m.estoque || 0));
-      return `• ${m.nome} (${m.apresentacao || '—'}) — ${fmt.num(repor)}`;
+      const r = repor(m);
+      return `• ${m.nome} (${m.apresentacao || '—'}) — ${r.caixas} embalagem(ns)`;
     }).join('\n');
     navigator.clipboard.writeText(txt).then(() => avisar('Lista copiada'));
   });
@@ -162,10 +170,14 @@ function abaFicha(alvo) {
     <div class="cartao">
       <div class="cartao-cabeca">${ico('tabela')}<h3>Ficha técnica dos serviços</h3></div>
       <div class="aviso mb">${ico('info')}<div>
-        Diga quanto de cada insumo sai em cada serviço. A partir daí, fechar uma comanda
-        <strong>baixa o estoque sozinho</strong>. A planilha original não trazia consumo por
-        atendimento, então isso começa vazio — preencha aos poucos, pelos serviços que você
-        mais faz.</div></div>
+        Diga quanto de cada insumo sai em cada serviço, <strong>na unidade de uso</strong> —
+        10 ml de álcool, 0,5 g de base gel, 1 par de luvas. O app já sabe o preço por ml, por
+        grama e por unidade, então ele calcula o custo sozinho. A partir daí, fechar uma
+        comanda <strong>baixa o estoque</strong> e o custo do serviço passa a ser o custo real,
+        não uma estimativa.
+        <br><br>Os serviços mais feitos já vêm com uma <strong>ficha de rascunho</strong>:
+        quantidades de mercado para você corrigir com o que realmente gasta. Abra, ajuste e
+        salve — ao salvar, o custo do serviço passa a ser o da ficha.</div></div>
 
       <div class="tabela-wrap"><table><thead><tr>
         <th>Serviço</th><th class="n">Preço</th><th>Insumos na ficha</th>
@@ -173,16 +185,17 @@ function abaFicha(alvo) {
       </tr></thead><tbody>
       ${servicos.map((s) => {
         const f = db.estado.ficha_tecnica.filter((x) => x.servico_id === s.id);
-        const custoFicha = f.reduce((acc, x) => {
-          const m = db.estado.materiais.find((y) => y.id === x.material_id);
-          return acc + Number(x.qtd) * Number(m?.preco_pago ?? m?.preco_ref ?? 0);
-        }, 0);
+        const custoFicha = custoDaFicha(f);
         return `<tr>
           <td><strong>${esc(s.nome)}</strong></td>
           <td class="n num t2">${fmt.brl(s.preco)}</td>
           <td class="pequeno t2">${f.length ? f.length + ' insumo(s)' : '<span class="t3">—</span>'}</td>
           <td class="n num">${f.length ? fmt.brl(custoFicha) : '—'}</td>
-          <td class="n num t2">${fmt.brl(s.custo)}</td>
+          <td class="n num t2">${fmt.brl(s.custo)}
+            ${f.length && Math.abs(custoFicha - Number(s.custo)) > 0.5
+              ? `<div class="pequeno ${custoFicha > s.custo ? 'erro-c' : 'ok-c'}">
+                   ${custoFicha > s.custo ? '+' : '−'} ${fmt.brl(Math.abs(custoFicha - Number(s.custo)))} pela ficha</div>`
+              : ''}</td>
           <td style="width:40px"><button class="btn-icone" data-ficha="${s.id}">${ico('editar')}</button></td>
         </tr>`;
       }).join('')}
@@ -223,17 +236,19 @@ function abrirFicha(servicoId) {
       const pintar = () => {
         const alvo = veu.querySelector('#linhas');
         alvo.innerHTML = linhas.length ? `<div class="tabela-wrap"><table><thead><tr>
-            <th>Insumo</th><th style="width:120px">Qtd por atendimento</th>
+            <th>Insumo</th><th style="width:150px">Gasto por atendimento</th>
             <th class="n" style="width:110px">Custo</th><th style="width:34px"></th>
           </tr></thead><tbody>
           ${linhas.map((l, i) => {
             const m = db.estado.materiais.find((x) => x.id === l.material_id);
-            const preco = Number(m?.preco_pago ?? m?.preco_ref ?? 0);
             return `<tr>
               <td>${esc(m?.nome || l.material_id)}
-                <div class="pequeno t3">${esc(m?.apresentacao || '')} · ${fmt.brl(preco)} a unidade</div></td>
-              <td><input type="number" min="0" step="0.001" value="${l.qtd}" data-i="${i}"></td>
-              <td class="n num">${fmt.brl(Number(l.qtd) * preco)}</td>
+                <div class="pequeno t3">${esc(m?.apresentacao || '')} ·
+                  ${fmt.brl(custoUnitario(m))} por ${esc(unidadeDe(m))}</div></td>
+              <td><div class="flex" style="gap:6px">
+                <input type="number" min="0" step="0.01" value="${l.qtd}" data-i="${i}">
+                <span class="t3 pequeno">${esc(unidadeDe(m))}</span></div></td>
+              <td class="n num">${fmt.brl(custoDeUso(m, l.qtd))}</td>
               <td><button class="btn-icone" data-rm="${i}">${ico('fechar')}</button></td>
             </tr>`;
           }).join('')}
@@ -273,7 +288,7 @@ function abrirFicha(servicoId) {
 function custoDaFicha(linhas) {
   return linhas.reduce((acc, l) => {
     const m = db.estado.materiais.find((y) => y.id === l.material_id);
-    return acc + Number(l.qtd) * Number(m?.preco_pago ?? m?.preco_ref ?? 0);
+    return acc + custoDeUso(m, l.qtd);
   }, 0);
 }
 
@@ -332,8 +347,13 @@ export function abrirMovimento(materialId) {
         </select></label>
       <div class="linha-campos">
         <label class="campo"><span>Quantidade</span>
-          <input type="number" name="qtd" min="0" step="0.001" value="1"></label>
-        <label class="campo"><span>Valor pago pela unidade</span>
+          <input type="number" name="qtd" min="0" step="0.01" value="1"></label>
+        <label class="campo"><span>Contando em</span>
+          <select name="medida">
+            <option value="emb">embalagens</option>
+            <option value="uso">unidade de uso</option>
+          </select></label>
+        <label class="campo"><span>Valor pago por embalagem</span>
           <input type="number" name="custo_unit" min="0" step="0.01" placeholder="opcional">
           <span class="dica t3">Preenchendo, o preço do insumo passa a ser este.</span></label>
       </div>
@@ -347,7 +367,7 @@ export function abrirMovimento(materialId) {
           if (!m || !d.qtd) return avisar('Escolha o insumo e a quantidade', 'erro');
 
           const atual = Number(m.estoque) || 0;
-          const q = Number(d.qtd);
+          const q = emUso(m, d);
           const novo = d.tipo === 'entrada' ? atual + q
                      : d.tipo === 'ajuste' ? q
                      : atual - q;
@@ -363,10 +383,12 @@ export function abrirMovimento(materialId) {
 
           // Compra é dinheiro que sai: entra no caixa automaticamente.
           if (d.tipo === 'entrada' && d.custo_unit) {
+            const emb = Number(m.qtd_embalagem) || 1;
+            const caixas = d.medida === 'emb' ? Number(d.qtd) : Number(d.qtd) / emb;
             await db.salvar('caixa', {
               data: hoje(), tipo: 'saida', categoria: 'Materiais e insumos',
-              descricao: `${m.nome} — ${fmt.num(q)} × ${fmt.brl(d.custo_unit)}`,
-              valor: q * Number(d.custo_unit), profissional_id: db.eu?.id || null,
+              descricao: `${m.nome} — ${fmt.num(caixas)} × ${fmt.brl(d.custo_unit)}`,
+              valor: caixas * Number(d.custo_unit), profissional_id: db.eu?.id || null,
             });
           }
 
@@ -380,13 +402,24 @@ export function abrirMovimento(materialId) {
         const d = lerForm(veu);
         const m = db.estado.materiais.find((x) => x.id === d.material_id);
         if (!m) return;
-        const atual = Number(m.estoque) || 0, q = Number(d.qtd) || 0;
+        const un = unidadeDe(m);
+        const atual = Number(m.estoque) || 0;
+        const q = emUso(m, d);
         const novo = d.tipo === 'entrada' ? atual + q : d.tipo === 'ajuste' ? q : atual - q;
         veu.querySelector('#previa').innerHTML =
-          `${ico('info')}<div>Saldo de <strong>${esc(m.nome)}</strong>: ${fmt.num(atual)} → <strong>${fmt.num(novo)}</strong>
-           ${novo < 0 ? '<span class="erro-c"> (ficará negativo)</span>' : ''}</div>`;
+          `${ico('info')}<div>
+            ${d.medida === 'emb' && Number(m.qtd_embalagem)
+              ? `${fmt.num(d.qtd)} embalagem(ns) de ${esc(m.apresentacao || '')} = <strong>${fmt.num(q)} ${esc(un)}</strong>.<br>` : ''}
+            Saldo de <strong>${esc(m.nome)}</strong>: ${fmt.num(atual)} → <strong>${fmt.num(novo)} ${esc(un)}</strong>
+            ${novo < 0 ? '<span class="erro-c"> (ficará negativo)</span>' : ''}</div>`;
       };
+      const ajustarMedida = () => {
+        const tipo = veu.querySelector('[name=tipo]').value;
+        veu.querySelector('[name=medida]').value = tipo === 'entrada' ? 'emb' : 'uso';
+      };
+      veu.querySelector('[name=tipo]').addEventListener('change', () => { ajustarMedida(); previa(); });
       veu.querySelectorAll('[name]').forEach((c) => { c.oninput = previa; c.onchange = previa; });
+      ajustarMedida();
       previa();
     },
   });
@@ -448,6 +481,13 @@ export function abrirMaterial(id) {
         } },
     ],
   });
+}
+
+/** Converte a quantidade digitada para a unidade de uso do insumo. */
+function emUso(material, d) {
+  const q = Number(d.qtd) || 0;
+  if (d.medida !== 'emb') return q;
+  return q * (Number(material.qtd_embalagem) || 1);
 }
 
 function slug(s) {

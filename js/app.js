@@ -176,12 +176,16 @@ function telaConfig() {
   molduraCentral(`
     <div class="regua mb">${estrela()}</div>
     <h2 class="centro mb">Primeira configuração</h2>
-    <p class="t2 pequeno mb">Cole aqui as duas chaves do seu projeto no Supabase.
-      Elas ficam em <strong>Project Settings → API</strong>. É só uma vez, neste aparelho.</p>
+    <p class="t2 pequeno mb">Cole aqui os dois dados do seu projeto no Supabase.
+      É só uma vez, neste aparelho.</p>
     <label class="campo"><span>URL do projeto</span>
-      <input id="cfg-url" type="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"></label>
-    <label class="campo"><span>Chave anon / public</span>
-      <input id="cfg-key" type="text" placeholder="eyJhbGciOi…" autocomplete="off"></label>
+      <input id="cfg-url" type="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off">
+      <span class="dica t3">No Supabase: <strong>Settings → Data API</strong>, campo <em>Project URL</em>.</span></label>
+    <label class="campo"><span>Chave pública do projeto</span>
+      <input id="cfg-key" type="text" placeholder="sb_publishable_… ou eyJhbGciOi…" autocomplete="off">
+      <span class="dica t3">No Supabase: <strong>Settings → API Keys</strong>.
+        Serve tanto a <em>Publishable key</em> (<code>sb_publishable_…</code>) quanto a
+        <em>anon public</em> legada (<code>eyJ…</code>).</span></label>
     <button class="btn btn-primario btn-bloco" id="cfg-salvar">Conectar</button>
     <p class="t3 pequeno mt centro">Não sabe o que é isso? O passo a passo está no
       arquivo <strong>README.md</strong> da pasta do app.</p>`);
@@ -189,8 +193,20 @@ function telaConfig() {
   document.getElementById('cfg-salvar').onclick = () => {
     const url = document.getElementById('cfg-url').value.trim().replace(/\/+$/, '');
     const anonKey = document.getElementById('cfg-key').value.trim();
-    if (!/^https:\/\/.+\.supabase\.co$/.test(url)) return avisar('URL do projeto inválida', 'erro');
-    if (anonKey.length < 40) return avisar('Chave anon inválida', 'erro');
+    if (!/^https:\/\/.+\.supabase\.co$/.test(url)) {
+      return avisar('URL do projeto inválida — deve terminar em .supabase.co', 'erro');
+    }
+    // A chave secreta é checada primeiro: colar ela por engano é o erro caro,
+    // e merece uma mensagem que diga exatamente o que aconteceu.
+    if (/^sb_secret_/.test(anonKey) || /service_role/.test(anonKey)) {
+      return avisar('Essa é a chave secreta — use a pública (Publishable / anon)', 'erro');
+    }
+    // Dois formatos convivem hoje: a chave publicável nova e o JWT antigo.
+    const chaveNova = /^sb_publishable_[A-Za-z0-9_-]{10,}$/.test(anonKey);
+    const chaveLegada = /^eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(anonKey);
+    if (!chaveNova && !chaveLegada) {
+      return avisar('Chave inválida — cole a Publishable key (sb_publishable_…) ou a anon public (eyJ…)', 'erro');
+    }
     db.gravarConfig({ url, anonKey });
     location.reload();
   };

@@ -4,6 +4,7 @@ import * as db from './db.js';
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO } from './data/servicos.js';
 import { MATERIAIS } from './data/materiais.js';
 import { PREMISSAS_PADRAO } from './data/premissas.js';
+import { FICHAS_RASCUNHO } from './data/fichas.js';
 import { avisar } from './ui.js';
 
 export async function instalar({ forcar = false } = {}) {
@@ -13,13 +14,15 @@ export async function instalar({ forcar = false } = {}) {
     ...SERVICOS.map((s, i) => ({
       id: s.id, categoria: s.categoria, nome: s.nome, tipo: 'servico',
       preco: s.preco, custo: s.custo, tempo: s.tempo,
+      preco_tipo: s.preco_tipo || 'fixo',
       profissional: s.profissional || 'unhas',
       estimado: !!s.estimado, nota: s.nota || null, ordem: i, ativo: true,
     })),
     ...ADICIONAIS.map((a, i) => ({
       id: a.id, categoria: 'adicionais', nome: a.nome, tipo: 'adicional',
       preco: a.preco, custo: a.custo, tempo: a.tempo, unidade: a.unidade,
-      profissional: 'unhas', estimado: false, ordem: 900 + i, ativo: true,
+      preco_tipo: 'fixo', profissional: a.profissional || 'unhas',
+      estimado: false, ordem: 900 + i, ativo: true,
     })),
   ].filter((s) => forcar || !jaTem.has(s.id));
 
@@ -29,11 +32,26 @@ export async function instalar({ forcar = false } = {}) {
     .map((m) => ({
       id: m.id, categoria: m.categoria, nome: m.nome, apresentacao: m.apresentacao,
       tipo: m.tipo, preco_ref: m.preco_ref, preco_pago: null,
+      qtd_embalagem: m.qtd_embalagem, unidade: m.unidade,
       estoque: 0, estoque_minimo: 0, ativo: true,
     }));
 
   if (servicos.length) await db.salvarLote('servicos', servicos);
   if (materiais.length) await db.salvarLote('materiais', materiais);
+
+  // Fichas de rascunho dos serviços mais feitos: melhor começar corrigindo
+  // números do que inventando do zero. Só entram se ainda não houver ficha
+  // nenhuma — nunca sobrescrevem o que a equipe já ajustou.
+  let fichas = 0;
+  if (!db.estado.ficha_tecnica.length) {
+    const linhas = [];
+    for (const [servicoId, itens] of Object.entries(FICHAS_RASCUNHO)) {
+      if (!db.estado.servicos.some((x) => x.id === servicoId)
+          && !servicos.some((x) => x.id === servicoId)) continue;
+      for (const it of itens) linhas.push({ servico_id: servicoId, ...it });
+    }
+    if (linhas.length) { await db.salvarLote('ficha_tecnica', linhas); fichas = linhas.length; }
+  }
 
   if (forcar || !db.cfg('premissas')) await db.setCfg('premissas', PREMISSAS_PADRAO);
   if (!db.cfg('categorias')) await db.setCfg('categorias', CATEGORIAS_SERVICO);
@@ -56,6 +74,7 @@ export async function instalar({ forcar = false } = {}) {
   }
 
   await db.recarregar();
-  avisar(`Instalado: ${servicos.length} serviços e ${materiais.length} insumos`);
-  return { servicos: servicos.length, materiais: materiais.length };
+  avisar(`Instalado: ${servicos.length} serviços, ${materiais.length} insumos`
+    + (fichas ? ` e ${Object.keys(FICHAS_RASCUNHO).length} fichas técnicas de rascunho` : ''));
+  return { servicos: servicos.length, materiais: materiais.length, fichas };
 }

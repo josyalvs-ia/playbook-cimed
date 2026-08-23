@@ -43,6 +43,7 @@ create table if not exists servicos (
   nome      text not null,
   tipo      text not null default 'servico',       -- servico | adicional
   preco     numeric not null default 0,
+  preco_tipo text not null default 'fixo',        -- fixo | a_partir | avaliacao
   custo     numeric not null default 0,            -- material por atendimento
   tempo     numeric not null default 0,            -- horas
   unidade   text,
@@ -54,6 +55,9 @@ create table if not exists servicos (
 );
 
 -- ── Materiais e insumos / estoque ──────────────────────────────────────────
+-- Bancos criados antes desta coluna existir também ficam em dia:
+alter table servicos add column if not exists preco_tipo text not null default 'fixo';
+
 create table if not exists materiais (
   id             text primary key,
   categoria      text not null,

@@ -43,14 +43,30 @@ página pública tem um botão que leva as clientes direto para o Trinks.
    **tudo** e cole no editor.
 3. Clique em **Run**. Deve aparecer *Success*.
 
-### 3. Pegar as duas chaves
+### 3. Pegar a URL e a chave pública
 
-Vá em **Project Settings → API** e copie:
+O Supabase mudou o menu em 2025, então os dois dados ficam em páginas
+diferentes. Comece clicando na engrenagem **Settings**, no fim da barra
+lateral esquerda.
 
-- **Project URL** — algo como `https://abcdefgh.supabase.co`
-- **anon public** — a chave longa que começa com `eyJ...`
+**A chave** — em **Settings → API Keys**:
 
-> A chave `anon` é pública por natureza; ela não dá acesso a nada sozinha.
+- Nos projetos novos, aparece **Publishable key**, começando com
+  `sb_publishable_...`. É essa.
+- Nos projetos mais antigos, aparece **anon** **public**, uma chave longa
+  começando com `eyJ...`. Também serve. Se ela não estiver na primeira aba,
+  procure a aba **Legacy API keys**.
+- **Não use** a `service_role` nem a `sb_secret_...`. Essas são secretas e
+  não podem sair do servidor. O app recusa se você colar uma delas.
+
+**A URL** — em **Settings → Data API**, campo **Project URL**:
+
+- Algo como `https://abcdefgh.supabase.co`.
+- Atalho: ela também aparece no alto da própria página de API Keys, e você
+  pode montá-la com o *Reference ID* que está em **Settings → General**:
+  `https://SEU-REFERENCE-ID.supabase.co`.
+
+> A chave pública é pública por natureza — ela não dá acesso a nada sozinha.
 > Quem protege os dados é o login e as regras de acesso criadas pelo
 > `schema.sql`. Sem estar logada, ninguém lê nada — exceto a tabela de
 > preços, que é pública de propósito, para a vitrine funcionar.
@@ -61,6 +77,7 @@ Duas opções:
 
 **a) Deixar pronto para todo mundo** — edite [`config.js`](config.js), cole a
 URL e a chave, e faça o commit. Aí qualquer aparelho já abre conectado.
+É o caminho mais prático quando as duas vão usar em vários aparelhos.
 
 **b) Não comitar nada** — deixe o `config.js` como está. Na primeira abertura,
 o app pergunta a URL e a chave e guarda no próprio aparelho. Precisa repetir
@@ -89,11 +106,14 @@ Aceite. Depois é só ir ajustando.
 
 ## Publicar na internet
 
-O app é estático — não precisa de servidor. No Netlify, com o repositório
-conectado, ele já vai ao ar em `SEU-SITE.netlify.app/alento/`.
+O app é estático — não precisa de servidor nem de build. No Netlify, com o
+repositório conectado, ele já vai ao ar na raiz do site.
 
-- **App da equipe:** `.../alento/index.html`
-- **Página pública:** `.../alento/vitrine.html`
+- **App da equipe:** `SEU-SITE.netlify.app/`
+- **Página pública:** `SEU-SITE.netlify.app/vitrine.html`
+
+O link que você manda para as clientes é o da **vitrine**. O `index.html` pede
+login e é só para vocês duas.
 
 ### Instalar como aplicativo no celular
 
@@ -166,7 +186,6 @@ mas uma cópia sua não custa nada.
 ## Estrutura dos arquivos
 
 ```
-alento/
 ├── index.html            app da equipe (login)
 ├── vitrine.html          página pública com a tabela de valores
 ├── config.js             URL e chave do Supabase
@@ -183,6 +202,10 @@ alento/
     ├── seed.js           carga inicial
     ├── data/             tabela oficial, 176 insumos, premissas
     └── views/            uma tela por arquivo
+
+cimed/index.html          página antiga que já existia neste repositório,
+                          guardada aqui para não se perder. Não faz parte do
+                          Alento e pode ser apagada quando você quiser.
 ```
 
 ---

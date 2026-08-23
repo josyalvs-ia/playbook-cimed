@@ -49,6 +49,11 @@
     font-family: var(--display); font-weight: 700; font-size: 17px;
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
+  /* "a partir de" e "sob avaliação" acompanham o número sem competir com ele */
+  .preco-linha .qualifica {
+    font-family: var(--ui); font-style: normal; font-weight: 400;
+    font-size: 12px; color: var(--texto-3); letter-spacing: .02em;
+  }
   .preco-linha .obs { display: block; font-size: 12px; color: var(--texto-3); margin-top: 2px; }
 
   .destaque-combo {
@@ -85,7 +90,7 @@
 
 <script type="module">
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
-import { fmt, esc, estrela, ico } from './js/ui.js';
+import { fmt, esc, estrela, ico, precoTexto } from './js/ui.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
 // aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
@@ -128,7 +133,11 @@ function grupo(titulo, itens) {
       <div class="preco-linha">
         <span class="nome">${esc(s.nome)}
           ${s.nota ? `<span class="obs">${esc(s.nota)}</span>` : ''}</span>
-        <span class="valor">${fmt.brl(s.preco)}</span>
+        <span class="valor">${
+          s.preco_tipo === 'avaliacao'
+            ? '<i class="qualifica">sob avaliação</i>'
+            : (s.preco_tipo === 'a_partir' ? '<i class="qualifica">a partir de</i> ' : '') + fmt.brl(s.preco)
+        }</span>
       </div>`).join('')}</div>
   </section>`;
 }

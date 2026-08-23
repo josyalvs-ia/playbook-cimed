@@ -1,7 +1,7 @@
 // TABELA DE PREÇOS — o catálogo oficial, editável. É o que a vitrine mostra
 // e o que a comanda oferece.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, chave, vazio } from '../ui.js';
+import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, chave, vazio, precoTexto } from '../ui.js';
 import { REGRAS } from '../data/servicos.js';
 import { precoTecnico } from '../pricing.js';
 import { premissas } from '../metricas.js';
@@ -44,13 +44,15 @@ export function render(raiz) {
             <td><strong>${esc(s.nome)}</strong>
               ${s.estimado ? '<span class="selo" title="custo e tempo estimados — confira">estimado</span>' : ''}
               ${s.nota ? `<div class="pequeno t3">${esc(s.nota)}</div>` : ''}</td>
-            <td class="n num"><strong>${fmt.brl(s.preco)}</strong></td>
+            <td class="n num"><strong>${esc(precoTexto(s))}</strong></td>
             <td class="n num t2">${fmt.brl(s.custo)}</td>
             <td class="n num t2">${fmt.horas(s.tempo)}</td>
             <td class="n num t2">${fmt.brl(r.tecnico)}</td>
-            <td>${r.abaixoDoPiso
-              ? `<span class="selo erro">${fmt.brl(-r.diferenca)} abaixo</span>`
-              : `<span class="selo ok">ok</span>`}</td>
+            <td>${r.semPrecoFixo
+              ? `<span class="selo">orçar acima de ${fmt.brl(r.tecnico)}</span>`
+              : r.abaixoDoPiso
+                ? `<span class="selo erro">${fmt.brl(-r.diferenca)} abaixo</span>`
+                : `<span class="selo ok">ok</span>`}</td>
             <td style="width:34px"><button class="btn-icone" data-serv="${s.id}">${ico('editar')}</button></td>
           </tr>`;
         }).join('')}
@@ -120,6 +122,12 @@ export function abrirServico(id) {
       <div class="linha-campos">
         <label class="campo"><span>Preço cobrado</span>
           <input type="number" name="preco" step="0.01" min="0" value="${s.preco ?? 0}"></label>
+        <label class="campo"><span>Tipo de preço</span>
+          <select name="preco_tipo">
+            <option value="fixo" ${(s.preco_tipo || 'fixo') === 'fixo' ? 'selected' : ''}>Valor fechado</option>
+            <option value="a_partir" ${s.preco_tipo === 'a_partir' ? 'selected' : ''}>A partir de</option>
+            <option value="avaliacao" ${s.preco_tipo === 'avaliacao' ? 'selected' : ''}>Sob avaliação</option>
+          </select></label>
         <label class="campo"><span>Custo de material</span>
           <input type="number" name="custo" step="0.01" min="0" value="${s.custo ?? 0}"></label>
         <label class="campo"><span>Tempo (horas)</span>

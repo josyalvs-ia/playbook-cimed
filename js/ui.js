@@ -77,6 +77,17 @@ export const fmt = {
   },
 };
 
+/**
+ * Como o preço de um serviço aparece para a cliente.
+ * Nem todo serviço tem valor fechado: coloração parte de um mínimo e
+ * correção de cor só sai depois de ver o cabelo.
+ */
+export function precoTexto(s, { curto = false } = {}) {
+  if (s.preco_tipo === 'avaliacao') return 'sob avaliação';
+  const v = curto ? fmt.brlCurto(s.preco) : fmt.brl(s.preco);
+  return s.preco_tipo === 'a_partir' ? 'a partir de ' + v : v;
+}
+
 export const hoje = () => new Date().toISOString().slice(0, 10);
 export const mesAtual = () => new Date().toISOString().slice(0, 7);
 

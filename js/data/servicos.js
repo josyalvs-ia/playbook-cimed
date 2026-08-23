@@ -19,7 +19,13 @@ export const CATEGORIAS_SERVICO = [
   { id: 'blindagem',   nome: 'Blindagem e Banho de Gel',    ordem: 4 },
   { id: 'alongamento', nome: 'Alongamento em Gel Moldado',  ordem: 5 },
   { id: 'combo-along', nome: 'Combo de Alongamento',        ordem: 6 },
-  { id: 'cabelos',     nome: 'Cabelos',                     ordem: 7 },
+
+  // Cabelos — tabela da Laura
+  { id: 'cab-escova',     nome: 'Lavagem, Escova e Finalização', ordem: 7 },
+  { id: 'cab-corte',      nome: 'Cortes',                        ordem: 8 },
+  { id: 'cab-tratamento', nome: 'Tratamentos',                   ordem: 9 },
+  { id: 'cab-cor',        nome: 'Coloração e Mechas',            ordem: 10 },
+  { id: 'cab-terapia',    nome: 'Terapia Capilar',               ordem: 11 },
 ];
 
 export const SERVICOS = [
@@ -65,6 +71,46 @@ export const SERVICOS = [
   // ── COMBO DE ALONGAMENTO ───────────────────────────────────────────────────
   { id: 'combo-along-completo',  categoria: 'combo-along', nome: 'COMBO — alongamento + manicure + esmaltação em gel', preco: 320, custo: 50, tempo: 3.5, profissional: 'unhas', estimado: true,
     nota: 'Separado sairia R$ 370,00 (250 + 45 + 75). A cliente economiza R$ 50,00.' },
+
+  // ── CABELOS — LAVAGEM, ESCOVA E FINALIZAÇÃO ────────────────────────────────
+  // Preços da tabela da Laura. Custo de material e tempo são estimativas
+  // iniciais (não havia planilha de custo para cabelos) — todos marcados como
+  // `estimado` para serem corrigidos com o consumo real.
+  { id: 'cab-lavagem',        categoria: 'cab-escova', nome: 'Lavagem com secagem simples',                    preco: 45,  custo: 6,   tempo: 0.5,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-escova-curto',   categoria: 'cab-escova', nome: 'Escova curto',                                   preco: 65,  custo: 8,   tempo: 0.75, profissional: 'cabelo', estimado: true },
+  { id: 'cab-escova-medio',   categoria: 'cab-escova', nome: 'Escova médio',                                   preco: 75,  custo: 10,  tempo: 0.9,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-escova-longo',   categoria: 'cab-escova', nome: 'Escova longo',                                   preco: 85,  custo: 12,  tempo: 1.1,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-cacheada',       categoria: 'cab-escova', nome: 'Finalização cacheada com secagem no difusor',    preco: 75,  custo: 10,  tempo: 0.9,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-penteado',       categoria: 'cab-escova', nome: 'Penteado simples com escova',                    preco: 140, custo: 12,  tempo: 1.25, profissional: 'cabelo', estimado: true },
+
+  // ── CABELOS — CORTES ───────────────────────────────────────────────────────
+  { id: 'cab-corte-final',    categoria: 'cab-corte', nome: 'Corte com finalização',                           preco: 175, custo: 12,  tempo: 1.5,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-corte-trat',     categoria: 'cab-corte', nome: 'Corte com tratamento e finalização',              preco: 245, custo: 35,  tempo: 2.0,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-corte-infantil', categoria: 'cab-corte', nome: 'Corte infantil',                                  preco: 90,  custo: 6,   tempo: 0.75, profissional: 'cabelo', estimado: true },
+  { id: 'cab-corte-franja',   categoria: 'cab-corte', nome: 'Corte a seco de franja',                          preco: 30,  custo: 2,   tempo: 0.25, profissional: 'cabelo', estimado: true },
+  { id: 'cab-corte-pixie',    categoria: 'cab-corte', nome: 'Corte masculino / feminino pixie',                preco: 80,  custo: 5,   tempo: 0.75, profissional: 'cabelo', estimado: true },
+
+  // ── CABELOS — TRATAMENTOS ──────────────────────────────────────────────────
+  { id: 'cab-trat-curto',     categoria: 'cab-tratamento', nome: 'Tratamento com escova curto',                preco: 135, custo: 30,  tempo: 1.5,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-trat-medio',     categoria: 'cab-tratamento', nome: 'Tratamento com escova médio',                preco: 145, custo: 35,  tempo: 1.7,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-trat-longo',     categoria: 'cab-tratamento', nome: 'Tratamento com escova longo',                preco: 155, custo: 42,  tempo: 1.9,  profissional: 'cabelo', estimado: true },
+
+  // ── CABELOS — COLORAÇÃO E MECHAS ───────────────────────────────────────────
+  { id: 'cab-raiz',           categoria: 'cab-cor', nome: 'Cobertura de brancos / retoque de coloração de raiz', preco: 240, custo: 55,  tempo: 2.0,  profissional: 'cabelo', estimado: true },
+  { id: 'cab-raiz-trat',      categoria: 'cab-cor', nome: 'Cobertura de brancos / retoque de raiz com tratamento', preco: 310, custo: 80, tempo: 2.5, profissional: 'cabelo', estimado: true },
+  { id: 'cab-cor-completa',   categoria: 'cab-cor', nome: 'Coloração completa',                                preco: 400, custo: 110, tempo: 3.0,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
+  { id: 'cab-morena',         categoria: 'cab-cor', nome: 'Morena iluminada sem descoloração',                 preco: 500, custo: 130, tempo: 3.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir',
+    nota: 'Para cabelos naturais ou sem coloração.' },
+  { id: 'cab-mechas',         categoria: 'cab-cor', nome: 'Mechas loiras ou iluminadas',                       preco: 600, custo: 180, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir',
+    nota: 'Opção com descoloração, para cabelo já com coloração.' },
+  { id: 'cab-fantasia',       categoria: 'cab-cor', nome: 'Cores fantasia',                                    preco: 600, custo: 190, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
+  { id: 'cab-mecha-nuca',     categoria: 'cab-cor', nome: 'Mecha fantasia ou nuca',                            preco: 250, custo: 60,  tempo: 1.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
+  { id: 'cab-correcao',       categoria: 'cab-cor', nome: 'Correção de cor',                                   preco: 0,   custo: 200, tempo: 4.0,  profissional: 'cabelo', estimado: true, preco_tipo: 'avaliacao' },
+
+  // ── CABELOS — TERAPIA CAPILAR ──────────────────────────────────────────────
+  { id: 'cab-avaliacao-terapia', categoria: 'cab-terapia', nome: 'Avaliação de terapia capilar com lavagem terapêutica', preco: 220, custo: 40, tempo: 1.5, profissional: 'cabelo', estimado: true },
+  { id: 'cab-sessao-terapia',    categoria: 'cab-terapia', nome: 'Sessão de terapia capilar',                  preco: 270, custo: 60,  tempo: 1.5,  profissional: 'cabelo', estimado: true,
+    nota: 'Consulte valores especiais para pacotes.' },
 ];
 
 // Adicionais: cobrados junto de um serviço principal. Não carregam o custo fixo
@@ -73,6 +119,7 @@ export const ADICIONAIS = [
   { id: 'ad-reparo-unha',    nome: 'Reparo de unha quebrada',            preco: 10, unidade: 'por unha', custo: 2.5, tempo: 0.35 },
   { id: 'ad-francesinha-gel',nome: 'Francesinha em gel no alongamento',  preco: 20, unidade: 'por atendimento', custo: 3, tempo: 0.3 },
   { id: 'ad-francesinha-combo', nome: 'Francesinha em gel no combo',     preco: 20, unidade: 'por atendimento', custo: 3, tempo: 0.3 },
+  { id: 'ad-babyliss',       nome: 'Babyliss ou chapinha',               preco: 10, unidade: 'na escova', custo: 1, tempo: 0.25, profissional: 'cabelo' },
 ];
 
 // Regras que aparecem na vitrine pública e no app, direto da tabela oficial.
@@ -89,6 +136,13 @@ export const REGRAS = [
       'A francesinha tradicional é cortesia nos serviços de esmaltação tradicional.',
       'Francesinha em gel tem adicional de R$ 20,00 por exigir maior tempo e técnica.',
       'No alongamento em gel, a francesinha também é adicional de R$ 20,00.',
+    ] },
+  { titulo: 'Cabelos',
+    itens: [
+      'Babyliss ou chapinha na escova: + R$ 10,00.',
+      'Correção de cor é orçada sob avaliação, presencialmente.',
+      'Serviços de coloração e mechas partem do valor indicado e variam conforme comprimento, volume e histórico do cabelo.',
+      'Terapia capilar: consulte valores especiais para pacotes.',
     ] },
   { titulo: 'Fora da tabela',
     itens: [

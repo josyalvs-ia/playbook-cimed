@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto } from '../ui.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
 import { resumo, taxaDe, premissas } from '../metricas.js';
 
@@ -212,7 +212,8 @@ export function abrirComanda(id) {
               <th class="n" style="width:96px">Subtotal</th><th style="width:34px"></th>
             </tr></thead><tbody>
             ${itens.map((it, i) => `<tr>
-              <td>${esc(it.nome)}${it.tipo === 'adicional' ? ' <span class="selo">adicional</span>' : ''}</td>
+              <td>${esc(it.nome)}${it.tipo === 'adicional' ? ' <span class="selo">adicional</span>' : ''}${
+                it.confirmar_valor ? ' <span class="selo alerta" title="o valor deste serviço varia">confirmar valor</span>' : ''}</td>
               <td><input type="number" min="1" step="1" value="${it.qtd}" data-i="${i}" data-campo="qtd"></td>
               <td><input type="number" min="0" step="0.01" value="${it.valor}" data-i="${i}" data-campo="valor" style="text-align:right"></td>
               <td class="n num">${fmt.brl(it.valor * it.qtd)}</td>
@@ -266,8 +267,11 @@ export function abrirComanda(id) {
         if (ja) ja.qtd++;
         else itens.push({ id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
                           tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
-                          custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0 });
+                          custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
+                          confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' });
         pintarItens(); pintarTotais();
+        if (s.preco_tipo === 'avaliacao') avisar('Serviço sob avaliação — informe o valor combinado');
+        else if (s.preco_tipo === 'a_partir') avisar('Valor inicial — ajuste conforme o atendimento');
       };
 
       $('#add-livre').onclick = () => {
@@ -330,7 +334,8 @@ export function abrirComanda(id) {
     const antigos = db.estado.comanda_itens.filter((i) => i.comanda_id === c.id);
     const idsAgora = new Set(itens.map((i) => i.id));
     for (const a of antigos) if (!idsAgora.has(a.id)) await db.remover('comanda_itens', a.id);
-    await db.salvarLote('comanda_itens', itens.map((i) => ({ ...i, comanda_id: c.id })));
+    // `confirmar_valor` é só um aviso de tela; não existe como coluna no banco.
+    await db.salvarLote('comanda_itens', itens.map(({ confirmar_valor, ...i }) => ({ ...i, comanda_id: c.id })));
 
     if (fecharComanda) {
       await lancarNoCaixa(comanda);
@@ -409,6 +414,6 @@ function agrupado(catalogo) {
   }
   return [...grupos.entries()].map(([cat, lista]) => `
     <optgroup label="${esc(nomeCat(cat))}">
-      ${lista.map((s) => `<option value="${s.id}">${esc(s.nome)} — ${fmt.brl(s.preco)}</option>`).join('')}
+      ${lista.map((s) => `<option value="${s.id}">${esc(s.nome)} — ${esc(precoTexto(s))}</option>`).join('')}
     </optgroup>`).join('');
 }

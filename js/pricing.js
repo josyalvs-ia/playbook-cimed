@@ -54,6 +54,10 @@ export function precoTecnico(servico, p, opts = {}) {
   const tecnico = custoDireto / divisor;
   const preco = Number(servico.preco) || 0;
 
+  // "Sob avaliação" não tem preço de tabela: o piso serve de referência para
+  // o orçamento, mas não faz sentido dizer que está abaixo dele.
+  const semPrecoFixo = servico.preco_tipo === 'avaliacao';
+
   return {
     material, fixo, mao, custoDireto,
     taxaCartao: tecnico * taxa,
@@ -63,7 +67,8 @@ export function precoTecnico(servico, p, opts = {}) {
     minimo: Math.ceil(tecnico / 5) * 5,       // arredondado para cima, múltiplo de 5
     precoAtual: preco,
     diferenca: preco - tecnico,
-    abaixoDoPiso: preco < tecnico,
+    semPrecoFixo,
+    abaixoDoPiso: !semPrecoFixo && preco < tecnico,
     margemReal: preco > 0 ? (preco - custoDireto - preco * taxa - preco * p.imposto) / preco : 0,
   };
 }
@@ -86,6 +91,31 @@ export function resultadoAtendimento({ valor, custoMaterial, tempo, formaPagamen
     maoDeObra: mao,
     lucro: liquido - imposto - (Number(custoMaterial) || 0) - fixo - mao,
   };
+}
+
+/**
+ * Quanto custa UMA unidade de uso do insumo (1 ml, 1 g, 1 luva).
+ *
+ *   preço da embalagem ÷ quanto vem na embalagem
+ *
+ * Quando não se sabe o conteúdo da embalagem (uma cartela de adesivos, por
+ * exemplo), a unidade passa a ser a própria embalagem — aí a quantidade na
+ * ficha é a fração dela que se gasta por atendimento.
+ */
+export function custoUnitario(material) {
+  const preco = Number(material?.preco_pago ?? material?.preco_ref ?? 0);
+  const emb = Number(material?.qtd_embalagem) || 0;
+  return emb > 0 ? preco / emb : preco;
+}
+
+/** Custo de gastar `qtd` unidades de uso de um insumo. */
+export function custoDeUso(material, qtd) {
+  return custoUnitario(material) * (Number(qtd) || 0);
+}
+
+/** Rótulo da unidade de uso, para as telas ficarem claras. */
+export function unidadeDe(material) {
+  return material?.unidade || 'emb.';
 }
 
 export const FORMAS_PAGAMENTO = [

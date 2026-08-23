@@ -2,7 +2,7 @@
 // fechamento por profissional compartilham.
 import { estado, cfg } from './db.js';
 import { PREMISSAS_PADRAO } from './data/premissas.js';
-import { custoFixoPorAtendimento, taxaMediaCartao, FORMAS_PAGAMENTO } from './pricing.js';
+import { custoFixoPorAtendimento, taxaMediaCartao, custoUnitario, FORMAS_PAGAMENTO } from './pricing.js';
 import { hoje, diasEntre } from './ui.js';
 
 export const premissas = () => ({ ...PREMISSAS_PADRAO, ...(cfg('premissas') || {}) });
@@ -171,9 +171,9 @@ export function materiaisEmFalta() {
     .sort((a, b) => (a.estoque / (a.estoque_minimo || 1)) - (b.estoque / (b.estoque_minimo || 1)));
 }
 
+/** O saldo é contado na unidade de uso, então o valor usa o custo unitário. */
 export function valorEstoque() {
-  return estado.materiais.reduce((s, m) =>
-    s + Number(m.estoque || 0) * Number(m.preco_pago ?? m.preco_ref ?? 0), 0);
+  return estado.materiais.reduce((s, m) => s + Number(m.estoque || 0) * custoUnitario(m), 0);
 }
 
 // ─── Comissão ──────────────────────────────────────────────────────────────
