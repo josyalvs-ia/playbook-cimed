@@ -18,7 +18,8 @@
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
-  .capa { text-align: center; padding: 58px 0 40px; }
+  .capa { text-align: center; padding: 58px 0 40px; position: relative; }
+  .capa .ceu { inset: -30px 0 0; }
   .capa img { width: min(400px, 88%); margin: 0 auto 18px; }
   .capa .frase {
     font-family: var(--display); font-size: clamp(26px, 5.4vw, 40px);
@@ -90,7 +91,7 @@
 
 <script type="module">
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
-import { fmt, esc, estrela, ico, precoTexto } from './js/ui.js';
+import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado } from './js/ui.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
 // aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
@@ -155,9 +156,10 @@ const trinks = studio.trinks || '';
 
 document.getElementById('vitrine').innerHTML = `
   <header class="capa">
-    <img src="assets/marca.svg" alt="Alento — Studio de Beleza">
-    <div class="frase">Realce sua melhor versão.</div>
-    <p>Cuidado que transforma. Beleza que acolhe e renova.</p>
+    ${ceuEstrelado()}
+    <img src="assets/marca.svg" alt="Alento — Studio de Beleza" class="assenta" style="position:relative;z-index:1">
+    <div class="frase assenta-2" style="position:relative;z-index:1">Realce sua melhor versão.</div>
+    <p class="assenta-3" style="position:relative;z-index:1">Cuidado que transforma. Beleza que acolhe e renova.</p>
   </header>
 
   ${CATEGORIAS_SERVICO

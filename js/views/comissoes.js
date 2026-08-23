@@ -1,6 +1,6 @@
 // COMISSÕES — quanto cada profissional produziu e quanto tem a receber.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, lerForm, vazio, hoje } from '../ui.js';
+import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio, hoje } from '../ui.js';
 import * as M from '../metricas.js';
 import { baixarCSV } from './precificacao.js';
 
@@ -10,8 +10,9 @@ export function render(raiz) {
   const de = mes + '-01';
   const ate = fimDoMes(mes);
   const p = M.premissas();
+  // Comissão é de quem atende. Quem só administra o studio não entra aqui.
   const fechamentos = db.estado.profissionais
-    .filter((x) => x.ativo !== false)
+    .filter((x) => x.ativo !== false && x.atende !== false)
     .map((x) => M.fechamentoProfissional(x, { de, ate }, p));
 
   const totalBruto = fechamentos.reduce((s, f) => s + f.bruto, 0);
@@ -128,9 +129,13 @@ export function abrirEquipe() {
         <td><div class="flex" style="gap:9px">
           <span class="avatar verde">${esc(p.nome[0].toUpperCase())}</span>
           <span><strong>${esc(p.nome)}</strong>
-            ${p.user_id ? '<div class="pequeno t3">acessa o app</div>' : '<div class="pequeno t3">sem login</div>'}</span>
+            ${p.user_id
+              ? '<div class="pequeno t3">acessa o app</div>'
+              : '<div class="pequeno alerta-c">sem login — pode ser sobra de uma conta apagada</div>'}</span>
         </div></td>
-        <td class="pequeno t2">${p.funcao === 'cabelo' ? 'Cabelos' : p.funcao === 'ambos' ? 'Unhas e cabelos' : 'Unhas'}</td>
+        <td class="pequeno t2">${p.atende === false
+          ? '<span class="t3">não atende</span>'
+          : (p.funcao === 'cabelo' ? 'Cabelos' : p.funcao === 'ambos' ? 'Unhas e cabelos' : 'Unhas')}</td>
         <td class="n num">${fmt.pct(p.comissao_pct, 0)}</td>
         <td>${p.ativo === false
           ? '<span class="selo erro">sem acesso</span>'
@@ -150,7 +155,7 @@ export function abrirEquipe() {
 
 export function abrirProfissional(id) {
   const p = id ? db.estado.profissionais.find((x) => x.id === id)
-              : { funcao: 'unhas', comissao_pct: 0.5, ativo: true };
+              : { funcao: 'unhas', comissao_pct: 0.5, ativo: true, atende: true };
   abrirModal({
     titulo: id ? p.nome : 'Nova profissional',
     corpo: `
@@ -168,16 +173,34 @@ export function abrirProfissional(id) {
       <label class="check"><input type="checkbox" name="ativo" ${p.ativo !== false ? 'checked' : ''}>
         <span>Pode usar o sistema
           <div class="pequeno t3">Desmarcado, a conta continua existindo mas não enxerga nada do studio.</div>
+        </span></label>
+      <label class="check"><input type="checkbox" name="atende" ${p.atende !== false ? 'checked' : ''}>
+        <span>Atende clientes
+          <div class="pequeno t3">Desmarcado, some dos atendimentos e das comissões, mas continua
+            com acesso ao sistema. É o caso de quem só administra.</div>
         </span></label>`,
-    acoes: [{ texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
-      const d = lerForm(veu);
-      if (!d.nome) return avisar('Informe o nome', 'erro');
-      await db.salvar('profissionais', {
-        ...p, nome: d.nome, funcao: d.funcao,
-        comissao_pct: (Number(d.pct) || 0) / 100, ativo: !!d.ativo,
-      });
-      fechar(); avisar('Profissional salva');
-    } }],
+    acoes: [
+      ...(id ? [{ texto: ico('lixo') + ' Excluir', classe: 'btn-perigo', onClick: async (fechar) => {
+        const atendimentos = db.estado.comandas.filter((c) => c.profissional_id === id).length;
+        const ok = await confirmar('Excluir cadastro?',
+          atendimentos
+            ? `Esta profissional tem ${atendimentos} atendimento(s) no histórico. Eles não somem, mas deixam de ter dono — o faturamento continua no caixa e nos relatórios do studio.`
+            : 'Este cadastro não tem nenhum atendimento no histórico.');
+        if (!ok) return;
+        await db.remover('profissionais', id);
+        fechar(); avisar('Cadastro excluído');
+      } }] : []),
+      { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
+        const d = lerForm(veu);
+        if (!d.nome) return avisar('Informe o nome', 'erro');
+        await db.salvar('profissionais', {
+          ...p, nome: d.nome, funcao: d.funcao,
+          comissao_pct: (Number(d.pct) || 0) / 100,
+          ativo: !!d.ativo, atende: !!d.atende,
+        });
+        fechar(); avisar('Profissional salva');
+      } },
+    ],
   });
 }
 

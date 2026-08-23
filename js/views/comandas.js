@@ -11,6 +11,10 @@ import { resumo, taxaDe, premissas } from '../metricas.js';
 
 let filtro = { periodo: 'hoje', de: hoje(), ate: hoje(), profissional: '', status: '' };
 
+/** Quem de fato atende clientes — quem só administra fica de fora. */
+const atendentes = () =>
+  db.estado.profissionais.filter((p) => p.atende !== false && p.ativo !== false);
+
 function intervalo() {
   const d = new Date();
   if (filtro.periodo === 'hoje') return { de: hoje(), ate: hoje() };
@@ -41,7 +45,7 @@ export function render(raiz) {
       </div>
       <select id="f-prof" style="width:auto;min-width:150px">
         <option value="">Todas as profissionais</option>
-        ${db.estado.profissionais.map((p) => `<option value="${p.id}" ${filtro.profissional === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
+        ${atendentes().map((p) => `<option value="${p.id}" ${filtro.profissional === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
       </select>
     </div>
 
@@ -122,7 +126,9 @@ export function abrirComanda(id) {
   const c = existente
     ? { ...existente }
     : { id: uid(), data: hoje(), status: 'aberta', desconto: 0,
-        profissional_id: db.eu?.id || db.estado.profissionais[0]?.id || null };
+        // Quem está logada só é a profissional padrão se ela mesma atender.
+        profissional_id: (db.eu?.atende !== false ? db.eu?.id : null)
+                         || atendentes()[0]?.id || null };
 
   let itens = existente
     ? db.estado.comanda_itens.filter((i) => i.comanda_id === id).map((i) => ({ ...i }))
@@ -145,7 +151,7 @@ export function abrirComanda(id) {
         </label>
         <label class="campo"><span>Profissional</span>
           <select id="prof">
-            ${db.estado.profissionais.map((p) =>
+            ${atendentes().map((p) =>
               `<option value="${p.id}" ${c.profissional_id === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
           </select>
         </label>

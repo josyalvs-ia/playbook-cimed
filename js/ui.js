@@ -40,6 +40,27 @@ export function estrela(cls = '') {
     <path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z" fill="currentColor"/></svg></span>`;
 }
 
+/**
+ * Camada decorativa de estrelas que cintilam.
+ * As posições são fixas (não sorteadas) para o desenho ficar sempre
+ * equilibrado, e cada estrela tem ritmo próprio — cintilar em uníssono
+ * pareceria um pisca-pisca, não um céu.
+ */
+export function ceuEstrelado() {
+  const estrelas = [
+    [8, 18, 13, 0.0, 4.2], [22, 68, 8, 1.4, 5.6], [15, 88, 6, 2.8, 4.8],
+    [34, 12, 7, 0.7, 6.2], [48, 82, 11, 2.1, 5.0], [63, 24, 6, 3.4, 4.4],
+    [72, 60, 15, 0.4, 6.8], [86, 14, 9, 2.6, 5.2], [91, 74, 7, 1.1, 4.6],
+    [56, 46, 5, 3.9, 5.8], [78, 92, 6, 1.8, 4.0], [42, 34, 4, 3.1, 6.4],
+  ];
+  return `<div class="ceu" aria-hidden="true">${estrelas.map(
+    ([x, y, tam, atraso, dur]) => `<span class="estrela" style="
+      left:${x}%; top:${y}%; font-size:${tam}px;
+      --atraso:${atraso}s; --dur:${dur}s">
+      <svg viewBox="-60 -60 120 120"><path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z" fill="currentColor"/></svg>
+    </span>`).join('')}</div>`;
+}
+
 // ─── Formatação ────────────────────────────────────────────────────────────
 const _brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const _num = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });

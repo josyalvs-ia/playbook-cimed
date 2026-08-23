@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from './db.js';
-import { ico, estrela, esc, avisar, abrirModal } from './ui.js';
+import { ico, estrela, esc, avisar, abrirModal, ceuEstrelado } from './ui.js';
 
 const raizApp = document.getElementById('app');
 
@@ -162,12 +162,13 @@ function atualizarStatusSync() {
 // ─── Telas de entrada ──────────────────────────────────────────────────────
 function molduraCentral(conteudo) {
   raizApp.innerHTML = `
-    <div style="min-height:100vh;display:grid;place-items:center;padding:22px">
-      <div style="width:100%;max-width:420px">
-        <div class="centro" style="margin-bottom:26px">
+    <div style="min-height:100vh;display:grid;place-items:center;padding:22px;position:relative">
+      ${ceuEstrelado()}
+      <div style="width:100%;max-width:420px;position:relative;z-index:1">
+        <div class="centro assenta" style="margin-bottom:26px">
           <img src="assets/marca.svg" alt="Alento — Studio de Beleza" style="width:min(300px,80%);margin:0 auto 4px">
         </div>
-        <div class="cartao" style="padding:24px">${conteudo}</div>
+        <div class="cartao assenta-2" style="padding:24px">${conteudo}</div>
       </div>
     </div>`;
 }

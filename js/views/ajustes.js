@@ -32,7 +32,7 @@ export function render(raiz) {
               <span class="avatar verde">${esc(p.nome[0].toUpperCase())}</span>
               <span><strong>${esc(p.nome)}</strong>
                 <div class="pequeno t3">${p.user_id ? 'com acesso ao app' : 'sem login'} ·
-                  ${fmt.pct(p.comissao_pct, 0)} de comissão</div></span>
+                  ${p.atende === false ? 'não atende clientes' : fmt.pct(p.comissao_pct, 0) + ' de comissão'}</div></span>
             </div></td>
           </tr>`).join('') || '<tr><td class="t3 pequeno">Ninguém cadastrado.</td></tr>'}
         </tbody></table></div>

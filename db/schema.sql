@@ -18,9 +18,13 @@ create table if not exists profissionais (
   funcao       text not null default 'unhas',      -- unhas | cabelo | ambos
   comissao_pct numeric not null default 0.5,       -- fração: 0.5 = 50%
   cor          text default '#4A5236',
-  ativo        boolean not null default true,
+  ativo        boolean not null default true,   -- pode entrar no sistema
+  atende       boolean not null default true,   -- aparece como profissional nos atendimentos
   criado_em    timestamptz not null default now()
 );
+
+-- Bancos criados antes desta coluna existir também ficam em dia:
+alter table profissionais add column if not exists atende boolean not null default true;
 
 -- ── Clientes ───────────────────────────────────────────────────────────────
 create table if not exists clientes (
@@ -219,19 +223,33 @@ create policy "vitrine_config" on config
 create or replace function public.novo_profissional()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
-  primeira boolean;
+  nome_novo text;
+  primeira  boolean;
+  liberada  boolean;
+  adotado   uuid;
 begin
-  select not exists (select 1 from public.profissionais) into primeira;
+  nome_novo := coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1));
+  select not exists (select 1 from public.profissionais where user_id is not null) into primeira;
 
-  insert into public.profissionais (user_id, nome, ativo)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1)),
-    -- Ativa se foi convidada pelo painel, ou se é a primeira pessoa do studio
-    -- (quem está instalando). Cadastro espontâneo entra inativo.
-    new.invited_at is not null or primeira
-  )
-  on conflict (user_id) do nothing;
+  -- Ativa se foi convidada pelo painel, ou se é a primeira pessoa do studio
+  -- (quem está instalando). Cadastro espontâneo entra inativo.
+  liberada := new.invited_at is not null or primeira;
+
+  -- Se a conta desta pessoa já foi apagada e recriada, existe um cadastro
+  -- órfão com o histórico dela. Adotar esse cadastro em vez de criar outro é
+  -- o que impede a lista de profissionais de encher de duplicados.
+  update public.profissionais
+     set user_id = new.id, ativo = liberada
+   where user_id is null
+     and lower(trim(nome)) = lower(trim(nome_novo))
+   returning id into adotado;
+
+  if adotado is null then
+    insert into public.profissionais (user_id, nome, ativo)
+    values (new.id, nome_novo, liberada)
+    on conflict (user_id) do nothing;
+  end if;
+
   return new;
 end $$;
 
