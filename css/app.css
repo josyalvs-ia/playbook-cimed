@@ -633,5 +633,27 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
   }
   .tabbar button.ativo { color: var(--creme); }
   .tabbar .ico { width: 19px; height: 19px; }
+  /* O "Mais" carrega o aviso de estoque, que mora numa tela de dentro dele. */
+  .tabbar #btn-mais { position: relative; }
+  .tabbar #btn-mais .contador {
+    position: absolute; top: 4px; left: 50%; margin-left: 4px;
+  }
 }
+
+/* ── Menu "Mais" do celular ────────────────────────────────────────────────*/
+/* Tudo o que não coube na barra de baixo: as telas de negócio, quem está
+   usando e a saída da conta. */
+.menu-mais { display: grid; gap: 3px; }
+.menu-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 13px 12px; border-radius: var(--r-sm); min-height: 50px;
+  color: var(--texto-2); text-align: left; font-size: 15px;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--elevado); color: var(--texto); }
+.menu-item .ico:last-child { color: var(--texto-3); width: 15px; height: 15px; }
+.menu-rodape {
+  display: flex; align-items: center; gap: 11px;
+  margin-top: 12px; padding-top: 15px; border-top: 1px solid var(--linha);
+}
+.menu-rodape .btn { gap: 7px; }
 

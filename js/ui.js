@@ -28,6 +28,8 @@ const TRACOS = {
   nuvem:    '<path d="M18 10h-1.3A7 7 0 1 0 4 15.3"/><path d="M12 12v9M8 17l4 4 4-4"/>',
   relogio:  '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   sino:     '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  menu:     '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  seta:     '<path d="m9 18 6-6-6-6"/>',
 };
 
 export function ico(nome, cls = 'ico') {

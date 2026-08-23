@@ -4,7 +4,7 @@
 
 import * as db from './db.js';
 import * as nov from './novidades.js';
-import { ico, estrela, esc, avisar, abrirModal, ceuEstrelado } from './ui.js';
+import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado } from './ui.js';
 
 const raizApp = document.getElementById('app');
 
@@ -14,7 +14,7 @@ const TELAS = {
   agenda:       { titulo: 'Agenda',        icone: 'agenda',   mod: () => import('./views/agenda.js'),       tab: true },
   comandas:     { titulo: 'Atendimentos',  icone: 'comanda',  mod: () => import('./views/comandas.js'),     tab: true },
   clientes:     { titulo: 'Clientes',      icone: 'clientes', mod: () => import('./views/clientes.js') },
-  estoque:      { titulo: 'Estoque',       icone: 'estoque',  mod: () => import('./views/estoque.js'),      tab: true },
+  estoque:      { titulo: 'Estoque',       icone: 'estoque',  mod: () => import('./views/estoque.js') },
   caixa:        { titulo: 'Caixa',         icone: 'caixa',    mod: () => import('./views/caixa.js'),        tab: true },
   servicos:     { titulo: 'Tabela de preços', icone: 'tabela',   mod: () => import('./views/servicos.js') },
   precificacao: { titulo: 'Precificação',  icone: 'grafico',  mod: () => import('./views/precificacao.js') },
@@ -52,6 +52,10 @@ async function montarTela() {
   document.querySelectorAll('[data-rota]').forEach((b) => {
     b.classList.toggle('ativo', b.dataset.rota === rota);
   });
+  // No celular a barra de baixo só tem quatro telas; as outras vivem dentro do
+  // "Mais", que precisa acender quando a aberta é uma delas.
+  document.getElementById('btn-mais')
+    ?.classList.toggle('ativo', !TELAS[rota].tab);
 
   alvo.innerHTML = `<div class="vazio">${estrela()}<p>Carregando…</p></div>`;
   const mod = await tela.mod();
@@ -132,12 +136,14 @@ function desenharCasca() {
     <nav class="tabbar">
       ${tabs.map(([r, t]) => `
         <button data-rota="${r}">${ico(t.icone)}<span>${t.titulo === 'Atendimentos' ? 'Comandas' : t.titulo}</span></button>`).join('')}
-      <button data-rota="ajustes">${ico('ajustes')}<span>Mais</span></button>
+      <button id="btn-mais">${ico('menu')}<span>Mais</span>
+        <span class="contador" id="badge-mais" hidden></span></button>
     </nav>`;
 
   raizApp.querySelectorAll('[data-rota]').forEach((b) => {
     b.onclick = () => irPara(b.dataset.rota);
   });
+  document.getElementById('btn-mais').onclick = abrirMais;
   document.getElementById('btn-sair').onclick = () => db.sair();
   document.getElementById('btn-sino').onclick = abrirNovidades;
   document.getElementById('btn-nova-comanda').onclick = async () => {
@@ -161,6 +167,56 @@ function atualizarSino({ recemChegadas = 0 } = {}) {
     const ultima = nov.novidades()[0];
     if (ultima) nov.avisarNaTela(ultima);
   }
+}
+
+/**
+ * Menu do celular. A barra lateral não cabe numa tela de telefone, e a barra
+ * de baixo só comporta quatro telas — sem este menu, Clientes, Tabela de
+ * preços, Precificação, Comissões e Relatórios ficariam inalcançáveis, e não
+ * haveria como sair da conta.
+ */
+function abrirMais() {
+  const naBarra = (r) => TELAS[r].tab;
+  const nome = db.eu?.nome || 'Equipe';
+
+  const fechar = abrirModal({
+    titulo: 'Mais',
+    corpo: `
+      <div class="menu-mais">
+        ${GRUPOS.map((g) => {
+          const telas = g.telas.filter((r) => !naBarra(r));
+          if (!telas.length) return '';
+          return `
+            ${g.rotulo ? `<div class="eyebrow" style="margin:2px 0 6px">${g.rotulo}</div>` : ''}
+            ${telas.map((r) => `
+              <button class="menu-item" data-ir="${r}">
+                ${ico(TELAS[r].icone)}
+                <span class="crescer">${esc(TELAS[r].titulo)}</span>
+                ${r === 'estoque' ? '<span class="contador" id="badge-menu-estoque" hidden></span>' : ''}
+                ${ico('seta')}
+              </button>`).join('')}`;
+        }).join('')}
+        <div class="menu-rodape">
+          <span class="avatar">${esc(nome[0].toUpperCase())}</span>
+          <span class="crescer truncar">
+            <span style="font-size:14px;font-weight:600;display:block">${esc(nome)}</span>
+            <span class="pequeno t3" id="status-sync-mais"></span>
+          </span>
+          <button class="btn btn-sm" id="sair-mais">${ico('sair')} Sair</button>
+        </div>
+      </div>`,
+    aoAbrir: (veu) => {
+      veu.querySelectorAll('[data-ir]').forEach((b) => {
+        b.onclick = () => { fecharModal(); irPara(b.dataset.ir); };
+      });
+      veu.querySelector('#sair-mais').onclick = () => db.sair();
+      const s = document.getElementById('status-sync');
+      if (s) veu.querySelector('#status-sync-mais').textContent = s.textContent;
+      const b = document.getElementById('badge-estoque');
+      const alvo = veu.querySelector('#badge-menu-estoque');
+      if (b && alvo && !b.hidden) { alvo.textContent = b.textContent; alvo.hidden = false; }
+    },
+  });
 }
 
 function abrirNovidades() {

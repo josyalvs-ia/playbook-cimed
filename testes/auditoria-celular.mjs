@@ -134,9 +134,44 @@ for (const [nomeAparelho, perfil] of APARELHOS) {
     if (tela === 'painel' && nomeAparelho === 'iPhone 13') await p.screenshot({ path: '/tmp/cel-painel.png' });
   }
 
-  // A barra de baixo precisa alcançar tudo
-  const tabs = await p.$$eval('.tabbar button', (b) => b.map((x) => x.textContent.trim()));
-  if (tabs.length < 5) problemas.push(`${nomeAparelho}: barra de baixo com só ${tabs.length} atalhos`);
+  // ── Toda tela tem de ser alcançável só com o dedo ──────────────────────
+  // A barra lateral não existe no celular. Se uma tela não estiver na barra de
+  // baixo nem dentro do "Mais", ela simplesmente não existe para quem só usa
+  // telefone — foi assim que Clientes, Tabela de preços, Precificação,
+  // Comissões e Relatórios ficaram inalcançáveis.
+  const TODAS = ['painel','agenda','comandas','clientes','estoque','caixa',
+                 'servicos','precificacao','comissoes','relatorios','ajustes'];
+
+  const naBarra = [];
+  const quantosTabs = await p.locator('.tabbar button[data-rota]').count();
+  for (let i = 0; i < quantosTabs; i++) {
+    await p.locator('.tabbar button[data-rota]').nth(i).click();
+    await p.waitForTimeout(250);
+    naBarra.push(await p.evaluate(() => location.hash.replace('#/', '')));
+  }
+
+  await p.click('#btn-mais');
+  await p.waitForSelector('.menu-mais', { timeout: 4000 });
+  await p.waitForTimeout(350);
+  const noMenu = await p.$$eval('.menu-mais [data-ir]', (b) => b.map((x) => x.dataset.ir));
+  const temSair = await p.locator('#sair-mais').isVisible();
+  await auditar(p, 'menu Mais', nomeAparelho);
+  if (nomeAparelho === 'iPhone 13') await p.screenshot({ path: '/tmp/cel-mais.png' });
+
+  const alcancaveis = new Set([...naBarra, ...noMenu]);
+  if (process.env.DEBUG) console.log(nomeAparelho, "| barra:", naBarra.join(","), "| menu:", noMenu.join(","));
+  const perdidas = TODAS.filter((r) => !alcancaveis.has(r));
+  if (perdidas.length) {
+    problemas.push(`${nomeAparelho}: sem caminho no celular para ${perdidas.join(', ')}`);
+  }
+  if (!temSair) problemas.push(`${nomeAparelho}: não dá para sair da conta pelo celular`);
+
+  // O menu tem de abrir de fato numa tela, não só listar.
+  await p.click('.menu-mais [data-ir="relatorios"]');
+  await p.waitForTimeout(600);
+  const abriu = await p.evaluate(() => location.hash === '#/relatorios'
+    && !document.querySelector('.veu'));
+  if (!abriu) problemas.push(`${nomeAparelho}: o menu Mais não leva à tela escolhida`);
 
   // Um modal cheio, que é onde falta espaço
   await p.evaluate(() => { location.hash = '#/agenda'; });
