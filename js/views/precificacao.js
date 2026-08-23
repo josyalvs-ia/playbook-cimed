@@ -11,6 +11,7 @@ import { OBSERVACOES_PREMISSAS, ETAPAS_TECNICA, COMO_USAR, PREMISSAS_PADRAO } fr
 
 let aba = 'tabela';
 let filtroQuem = '';
+let filtroSituacao = '';   // '' = tudo | 'rever' = abaixo do piso | 'ok' = saudável
 
 export function render(raiz) {
   const p = premissas();
@@ -41,16 +42,23 @@ export function render(raiz) {
         ${[['tabela', 'Preço técnico'], ['premissas', 'Premissas'], ['guia', 'Como calcular o custo']]
           .map(([id, t]) => `<button class="pilula ${aba === id ? 'ativa' : ''}" data-aba="${id}">${t}</button>`).join('')}
       </div>
-      ${aba === 'tabela' ? `<div class="pilulas">
-        ${[['', 'Tudo'], ['unhas', 'Unhas'], ['cabelo', 'Cabelos']].map(([v, t]) =>
-          `<button class="pilula ${filtroQuem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
-      </div>` : ''}
+      ${aba === 'tabela' ? `
+        <div class="pilulas">
+          ${[['', 'Tudo'], ['unhas', 'Unhas'], ['cabelo', 'Cabelos']].map(([v, t]) =>
+            `<button class="pilula ${filtroQuem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
+        </div>
+        <div class="pilulas">
+          ${[['', `Toda situação`], ['rever', `Rever (${abaixo.length})`],
+             ['ok', `Saudáveis (${calc.length - abaixo.length})`]].map(([v, t]) =>
+            `<button class="pilula ${filtroSituacao === v ? 'ativa' : ''}" data-sit="${v}">${t}</button>`).join('')}
+        </div>` : ''}
     </div>
 
     <div id="painel-preco"></div>`;
 
   raiz.querySelectorAll('[data-aba]').forEach((b) => b.onclick = () => { aba = b.dataset.aba; render(raiz); });
   raiz.querySelectorAll('[data-quem]').forEach((b) => b.onclick = () => { filtroQuem = b.dataset.quem; render(raiz); });
+  raiz.querySelectorAll('[data-sit]').forEach((b) => b.onclick = () => { filtroSituacao = b.dataset.sit; render(raiz); });
   const alvo = raiz.querySelector('#painel-preco');
   ({ tabela: () => abaTabela(alvo, calc, p),
      premissas: () => abaPremissas(alvo, p, raiz),
@@ -58,7 +66,12 @@ export function render(raiz) {
 }
 
 function abaTabela(alvo, calc, p) {
-  const ordenado = [...calc].sort((a, b) => a.r.diferenca - b.r.diferenca);
+  // O filtro corta a lista, não os indicadores do topo: eles continuam
+  // contando o studio inteiro, senão "14 de 14 abaixo do piso" viraria mentira.
+  const ordenado = [...calc]
+    .filter(({ r }) => !filtroSituacao
+      || (filtroSituacao === 'rever' ? r.abaixoDoPiso : !r.abaixoDoPiso))
+    .sort((a, b) => a.r.diferenca - b.r.diferenca);
 
   alvo.innerHTML = `
     <div class="aviso mb">${ico('info')}<div>
@@ -92,7 +105,17 @@ function abaTabela(alvo, calc, p) {
           : '<span class="selo ok">ok</span>'}</td>
       </tr>`).join('')}
       </tbody></table></div>
+      ${ordenado.length ? '' : `<div class="vazio">${estrela()}
+        <p>${filtroSituacao === 'rever'
+            ? 'Nenhum serviço abaixo do piso por aqui. Bom sinal.'
+            : 'Nenhum serviço nesta situação.'}</p>
+        <button class="btn btn-sm" id="limpar-sit">Ver todos</button></div>`}
     </div>`;
+
+  alvo.querySelector('#limpar-sit')?.addEventListener('click', () => {
+    filtroSituacao = '';
+    render(document.getElementById('conteudo'));
+  });
 
   alvo.querySelector('#exportar').onclick = () => {
     const linhas = [['Serviço', 'Preço atual', 'Material', 'Custo fixo', 'Remuneração tempo',

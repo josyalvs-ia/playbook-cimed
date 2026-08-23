@@ -324,6 +324,22 @@ tbody tr { transition: background .18s ease; }
   border: 1px solid var(--linha-forte); color: var(--creme);
 }
 .titulo-marca .ico { width: 16px; height: 16px; }
+
+/* ── Aniversariantes ───────────────────────────────────────────────────────*/
+.aniversarios { display: grid; gap: 8px; }
+.aniv {
+  display: flex; align-items: center; gap: 12px; min-width: 0;
+  background: var(--creme); color: var(--verde);
+  border-radius: var(--r); padding: 12px 14px;
+}
+.aniv .pequeno { display: block; color: rgba(46, 51, 34, 0.6); }
+.aniv-bolo {
+  flex: none; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(46, 51, 34, 0.24); color: var(--verde);
+}
+.aniv-bolo .ico { width: 17px; height: 17px; }
+.aniv .btn { flex: none; }
 .cartao-cabeca h2, .cartao-cabeca h3 { margin-right: auto; }
 
 .grade { display: grid; gap: 14px; min-width: 0; }

@@ -140,6 +140,53 @@ export function clientesParaResgatar(margem = 1.4) {
     .sort((a, b) => b.diasSemVir - a.diasSemVir);
 }
 
+/**
+ * Quem faz aniversário hoje, e quem faz nos próximos dias.
+ *
+ * Compara só dia e mês: o ano do cadastro é o ano de nascimento, não o da
+ * festa. Quem nasceu em 1990 continua fazendo aniversário todo 23 de agosto.
+ *
+ * O 29 de fevereiro é comemorado em 1º de março nos anos que não têm o dia 29
+ * — melhor lembrar um dia depois do que esquecer três anos seguidos.
+ */
+export function aniversariantesDoDia({ diasAFrente = 7, hoje = new Date() } = {}) {
+  const diaMes = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const bissexto = (a) => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0;
+
+  const quando = (c) => {
+    const mm = c.nascimento.slice(5, 7);
+    const dd = c.nascimento.slice(8, 10);
+    // 29/02 em ano comum passa a valer no dia 01/03.
+    if (mm === '02' && dd === '29' && !bissexto(hoje.getFullYear())) return '03-01';
+    return `${mm}-${dd}`;
+  };
+
+  const comData = estado.clientes.filter((c) => c.ativo !== false && c.nascimento);
+  const hojeDM = diaMes(hoje);
+
+  const proximos = [];
+  for (let i = 1; i <= diasAFrente; i++) {
+    const d = new Date(hoje);
+    d.setDate(hoje.getDate() + i);
+    const dm = diaMes(d);
+    for (const c of comData) {
+      if (quando(c) === dm) proximos.push({ cliente: c, data: new Date(d), emDias: i });
+    }
+  }
+
+  return {
+    hoje: comData.filter((c) => quando(c) === hojeDM)
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    proximos,
+  };
+}
+
+/** Quantos anos a cliente faz (ou fez) neste ano. */
+export function idadeQueFaz(nascimento, hoje = new Date()) {
+  const ano = Number(String(nascimento).slice(0, 4));
+  return ano > 1900 && ano <= hoje.getFullYear() ? hoje.getFullYear() - ano : null;
+}
+
 export function aniversariantes(mes = new Date().getMonth() + 1) {
   return estado.clientes
     .filter((c) => c.nascimento && Number(c.nascimento.slice(5, 7)) === mes)

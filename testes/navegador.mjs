@@ -815,7 +815,111 @@ await p2.waitForTimeout(700);
     JSON.parse(fila || '[]').length === 0, String(fila).slice(0, 120)]);
 }
 
-// ── 21. Todo campo editável tem contraste real ──
+// ── 21. Filtro de situação na precificação ──
+{
+  await p2.evaluate(() => { location.hash = '#/precificacao'; });
+  await p2.waitForTimeout(900);
+  const todas = await p2.locator('#painel-preco tbody tr').count();
+  const rever = await p2.locator('#painel-preco .selo.erro').count();
+
+  await p2.click('[data-sit="rever"]');
+  await p2.waitForTimeout(700);
+  const soRever = await p2.locator('#painel-preco tbody tr').count();
+  checagens.push(['precificação: "Rever" mostra só o que está abaixo do piso',
+    soRever === rever && soRever < todas, `${soRever} de ${todas}, ${rever} abaixo`]);
+  checagens.push(['precificação: nenhum "ok" sobra na lista de rever',
+    await p2.locator('#painel-preco .selo.ok').count() === 0]);
+
+  // Os indicadores do topo não podem seguir o filtro, senão viram mentira.
+  const kpiDepois = nb(await p2.textContent('.grade.c4'));
+  checagens.push(['precificação: o topo continua contando o studio inteiro',
+    kpiDepois.includes(`de ${todas} serviços`), kpiDepois.slice(0, 60)]);
+
+  await p2.click('[data-sit="ok"]');
+  await p2.waitForTimeout(700);
+  checagens.push(['precificação: "Saudáveis" mostra só o que está ok',
+    await p2.locator('#painel-preco .selo.erro').count() === 0
+    && await p2.locator('#painel-preco tbody tr').count() === todas - rever]);
+
+  await p2.click('[data-sit=""]');
+  await p2.waitForTimeout(700);
+  checagens.push(['precificação: volta a mostrar tudo',
+    await p2.locator('#painel-preco tbody tr').count() === todas]);
+  await p2.screenshot({ path: '/tmp/shot-precificacao-filtro.png' });
+}
+
+// ── 22. Aniversariantes do dia ──
+// O ano do cadastro é o de nascimento, não o da festa: quem nasceu em 1990
+// tem de aparecer todo ano, não só em 1990.
+{
+  const contas = await p2.evaluate(async () => {
+    const M = await import('./js/metricas.js');
+    const db = await import('./js/db.js');
+    const salvos = db.estado.clientes;
+
+    const hoje = new Date();
+    const dm = (d) => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const amanha = new Date(hoje); amanha.setDate(hoje.getDate() + 1);
+    const daqui20 = new Date(hoje); daqui20.setDate(hoje.getDate() + 20);
+
+    db.estado.clientes = [
+      { id: 'a', nome: 'Nasceu Faz Tempo', nascimento: `1990-${dm(hoje)}`, ativo: true, telefone: '11999998888' },
+      { id: 'b', nome: 'Amanhã', nascimento: `2001-${dm(amanha)}`, ativo: true },
+      { id: 'c', nome: 'Longe', nascimento: `1988-${dm(daqui20)}`, ativo: true },
+      { id: 'd', nome: 'Sem Data', nascimento: null, ativo: true },
+      { id: 'e', nome: 'Inativa Hoje', nascimento: `1995-${dm(hoje)}`, ativo: false },
+    ];
+    const r = M.aniversariantesDoDia();
+    const idade = M.idadeQueFaz('1990-01-01');
+
+    // 29 de fevereiro num ano comum: cai no dia 1º de março.
+    db.estado.clientes = [{ id: 'f', nome: 'Bissexta', nascimento: '2000-02-29', ativo: true }];
+    const emUmDeMarco = M.aniversariantesDoDia({ hoje: new Date(2027, 2, 1) }).hoje.length;
+    const emVinteOito  = M.aniversariantesDoDia({ hoje: new Date(2027, 1, 28) }).hoje.length;
+    const noDiaCerto   = M.aniversariantesDoDia({ hoje: new Date(2028, 1, 29) }).hoje.length;
+
+    db.estado.clientes = salvos;
+    return { hoje: r.hoje.map((x) => x.nome), proximos: r.proximos.map((x) => x.cliente.nome),
+             idade, emUmDeMarco, emVinteOito, noDiaCerto, anoAtual: hoje.getFullYear() };
+  });
+
+  checagens.push(['aniversário: vale todo ano, não só o do cadastro',
+    contas.hoje.includes('Nasceu Faz Tempo'), contas.hoje.join(',')]);
+  checagens.push(['aniversário: calcula a idade que ela faz',
+    contas.idade === contas.anoAtual - 1990, String(contas.idade)]);
+  checagens.push(['aniversário: quem é de amanhã fica em "próximos dias"',
+    contas.proximos.includes('Amanhã') && !contas.hoje.includes('Amanhã')]);
+  checagens.push(['aniversário: 20 dias à frente ainda não entra',
+    !contas.proximos.includes('Longe')]);
+  checagens.push(['aniversário: cliente sem data não vira aniversariante',
+    !contas.hoje.includes('Sem Data') && !contas.proximos.includes('Sem Data')]);
+  checagens.push(['aniversário: cliente inativa fica de fora',
+    !contas.hoje.includes('Inativa Hoje')]);
+  checagens.push(['aniversário: 29/02 é lembrado em 1º de março no ano comum',
+    contas.emUmDeMarco === 1 && contas.emVinteOito === 0, `1/3=${contas.emUmDeMarco} 28/2=${contas.emVinteOito}`]);
+  checagens.push(['aniversário: no ano bissexto volta ao dia 29',
+    contas.noDiaCerto === 1, String(contas.noDiaCerto)]);
+
+  // E o cartão aparece de fato no painel.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const hoje = new Date();
+    const dm = `${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    globalThis.__DB.clientes = [{ id: 'aniv-1', nome: 'Josianny Alves',
+      nascimento: `1990-${dm}`, telefone: '11999998888', ativo: true }];
+    await db.recarregar();
+  });
+  await p2.evaluate(() => { location.hash = '#/painel'; });
+  await p2.waitForTimeout(900);
+  const painelTxt = nb(await p2.textContent('#conteudo'));
+  checagens.push(['aniversário: o painel mostra quem faz hoje',
+    /Aniversariantes de hoje/.test(painelTxt) && /Josianny Alves/.test(painelTxt)]);
+  checagens.push(['aniversário: com botão de parabenizar no WhatsApp',
+    await p2.locator('.aniv a[href*="wa.me"]').count() === 1]);
+  await p2.screenshot({ path: '/tmp/shot-aniversario.png' });
+}
+
+// ── 23. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {

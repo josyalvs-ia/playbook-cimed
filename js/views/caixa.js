@@ -85,8 +85,10 @@ export function render(raiz) {
           <td class="pequeno t3">${esc(FORMAS_PAGAMENTO.find((f) => f.id === l.forma_pagamento)?.nome || '—')}</td>
           <td class="n num ${l.tipo === 'entrada' ? 'ok-c' : 'erro-c'}">
             <strong>${l.tipo === 'entrada' ? '+' : '−'} ${fmt.brl(l.valor)}</strong></td>
-          <td style="width:34px">${l.comanda_id ? '' :
-            `<button class="btn-icone" data-editar="${l.id}">${ico('editar')}</button>`}</td>
+          <td style="width:34px">${l.comanda_id
+            ? `<button class="btn-icone" data-comanda="${l.comanda_id}"
+                 title="Abrir o atendimento que gerou este lançamento">${ico('editar')}</button>`
+            : `<button class="btn-icone" data-editar="${l.id}">${ico('editar')}</button>`}</td>
         </tr>`).join('')}
       </tbody></table></div>` : vazio('Nenhum lançamento neste mês.')}
     </div>`;
@@ -95,6 +97,27 @@ export function render(raiz) {
   raiz.querySelectorAll('[data-tipo]').forEach((b) => b.onclick = () => { filtroTipo = b.dataset.tipo; render(raiz); });
   raiz.querySelector('#lancar').onclick = () => abrirLancamento();
   raiz.querySelectorAll('[data-editar]').forEach((b) => b.onclick = () => abrirLancamento(b.dataset.editar));
+
+  // Lançamento que veio de um atendimento não se edita aqui — ele é o reflexo
+  // da comanda. Antes a linha simplesmente não tinha botão, e quem quisesse
+  // apagar ficava sem caminho nenhum. Agora abre a comanda, onde dá para
+  // excluir de verdade (e a entrada no caixa some junto).
+  raiz.querySelectorAll('[data-comanda]').forEach((b) => b.onclick = async () => {
+    const id = b.dataset.comanda;
+    const existe = db.estado.comandas.some((c) => c.id === id);
+    if (!existe) {
+      // Sobra de um atendimento que já foi apagado pela metade: dá para
+      // limpar aqui mesmo, senão o valor fica no caixa para sempre.
+      const l = db.estado.caixa.find((x) => x.comanda_id === id);
+      const ok = await confirmar('Apagar este lançamento?',
+        'O atendimento que gerou este valor não existe mais — sobrou só a entrada no '
+        + 'caixa. Apagar aqui tira o valor das contas do mês.');
+      if (ok) { await db.remover('caixa', l.id); avisar('Lançamento apagado'); }
+      return;
+    }
+    const m = await import('./comandas.js');
+    m.abrirComanda(id);
+  });
 }
 
 export function abrirLancamento(id) {

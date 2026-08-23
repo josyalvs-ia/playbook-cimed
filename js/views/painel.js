@@ -1,6 +1,6 @@
 // PAINEL — o que importa saber ao abrir o studio de manhã.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, mesAtual, animarNumeros } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, mesAtual, animarNumeros, icoDestaque } from '../ui.js';
 import * as M from '../metricas.js';
 import { irPara } from '../app.js';
 
@@ -63,6 +63,45 @@ export function render(raiz) {
           </tbody></table></div>`
           : `<p class="t3 pequeno">Nada fechado ainda hoje.</p>`}
       </div>
+
+      ${(() => {
+        const { hoje: hj, proximos } = M.aniversariantesDoDia();
+        if (!hj.length && !proximos.length) return '';
+        const zap = (c) => String(c.telefone || '').replace(/\D/g, '');
+        return `
+        <div class="cartao">
+          <div class="cartao-cabeca"><span class="titulo-marca">${icoDestaque('sobre')}</span>
+            <h3>${hj.length ? 'Aniversariantes de hoje' : 'Aniversários chegando'}</h3></div>
+          ${hj.length ? `<div class="aniversarios">
+            ${hj.map((c) => {
+              const anos = M.idadeQueFaz(c.nascimento);
+              return `<div class="aniv">
+                <span class="aniv-bolo">${icoDestaque('tratamentos')}</span>
+                <span class="crescer">
+                  <strong>${esc(c.nome)}</strong>
+                  <span class="pequeno t3">${anos ? `faz ${anos} anos hoje` : 'faz aniversário hoje'}</span>
+                </span>
+                ${zap(c) ? `<a class="btn btn-sm btn-primario" target="_blank" rel="noopener"
+                  href="https://wa.me/55${zap(c)}?text=${encodeURIComponent(
+                    `Feliz aniversário, ${c.nome.split(' ')[0]}! Que seu dia seja lindo. Com carinho, Alento Studio de Beleza.`)}"
+                  >${ico('whatsapp')} Parabenizar</a>` : ''}
+              </div>`;
+            }).join('')}
+          </div>` : ''}
+
+          ${proximos.length ? `
+            <div class="${hj.length ? 'mt' : ''}">
+              ${hj.length ? '<div class="rotulo" style="margin-bottom:8px">Nos próximos dias</div>' : ''}
+              <div class="tabela-wrap"><table><tbody>
+                ${proximos.map(({ cliente, data, emDias }) => `<tr>
+                  <td><strong>${esc(cliente.nome)}</strong></td>
+                  <td class="n pequeno t3">${data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    · ${emDias === 1 ? 'amanhã' : `em ${emDias} dias`}</td>
+                </tr>`).join('')}
+              </tbody></table></div>
+            </div>` : ''}
+        </div>`;
+      })()}
 
       <div class="cartao">
         <div class="cartao-cabeca">${ico('grafico')}<h3>Mais vendidos no mês</h3></div>

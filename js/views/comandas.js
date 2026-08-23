@@ -40,7 +40,14 @@ function intervalo() {
     const ini = new Date(d); ini.setDate(d.getDate() - 6);
     return { de: ini.toISOString().slice(0, 10), ate: hoje() };
   }
-  if (filtro.periodo === 'mes') return { de: hoje().slice(0, 8) + '01', ate: hoje() };
+  // O mês inteiro, não só até hoje: atendimento lançado com data à frente
+  // ficava invisível em todos os períodos — foi assim que um valor apareceu
+  // no faturamento sem existir tela que o mostrasse.
+  if (filtro.periodo === 'mes') {
+    const fim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return { de: hoje().slice(0, 8) + '01',
+             ate: `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}` };
+  }
   // "Tudo" existe para o atendimento que ficou fora da janela não virar um
   // valor fantasma: aparecia no faturamento e não havia tela que o mostrasse.
   if (filtro.periodo === 'tudo') return { de: '0000-01-01', ate: '9999-12-31' };
