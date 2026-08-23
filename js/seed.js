@@ -60,7 +60,7 @@ export async function instalar({ forcar = false } = {}) {
       nome: 'Alento Studio de Beleza',
       instagram: '@alentostudio',
       whatsapp: '',
-      endereco: '',
+      endereco: 'Rua dos Manacás, 464 — Sala 3, 2º andar (frente) · Jd. da Glória, Cotia/SP · CEP 06711-500',
       trinks: '',
     });
   }

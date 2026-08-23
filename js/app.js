@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from './db.js';
+import * as nov from './novidades.js';
 import { ico, estrela, esc, avisar, abrirModal, ceuEstrelado } from './ui.js';
 
 const raizApp = document.getElementById('app');
@@ -67,6 +68,7 @@ function redesenhar() {
     telaMontada.mod.render(alvo);
   }
   atualizarStatusSync();
+  atualizarSino({ recemChegadas: nov.conferir() });
 }
 
 // ─── Casca ─────────────────────────────────────────────────────────────────
@@ -115,6 +117,9 @@ function desenharCasca() {
         <header class="topo">
           <h1 id="titulo-tela">Painel</h1>
           <div class="topo-acoes">
+            <button class="btn-icone sino" id="btn-sino" title="Novidades" aria-label="Novidades">
+              ${ico('sino')}<span class="ponto" id="sino-ponto" hidden></span>
+            </button>
             <button class="btn btn-primario btn-sm" id="btn-nova-comanda">
               ${ico('mais')}<span class="esconde-mobile">Novo atendimento</span>
             </button>
@@ -134,6 +139,7 @@ function desenharCasca() {
     b.onclick = () => irPara(b.dataset.rota);
   });
   document.getElementById('btn-sair').onclick = () => db.sair();
+  document.getElementById('btn-sino').onclick = abrirNovidades;
   document.getElementById('btn-nova-comanda').onclick = async () => {
     const m = await import('./views/comandas.js');
     m.abrirComanda();
@@ -142,6 +148,80 @@ function desenharCasca() {
   const nome = db.eu?.nome || 'Equipe';
   document.getElementById('nome-eu').textContent = nome;
   document.getElementById('avatar-eu').textContent = nome[0].toUpperCase();
+}
+
+/** Marca o sino quando há coisa nova, e avisa na tela se a aba estiver de fundo. */
+function atualizarSino({ recemChegadas = 0 } = {}) {
+  const ponto = document.getElementById('sino-ponto');
+  if (!ponto) return;
+  const n = nov.quantasNaoLidas();
+  ponto.hidden = !n;
+  ponto.textContent = n > 9 ? '9+' : n;
+  if (recemChegadas) {
+    const ultima = nov.novidades()[0];
+    if (ultima) nov.avisarNaTela(ultima.texto);
+  }
+}
+
+function abrirNovidades() {
+  const lista = nov.novidades();
+  const perm = nov.permissao();
+
+  abrirModal({
+    titulo: 'Novidades',
+    corpo: lista.length ? `
+      <div class="novidades">
+        ${lista.map((n) => `
+          <button class="novidade ${n.lida ? '' : 'nao-lida'}" data-ir-agenda="${esc(n.quando)}">
+            <span class="marca-tipo ${n.tipo}"></span>
+            <span class="crescer">
+              <strong>${esc(n.texto)}</strong>
+              <span class="pequeno t3">${esc(quandoTexto(n.quando))}</span>
+            </span>
+            ${n.lida ? '' : '<span class="selo">nova</span>'}
+          </button>`).join('')}
+      </div>
+      ${perm !== 'granted' ? `
+        <div class="aviso mt">${ico('sino')}<div>
+          Quer ser avisada na tela quando uma cliente marcar, mesmo com o app numa aba
+          de fundo? <button class="btn btn-sm mt" id="pedir-aviso">Ativar avisos</button>
+        </div></div>` : ''}`
+      : `<div class="vazio">${estrela()}
+          <p>Nada novo por aqui.</p>
+          <p class="pequeno t3">Quando uma cliente marcar ou desmarcar pelo site,
+            aparece nesta lista.</p></div>`,
+    acoes: lista.length ? [
+      { texto: 'Limpar', classe: 'btn-fantasma', onClick: (f) => { nov.limpar(); f(); atualizarSino(); } },
+      { texto: 'Marcar como lidas', classe: 'btn-primario', onClick: (f) => {
+          nov.marcarTodasLidas(); f(); atualizarSino();
+        } },
+    ] : [],
+    aoAbrir: (veu) => {
+      veu.querySelectorAll('[data-ir-agenda]').forEach((b) => b.onclick = () => {
+        const d = new Date(b.dataset.irAgenda);
+        const dia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        nov.marcarTodasLidas();
+        document.querySelector('.veu')?.remove();
+        location.hash = '#/agenda';
+        setTimeout(async () => {
+          const m = await import('./views/agenda.js');
+          m.irParaDia?.(dia);
+        }, 120);
+        atualizarSino();
+      });
+      veu.querySelector('#pedir-aviso')?.addEventListener('click', async (e) => {
+        const r = await nov.pedirPermissao();
+        e.target.textContent = r === 'granted' ? 'Avisos ativados' : 'Avisos bloqueados no navegador';
+        e.target.disabled = true;
+      });
+    },
+  });
+}
+
+function quandoTexto(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+       + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function atualizarStatusSync() {
@@ -298,6 +378,8 @@ async function boot() {
   window.addEventListener('offline', atualizarStatusSync);
   await montarTela();
   atualizarStatusSync();
+  nov.conferir();
+  atualizarSino();
 
   if (db.estaVazio()) {
     abrirModal({

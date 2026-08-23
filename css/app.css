@@ -327,6 +327,35 @@ h3 { font-size: 15px; font-weight: 600; }
 .btn-icone:hover { background: rgba(232, 223, 196, 0.09); color: var(--texto); }
 .btn-icone .ico { width: 16px; height: 16px; }
 
+/* ── Sino de novidades ─────────────────────────────────────────────────────*/
+.btn-icone.sino { position: relative; }
+.sino .ponto {
+  position: absolute; top: -3px; right: -3px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--erro); color: #2a1712;
+  font-size: 10px; font-weight: 700; line-height: 17px;
+  text-align: center;
+  border: 2px solid var(--fundo);
+}
+
+.novidades { display: flex; flex-direction: column; gap: 6px; }
+.novidade {
+  display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 11px 13px; border-radius: 10px;
+  border: 1px solid var(--linha); background: var(--fundo);
+  color: var(--texto);
+  transition: border-color .14s, background .14s;
+}
+.novidade:hover, .novidade:focus-visible { border-color: var(--creme); background: var(--superficie-2); }
+.novidade.nao-lida { background: var(--superficie-2); }
+.novidade strong { display: block; font-size: 14px; font-weight: 500; }
+/* Cada tipo tem sua cor: marcou, desmarcou, faltou. */
+.marca-tipo { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--texto-3); }
+.marca-tipo.marcou    { background: var(--ok); }
+.marca-tipo.desmarcou { background: var(--erro); }
+.marca-tipo.faltou    { background: var(--alerta); }
+
 /* ── Formulário ────────────────────────────────────────────────────────────*/
 .campo { display: block; margin-bottom: 14px; }
 .campo > span {

@@ -6,9 +6,46 @@
 // pede para marcar. Nome e telefone das outras clientes ficam do outro lado.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { esc, fmt, avisar, precoTexto } from './ui.js';
+import { esc, fmt, avisar, precoTexto, linkMapa } from './ui.js';
 
 const DIAS_A_FRENTE = 45;
+const GUARDADOS = 'alento.meus-horarios';
+
+/**
+ * O recado que fica na tela depois de marcar. Sorteia uma para que quem marca
+ * sempre não leia a mesma frase — no tom do manual: acolher, não vender.
+ */
+const RECADOS = [
+  'Seu momento de pausa já tem hora marcada.',
+  'Reservado: um tempinho só seu.',
+  'A gente já está preparando tudo. Vem como você estiver.',
+  'Cuidado que transforma — e agora tem dia e hora.',
+  'Beleza que acolhe e renova. Te esperamos.',
+  'Guardamos esse horário para você. Vai ser bom te ver.',
+];
+
+/** Horários que esta pessoa marcou, guardados no navegador dela. */
+export function meusHorarios() {
+  try {
+    const agora = Date.now();
+    return JSON.parse(localStorage.getItem(GUARDADOS) || '[]')
+      .filter((h) => new Date(h.quando).getTime() > agora)
+      .sort((a, b) => a.quando.localeCompare(b.quando));
+  } catch { return []; }
+}
+
+function guardar(h) {
+  try {
+    localStorage.setItem(GUARDADOS, JSON.stringify([...meusHorarios(), h]));
+  } catch { /* navegador anônimo: o horário está marcado do mesmo jeito */ }
+}
+
+export function esquecer(codigo) {
+  try {
+    localStorage.setItem(GUARDADOS,
+      JSON.stringify(meusHorarios().filter((h) => h.codigo !== codigo)));
+  } catch {}
+}
 
 export async function iniciarAgendamento({ sb, servicos, categorias, studio, raiz }) {
   let etapa = 1;
@@ -183,18 +220,30 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
 
   function mostrarPronto(r, nome) {
     const zap = String(studio.whatsapp || '').replace(/\D/g, '');
+    const recado = RECADOS[Math.floor(Math.random() * RECADOS.length)];
+
+    guardar({ codigo: r.codigo, quando: r.quando, servico: r.servico,
+              prof: r.prof_nome, nome });
+
+    // A marca ocupa o centro: é o momento em que a cliente fecha com o studio.
+    document.querySelector('.ag-topo')?.setAttribute('hidden', '');
     raiz.innerHTML = `
       <div class="ag-pronto">
+        <img class="ag-marca" src="assets/marca.svg" alt="Alento — Studio de Beleza">
         <div class="ag-selo">✓</div>
         <h2>Horário marcado!</h2>
-        <p class="t2">${esc(nome.split(' ')[0])}, te esperamos ${dataLonga(r.quando)}
-          às <strong>${hora(r.quando)}</strong>, com ${esc(r.prof_nome)}.</p>
+        <p class="ag-recado">${esc(recado)}</p>
+        <p class="t2">${esc(nome.split(' ')[0])}, te esperamos <strong>${dataLonga(r.quando)}
+          às ${hora(r.quando)}</strong>, com ${esc(r.prof_nome)}.</p>
         <div class="ag-resumo mt">
           <div class="linha"><span>Serviço</span><strong>${esc(r.servico)}</strong></div>
-          <div class="linha"><span>Endereço</span><strong>${esc(studio.endereco || 'Combinar pelo WhatsApp')}</strong></div>
+          ${studio.endereco ? `
+            <div class="linha"><span>Onde</span>
+              <strong style="text-align:right">${esc(studio.endereco)}</strong></div>
+            <div class="linha"><span></span>
+              <a href="${esc(linkMapa(studio.endereco))}" target="_blank" rel="noopener"
+                 style="color:var(--creme)">Como chegar &rarr;</a></div>` : ''}
         </div>
-        <p class="pequeno t3 mt">Guarde este código, caso precise desmarcar:<br>
-          <code class="ag-codigo">${esc(r.codigo)}</code></p>
         <div class="flex mt" style="gap:8px;justify-content:center;flex-wrap:wrap">
           ${zap ? `<a class="btn btn-primario" target="_blank" rel="noopener"
             href="https://wa.me/55${zap}?text=${encodeURIComponent(
@@ -202,23 +251,44 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
             Avisar no WhatsApp</a>` : ''}
           <button class="btn" id="ag-outro">Marcar outro horário</button>
         </div>
+        <p class="pequeno t3 mt" style="max-width:34ch;margin-left:auto;margin-right:auto">
+          Precisa desmarcar? É só voltar nesta página — seu horário fica salvo aqui
+          no seu celular.</p>
+        <button class="ag-desmarcar" id="ag-desmarcar">Desmarcar este horário</button>
       </div>`;
+
     raiz.querySelector('#ag-outro').onclick = () => {
+      document.querySelector('.ag-topo')?.removeAttribute('hidden');
       escolha = { servico: null, dia: null, horario: null }; etapa = 1; pintar();
     };
+    raiz.querySelector('#ag-desmarcar').onclick = () => desmarcar(sb, r.codigo, () => {
+      document.querySelector('.ag-topo')?.removeAttribute('hidden');
+      escolha = { servico: null, dia: null, horario: null }; etapa = 1; pintar();
+    });
   }
 
   pintar();
+}
+
+/** Desmarca de verdade, no banco, e tira do que está guardado no navegador. */
+export async function desmarcar(sb, codigo, depois) {
+  const { data, error } = await sb.rpc('cancelar_agendamento', { p_token: codigo });
+  if (error || data === false) {
+    return avisar('Não consegui desmarcar. Chame o studio no WhatsApp, por favor.', 'erro');
+  }
+  esquecer(codigo);
+  avisar('Horário desmarcado');
+  depois?.();
 }
 
 // ─── Auxiliares ────────────────────────────────────────────────────────────
 const iso = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const hora = (q) =>
+export const hora = (q) =>
   new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-const dataLonga = (q) =>
+export const dataLonga = (q) =>
   new Date(q).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
 /** O Postgres devolve o texto com prefixos técnicos; a cliente lê só o recado. */

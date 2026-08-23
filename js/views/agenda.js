@@ -5,10 +5,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid, linkMapa } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
 
 let dia = hoje();
+
+/** Chamado pelo sino: abre a agenda já no dia da novidade. */
+export function irParaDia(d) {
+  dia = d;
+  const alvo = document.getElementById('conteudo');
+  if (alvo) { alvo.innerHTML = ''; render(alvo); }
+}
 
 const atendentes = () =>
   db.estado.profissionais.filter((p) => p.atende !== false && p.ativo !== false);
@@ -130,9 +137,7 @@ function cartaoHorario(a) {
           <div class="num" style="font-weight:600">${fmt.brl(a.valor)}</div>
           ${a.cliente_telefone ? `<a class="btn-icone" style="margin-top:5px" target="_blank" rel="noopener"
               onclick="event.stopPropagation()"
-              href="https://wa.me/55${esc(a.cliente_telefone)}?text=${encodeURIComponent(
-                `Oi, ${a.cliente_nome.split(' ')[0]}! Passando para confirmar seu horário de ${a.servico_nome} `
-                + `${diaPorExtenso(localData(a.inicio))} às ${localHora(a.inicio)}. Te esperamos! ✨`)}"
+              href="https://wa.me/55${esc(a.cliente_telefone)}?text=${encodeURIComponent(mensagemConfirmacao(a))}"
               title="Confirmar pelo WhatsApp">${ico('whatsapp')}</a>` : ''}
         </div>
       </div>
@@ -140,6 +145,20 @@ function cartaoHorario(a) {
 }
 
 const nomeProf = (id) => db.estado.profissionais.find((p) => p.id === id)?.nome;
+
+/** A confirmação que a cliente recebe já vai com o endereço e o mapa. */
+function mensagemConfirmacao(a) {
+  const studio = db.cfg('studio') || {};
+  const linhas = [
+    `Oi, ${a.cliente_nome.split(' ')[0]}! Passando para confirmar seu horário de `
+      + `${a.servico_nome} ${diaPorExtenso(localData(a.inicio))} às ${localHora(a.inicio)}.`,
+  ];
+  if (studio.endereco) {
+    linhas.push('', `📍 ${studio.endereco}`, linkMapa(studio.endereco));
+  }
+  linhas.push('', 'Te esperamos! ✨');
+  return linhas.join('\n');
+}
 
 function diaPorExtenso(d) {
   const data = new Date(d + 'T12:00:00');
@@ -168,13 +187,21 @@ export function abrirAgendamento(id, dataPadrao) {
 
       // A lista de profissionais nunca encolhe; a de serviços acompanha quem
       // foi escolhida. Se ela não fizer nenhum, mostra todos em vez de nada.
+      // Nada vem escolhido de véspera: campo preenchido sozinho é convite a
+      // marcar a pessoa errada sem perceber.
       const filtrarServicos = () => {
         const p = profs.find((x) => x.id === selProf.value);
+        if (!p) {
+          selServico.innerHTML = '<option value="">Escolha a profissional primeiro</option>';
+          selServico.disabled = true;
+          return;
+        }
         const antes = selServico.value;
         const dela = servicos.filter((x) => fazEsseServico(p, x));
         const lista = dela.length ? dela : servicos;
-        selServico.innerHTML = lista
-          .map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join('');
+        selServico.disabled = false;
+        selServico.innerHTML = '<option value="">Escolha o serviço…</option>'
+          + lista.map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join('');
         if (lista.some((x) => x.id === antes)) selServico.value = antes;
       };
 
@@ -208,10 +235,13 @@ function formNovo(servicos, profs, dataPadrao) {
          curta demais para trocar de ideia. -->
     <label class="campo"><span>Profissional</span>
       <select name="profissional_id">
+        <option value="">Escolha quem vai atender…</option>
         ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
       </select></label>
     <label class="campo"><span>Serviço</span>
-      <select name="servico_id"></select>
+      <select name="servico_id" disabled>
+        <option value="">Escolha a profissional primeiro</option>
+      </select>
       <span class="dica t3" id="duracao"></span></label>
     <div class="linha-campos">
       <label class="campo"><span>Dia</span>
@@ -292,6 +322,7 @@ async function virarComanda(a) {
 async function salvarNovo(fechar, veu, servicos) {
   const d = lerForm(veu);
   if (!d.cliente_nome) return avisar('Informe o nome da cliente', 'erro');
+  if (!d.profissional_id) return avisar('Escolha quem vai atender', 'erro');
   const s = servicos.find((x) => x.id === d.servico_id);
   if (!s) return avisar('Escolha o serviço', 'erro');
 
