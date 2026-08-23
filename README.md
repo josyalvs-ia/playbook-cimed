@@ -283,6 +283,7 @@ mas uma cópia sua não custa nada.
 ├── index.html            app da equipe (login)
 ├── vitrine.html          página pública com a tabela de valores
 ├── guia-dominio.html     passo a passo para comprar o domínio (abre e imprime)
+├── manual-da-marca.html  logo, cores, tipografia, ícones e voz — tudo copiável
 ├── config.js             URL e chave do Supabase
 ├── manifest.webmanifest  faz virar aplicativo no celular
 ├── sw.js                 service worker (funciona offline)
