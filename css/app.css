@@ -356,14 +356,16 @@ input:not([type=checkbox]):not([type=radio]):focus, select:focus, textarea:focus
   box-shadow: 0 0 0 3px rgba(232, 223, 196, 0.3);
 }
 input::placeholder, textarea::placeholder { color: var(--campo-suave); }
-/* O Chrome pinta o campo preenchido de azul e ignora `background`. O jeito de
-   vencer isso é uma sombra interna do tamanho do campo. */
+/* Campo preenchido pelo navegador: branco com a letra no verde da marca.
+   O Chrome ignora `background` aqui — quem vence é uma sombra interna do
+   tamanho do campo. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--campo-texto);
-  -webkit-box-shadow: 0 0 0 40px var(--campo) inset;
-  caret-color: var(--campo-texto);
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--verde);
+  -webkit-box-shadow: 0 0 0 40px #FFFFFF inset;
+  caret-color: var(--verde);
   transition: background-color 9999s;
 }
 input:disabled, select:disabled, textarea:disabled { opacity: 0.55; cursor: not-allowed; }

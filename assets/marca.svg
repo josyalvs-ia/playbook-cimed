@@ -1,24 +1,14 @@
 <!-- Wordmark Alento. Reconstrução em SVG do lettering do manual: mesmo relevo
      em preto #1D1D1B, as estrelas de 4 pontas e a linha "STUDIO DE BELEZA"
      entre réguas. As larguras dos textos são fixadas com textLength para o
-     desenho não se deslocar quando a fonte da marca não estiver disponível. -->
+     desenho não se deslocar quando a fonte da marca não estiver disponível.
+
+     Sem animação aqui de propósito: animar as estrelas por CSS exige transform,
+     e o transform do CSS substitui o do atributo — o que tira as estrelas do
+     lugar. Quem se move é o céu de fundo das telas, não o logo. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Alento — Studio de Beleza">
   <defs>
     <path id="s4" d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/>
-    <style>
-      /* Cada estrela no seu tempo: juntas pareceriam pisca-pisca. */
-      .cintila { animation: brilho 4.6s ease-in-out infinite; transform-box: fill-box;
-                 transform-origin: center; }
-      .cintila-2 { animation-duration: 6.2s; animation-delay: 1.6s; }
-      .cintila-3 { animation-duration: 5.4s; animation-delay: 3.1s; }
-      @keyframes brilho {
-        0%, 100% { opacity: 0.55; transform: scale(0.86); }
-        50%      { opacity: 1;    transform: scale(1.1); }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .cintila { animation: none; opacity: 1; }
-      }
-    </style>
   </defs>
 
   <!-- relevo -->
@@ -31,9 +21,9 @@
         font-style="italic" fill="#E8DFC4">Alento</text>
 
   <g fill="#E8DFC4">
-    <use href="#s4" class="cintila" transform="translate(112,54) scale(.28)"/>
-    <use href="#s4" class="cintila cintila-2" transform="translate(500,44) scale(.44)"/>
-    <use href="#s4" class="cintila cintila-3" transform="translate(96,178) scale(.22)"/>
+    <use href="#s4" transform="translate(112,54) scale(.28)"/>
+    <use href="#s4" transform="translate(500,44) scale(.44)"/>
+    <use href="#s4" transform="translate(96,178) scale(.22)"/>
   </g>
 
   <g stroke="#E8DFC4" stroke-width="1.5" opacity=".8">
