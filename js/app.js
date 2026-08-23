@@ -2,6 +2,7 @@
 // ALENTO — casca do aplicativo: autenticação, navegação e montagem das telas.
 // ═══════════════════════════════════════════════════════════════════════════
 
+import { VERSAO } from './versao.js';
 import * as db from './db.js';
 import * as nov from './novidades.js';
 import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado, retrato,
@@ -113,6 +114,8 @@ function desenharCasca() {
             <span class="crescer truncar">
               <span style="font-size:13.5px;font-weight:600" id="nome-eu">—</span>
               <span class="pequeno t3" id="status-sync" style="display:block"></span>
+              <span class="pequeno t3" style="display:block;opacity:.5;font-size:10.5px"
+                    title="Versão publicada">v${VERSAO}</span>
             </span>
             <button class="btn-icone" id="btn-sair" title="Sair">${ico('sair')}</button>
           </div>

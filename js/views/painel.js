@@ -131,6 +131,10 @@ export function render(raiz) {
 
       <div class="cartao">
         <div class="cartao-cabeca">${ico('whatsapp')}<h3>Vale uma mensagem</h3></div>
+        <p class="pequeno t3" style="margin-bottom:12px">Clientes que já passaram do
+          próprio ritmo de retorno. O sistema aprende de quanto em quanto tempo cada
+          uma costuma voltar e avisa quando ela demora mais que o normal — é o seu
+          lembrete para chamar antes que ela suma.</p>
         ${resgatar.length ? `<div class="tabela-wrap"><table><tbody>
             ${resgatar.map((r) => `<tr>
               <td><strong>${esc(r.cliente.nome)}</strong>

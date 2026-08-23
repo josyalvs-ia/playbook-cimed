@@ -147,7 +147,7 @@ await ctxCfg.route('**/esm.sh/**', (route) =>
   route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
 const pCfg = await ctxCfg.newPage();
 pCfg.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
-await pCfg.route('**/config.js', (route) => route.fulfill({
+await pCfg.route(/\/config\.js(\?|$)/, (route) => route.fulfill({
   status: 200, contentType: 'application/javascript',
   body: "window.ALENTO_CONFIG = { url: 'https://SUA-URL.supabase.co', anonKey: 'SUA-CHAVE-ANON' };",
 }));
@@ -919,7 +919,41 @@ await p2.waitForTimeout(700);
   await p2.screenshot({ path: '/tmp/shot-aniversario.png' });
 }
 
-// ── 23. Todo campo editável tem contraste real ──
+// ── 23. A versão publicada chega mesmo ──
+// Publicar uma correção e a pessoa continuar vendo a tela antiga foi o
+// problema mais caro do projeto: o GitHub Pages manda guardar cada arquivo
+// por dez minutos, e recarregar não resolvia.
+{
+  const fs = await import('node:fs');
+  const versao = fs.readFileSync('js/versao.js', 'utf8').match(/VERSAO = '([^']+)'/)?.[1];
+  checagens.push(['versão: existe um carimbo', !!versao, String(versao)]);
+
+  for (const arq of ['index.html', 'vitrine.html']) {
+    const html = fs.readFileSync(arq, 'utf8');
+    checagens.push([`versão: ${arq} pede o CSS carimbado`,
+      html.includes(`css/app.css?v=${versao}`)]);
+  }
+  const sw = fs.readFileSync('sw.js', 'utf8');
+  checagens.push(['versão: o service worker troca de balde a cada publicação',
+    sw.includes(`alento-${versao}`)]);
+  checagens.push(['versão: o service worker fura o cache do navegador',
+    /cache: 'reload'/.test(sw)]);
+
+  // Versionar o endereço das telas criaria duas cópias do mesmo módulo, cada
+  // uma com o próprio estado. Tem de continuar sem carimbo.
+  const app = fs.readFileSync('js/app.js', 'utf8');
+  checagens.push(['versão: as telas não são carregadas em duplicata',
+    !/import\(`\.\/views\/[a-z]+\.js\?v=/.test(app)]);
+
+  // E a pessoa consegue ver, na tela, qual versão está rodando.
+  await p2.evaluate(() => { location.hash = '#/painel'; });
+  await p2.waitForTimeout(500);
+  const lateral = nb(await p2.textContent('.lateral-rodape'));
+  checagens.push(['versão: aparece no rodapé, para conferir sem adivinhar',
+    lateral.includes('v' + versao), lateral.trim()]);
+}
+
+// ── 24. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {

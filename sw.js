@@ -1,6 +1,6 @@
 // Service worker: guarda a casca do app para ele abrir mesmo sem internet.
 // Os dados vêm do Supabase (ou do cache local do próprio app), nunca daqui.
-const CACHE = 'alento-v1';
+const CACHE = 'alento-2026-08-23.6';
 const CASCA = [
   './', './index.html', './vitrine.html', './config.js',
   './css/app.css', './manifest.webmanifest',
@@ -32,8 +32,13 @@ self.addEventListener('fetch', (e) => {
 
   // Rede primeiro, cache como rede de segurança: o app nunca fica velho,
   // mas também nunca fica na mão.
+  //
+  // `cache: 'reload'` é o que faz a diferença: sem ele, o pedido ainda passava
+  // pelo cache HTTP do navegador, e o GitHub Pages manda guardar cada arquivo
+  // por dez minutos. Publicava-se uma correção, a pessoa recarregava, e
+  // continuava vendo a versão antiga sem entender por quê.
   e.respondWith(
-    fetch(e.request)
+    fetch(new Request(e.request.url, { cache: 'reload', credentials: 'same-origin' }))
       .then((r) => {
         const copia = r.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copia));
