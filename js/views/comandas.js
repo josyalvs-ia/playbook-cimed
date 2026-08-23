@@ -15,6 +15,24 @@ let filtro = { periodo: 'hoje', de: hoje(), ate: hoje(), profissional: '', statu
 const atendentes = () =>
   db.estado.profissionais.filter((p) => p.atende !== false && p.ativo !== false);
 
+/**
+ * A Laura faz cabelo, a Julia faz unha. Cada serviço já sabe de quem é, e cada
+ * profissional já sabe o que faz — então dá para cruzar os dois e nunca mostrar
+ * à Laura uma lista cheia de esmaltação.
+ */
+export function fazEsseServico(prof, servico) {
+  if (!prof || !servico) return true;
+  const tipo = servico.profissional || 'unhas';
+  return tipo === 'ambos' || prof.funcao === 'ambos' || prof.funcao === tipo;
+}
+
+const servicosDe = (profId, catalogo) => {
+  const prof = db.estado.profissionais.find((p) => p.id === profId);
+  const dela = catalogo.filter((s) => fazEsseServico(prof, s));
+  // Sem nada para ela, é melhor mostrar tudo do que uma lista vazia.
+  return dela.length ? dela : catalogo;
+};
+
 function intervalo() {
   const d = new Date();
   if (filtro.periodo === 'hoje') return { de: hoje(), ate: hoje() };
@@ -181,7 +199,7 @@ export function abrirComanda(id, inicial) {
       <div class="flex mb" style="gap:8px">
         <select id="add-serv" class="crescer">
           <option value="">Adicionar serviço…</option>
-          ${agrupado(catalogo)}
+          ${agrupado(servicosDe(c.profissional_id, catalogo))}
         </select>
         <button class="btn btn-sm" id="add-livre">${ico('mais')}Avulso</button>
       </div>
@@ -280,6 +298,13 @@ export function abrirComanda(id, inicial) {
               Material ${fmt.brl(custo)} · ${fmt.horas(tempo)} de cadeira
             </div>
           </div>`;
+      };
+
+      // Trocou a profissional: a lista de serviços acompanha.
+      $('#prof').onchange = () => {
+        const sel = $('#add-serv');
+        sel.innerHTML = '<option value="">Adicionar serviço…</option>'
+                      + agrupado(servicosDe($('#prof').value, catalogo));
       };
 
       $('#add-serv').onchange = (e) => {

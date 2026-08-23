@@ -10,10 +10,12 @@ import { premissas } from '../metricas.js';
 import { OBSERVACOES_PREMISSAS, ETAPAS_TECNICA, COMO_USAR, PREMISSAS_PADRAO } from '../data/premissas.js';
 
 let aba = 'tabela';
+let filtroQuem = '';
 
 export function render(raiz) {
   const p = premissas();
-  const servicos = db.estado.servicos.filter((s) => s.ativo !== false);
+  const servicos = db.estado.servicos.filter((s) => s.ativo !== false
+    && (!filtroQuem || s.profissional === filtroQuem || s.profissional === 'ambos'));
   const calc = servicos.map((s) => ({ s, r: precoTecnico(s, p, { adicional: s.tipo === 'adicional' }) }));
   const abaixo = calc.filter((x) => x.r.abaixoDoPiso);
   const perdaMes = abaixo.reduce((acc, x) => acc + (-x.r.diferenca), 0);
@@ -34,14 +36,21 @@ export function render(raiz) {
         <div class="nota">se fizesse um de cada, uma vez</div></div>
     </div>
 
-    <div class="pilulas mb">
-      ${[['tabela', 'Preço técnico'], ['premissas', 'Premissas'], ['guia', 'Como calcular o custo']]
-        .map(([id, t]) => `<button class="pilula ${aba === id ? 'ativa' : ''}" data-aba="${id}">${t}</button>`).join('')}
+    <div class="flex envolve mb" style="gap:10px">
+      <div class="pilulas crescer">
+        ${[['tabela', 'Preço técnico'], ['premissas', 'Premissas'], ['guia', 'Como calcular o custo']]
+          .map(([id, t]) => `<button class="pilula ${aba === id ? 'ativa' : ''}" data-aba="${id}">${t}</button>`).join('')}
+      </div>
+      ${aba === 'tabela' ? `<div class="pilulas">
+        ${[['', 'Tudo'], ['unhas', 'Unhas'], ['cabelo', 'Cabelos']].map(([v, t]) =>
+          `<button class="pilula ${filtroQuem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
+      </div>` : ''}
     </div>
 
     <div id="painel-preco"></div>`;
 
   raiz.querySelectorAll('[data-aba]').forEach((b) => b.onclick = () => { aba = b.dataset.aba; render(raiz); });
+  raiz.querySelectorAll('[data-quem]').forEach((b) => b.onclick = () => { filtroQuem = b.dataset.quem; render(raiz); });
   const alvo = raiz.querySelector('#painel-preco');
   ({ tabela: () => abaTabela(alvo, calc, p),
      premissas: () => abaPremissas(alvo, p, raiz),

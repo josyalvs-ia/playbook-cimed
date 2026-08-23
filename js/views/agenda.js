@@ -6,7 +6,7 @@
 
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid } from '../ui.js';
-import { abrirComanda } from './comandas.js';
+import { abrirComanda, fazEsseServico } from './comandas.js';
 
 let dia = hoje();
 
@@ -162,21 +162,33 @@ export function abrirAgendamento(id, dataPadrao) {
       { texto: 'Marcar', classe: 'btn-primario', onClick: (fechar, veu) => salvarNovo(fechar, veu, servicos) },
     ],
     aoAbrir: (veu) => {
-      const sel = veu.querySelector('[name=servico_id]');
-      if (!sel) return;
-      const ajustar = () => {
-        const s = servicos.find((x) => x.id === sel.value);
-        if (!s) return;
-        veu.querySelector('#duracao').textContent = fmt.horas(s.tempo) + ' · ' + fmt.brl(s.preco);
-        // O tipo do serviço já diz quem faz: filtra as profissionais possíveis.
-        const p = veu.querySelector('[name=profissional_id]');
-        const podem = profs.filter((x) =>
-          s.profissional === 'ambos' || x.funcao === 'ambos' || x.funcao === s.profissional);
-        p.innerHTML = (podem.length ? podem : profs)
+      const selServico = veu.querySelector('[name=servico_id]');
+      const selProf = veu.querySelector('[name=profissional_id]');
+      if (!selServico || !selProf) return;
+
+      // A lista de profissionais nunca encolhe; a de serviços acompanha quem
+      // foi escolhida. Se ela não fizer nenhum, mostra todos em vez de nada.
+      const filtrarServicos = () => {
+        const p = profs.find((x) => x.id === selProf.value);
+        const antes = selServico.value;
+        const dela = servicos.filter((x) => fazEsseServico(p, x));
+        const lista = dela.length ? dela : servicos;
+        selServico.innerHTML = lista
           .map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join('');
+        if (lista.some((x) => x.id === antes)) selServico.value = antes;
       };
-      sel.onchange = ajustar;
-      ajustar();
+
+      const mostrarDuracao = () => {
+        const s = servicos.find((x) => x.id === selServico.value);
+        veu.querySelector('#duracao').textContent =
+          s ? `${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
+      };
+
+      selProf.onchange = () => { filtrarServicos(); mostrarDuracao(); };
+      selServico.onchange = mostrarDuracao;
+
+      filtrarServicos();
+      mostrarDuracao();
     },
   });
 }
@@ -190,14 +202,18 @@ function formNovo(servicos, profs, dataPadrao) {
       </datalist></label>
     <label class="campo"><span>WhatsApp</span>
       <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"></label>
+
+    <!-- A profissional vem primeiro: escolher quem atende é o que enxuga a
+         lista de serviços. O caminho contrário deixaria a lista de pessoas
+         curta demais para trocar de ideia. -->
+    <label class="campo"><span>Profissional</span>
+      <select name="profissional_id">
+        ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+      </select></label>
     <label class="campo"><span>Serviço</span>
-      <select name="servico_id">
-        ${servicos.map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')}
-      </select>
+      <select name="servico_id"></select>
       <span class="dica t3" id="duracao"></span></label>
     <div class="linha-campos">
-      <label class="campo"><span>Profissional</span>
-        <select name="profissional_id"></select></label>
       <label class="campo"><span>Dia</span>
         <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
       <label class="campo"><span>Hora</span>

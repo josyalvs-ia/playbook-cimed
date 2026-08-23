@@ -15,6 +15,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
+<!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
+     e o agendamento fica indisponível. -->
+<script src="config.js"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -325,7 +328,7 @@ document.getElementById('btn-agendar').onclick = async () => {
   if (!sbCliente) {
     if (zap) return window.open(`https://wa.me/55${zap}`, '_blank', 'noopener');
     if (trinks) return window.open(trinks, '_blank', 'noopener');
-    return alert('Agendamento indisponível no momento.');
+    return alert('Não consegui abrir a agenda agora. Recarregue a página ou fale com o studio.');
   }
 
   const tela = document.createElement('div');

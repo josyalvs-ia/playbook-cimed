@@ -6,11 +6,14 @@ import { REGRAS } from '../data/servicos.js';
 import { precoTecnico } from '../pricing.js';
 import { premissas } from '../metricas.js';
 
+let filtroQuem = '';
+
 export function render(raiz) {
   const cats = db.cfg('categorias') || [];
   const p = premissas();
-  const servicos = db.estado.servicos.filter((s) => s.tipo !== 'adicional');
-  const adicionais = db.estado.servicos.filter((s) => s.tipo === 'adicional');
+  const cabe = (s) => !filtroQuem || s.profissional === filtroQuem || s.profissional === 'ambos';
+  const servicos = db.estado.servicos.filter((s) => s.tipo !== 'adicional' && cabe(s));
+  const adicionais = db.estado.servicos.filter((s) => s.tipo === 'adicional' && cabe(s));
 
   const porCat = new Map();
   for (const s of servicos) {
@@ -24,7 +27,11 @@ export function render(raiz) {
       <p class="t2 pequeno" style="max-width:520px">
         Esta é a tabela oficial do studio. Alterar aqui muda o preço na comanda
         e na página pública ao mesmo tempo.</p>
-      <div class="flex" style="gap:8px">
+      <div class="flex envolve" style="gap:8px">
+        <div class="pilulas">
+          ${[['', 'Tudo'], ['unhas', 'Unhas'], ['cabelo', 'Cabelos']].map(([v, t]) =>
+            `<button class="pilula ${filtroQuem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
+        </div>
         <button class="btn btn-sm" id="ver-vitrine">${ico('tabela')}Ver página pública</button>
         <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Serviço</button>
       </div>
@@ -85,6 +92,9 @@ export function render(raiz) {
       </div>
     </div>`;
 
+  raiz.querySelectorAll('[data-quem]').forEach((b) => b.onclick = () => {
+    filtroQuem = b.dataset.quem; render(raiz);
+  });
   raiz.querySelector('#ver-vitrine').onclick = () => window.open('vitrine.html', '_blank');
   raiz.querySelector('#novo').onclick = () => abrirServico();
   raiz.querySelector('#novo2')?.addEventListener('click', () => abrirServico());
