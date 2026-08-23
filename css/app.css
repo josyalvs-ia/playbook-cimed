@@ -336,8 +336,11 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 .campo > .dica { text-transform: none; letter-spacing: 0; font-size: 12px; margin-top: 5px; margin-bottom: 0; }
 
-input[type=text], input[type=number], input[type=date], input[type=time],
-input[type=tel], input[type=email], input[type=password], input[type=search],
+/* Todo campo, não só os que declaram `type`. Listar tipo por tipo deixava de
+   fora `<input name="nome">` (que é texto por padrão, mas não casa com
+   [type=text]) e tipos como `month` — esses ficavam com o branco do navegador
+   e a letra creme por herança, ilegíveis. */
+input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
 select, textarea {
   width: 100%;
   background: var(--campo);
@@ -348,11 +351,21 @@ select, textarea {
   outline: none;
   transition: border-color 0.14s, box-shadow 0.14s;
 }
-input:focus, select:focus, textarea:focus {
+input:not([type=checkbox]):not([type=radio]):focus, select:focus, textarea:focus {
   border-color: var(--campo-borda-foco);
   box-shadow: 0 0 0 3px rgba(232, 223, 196, 0.3);
 }
 input::placeholder, textarea::placeholder { color: var(--campo-suave); }
+/* O Chrome pinta o campo preenchido de azul e ignora `background`. O jeito de
+   vencer isso é uma sombra interna do tamanho do campo. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--campo-texto);
+  -webkit-box-shadow: 0 0 0 40px var(--campo) inset;
+  caret-color: var(--campo-texto);
+  transition: background-color 9999s;
+}
 input:disabled, select:disabled, textarea:disabled { opacity: 0.55; cursor: not-allowed; }
 textarea { resize: vertical; min-height: 82px; }
 select {
