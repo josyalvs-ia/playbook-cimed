@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manual da marca — Alento Studio de Beleza</title>
+<meta name="description" content="Apresentação da identidade do Alento: logo, cores, tipografia, ícones e voz. Tudo copiável com um toque.">
+<meta name="theme-color" content="#2E3322">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IkFsZW50byI+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI5OCIgZmlsbD0iI0U4REZDNCIvPgogIDx0ZXh0IHg9Ijg4IiB5PSIxNDAiIGZvbnQtZmFtaWx5PSJQbGF5ZmFpciBEaXNwbGF5LCBHZW9yZ2lhLCBzZXJpZiIgZm9udC1zaXplPSIxMjIiCiAgICAgICAgZm9udC13ZWlnaHQ9IjcwMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzJFMzMyMiI+QTwvdGV4dD4KICA8cGF0aCBkPSJNMC01NlE3LTcgNTYgMFE3IDcgMCA1NlEtNyA3LTU2IDBRLTctNyAwLTU2WiIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTQwLDExOCkgc2NhbGUoLjM0KSIgZmlsbD0iIzJFMzMyMiIvPgo8L3N2Zz4=">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Alento Studio de Beleza">
+<meta property="og:title" content="Manual da marca — Alento">
+<meta property="og:description" content="A identidade do studio em 14 telas: logo, cores, tipografia, ícones e voz.">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa.png">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- As fontes vêm do Google quando há internet. Sem elas, Georgia e a fonte do
+     sistema seguram o desenho — a apresentação continua legível. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- As fotos da equipe vêm do mesmo banco que o site das clientes lê, então a
+     apresentação nunca fica com uma foto antiga. Sem conexão, o slide explica
+     onde subir a foto em vez de mostrar um buraco. -->
+<script>
+/*
+  Conexão com o banco (Supabase).
+
+  Estes dois valores ficam no código de qualquer aplicativo web que usa
+  Supabase — é assim que o navegador da cliente fala com o banco. A chave
+  publicável não dá acesso a nada sozinha.
+
+  Quem protege os dados é o db/schema.sql: só enxerga o studio quem está
+  logada E cadastrada como profissional ativa. Uma conta criada por um
+  estranho entra inativa e não lê absolutamente nada.
+
+  Se preferir não comitar, deixe como está: na primeira abertura o app
+  pergunta a URL e a chave, e guarda no próprio aparelho.
+*/
+window.ALENTO_CONFIG = {
+  url: 'https://nwlstgqvfwjsybmvcnyj.supabase.co',
+  anonKey: 'sb_publishable_hkO6u9gfAIy_4jSYOPISfQ_qTXYWVBM',
+};
+
+</script>
+<style>
+:root { --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Cg fill='%23E8DFC4' opacity='0.085'%3E%3Cpath d='M28 31 q1.1 7.9 9 9 q-7.9 1.1 -9 9 q-1.1 -7.9 -9 -9 q7.9 -1.1 9 -9z'/%3E%3Cpath d='M96 18 q0.5 3.5 4 4 q-3.5 0.5 -4 4 q-0.5 -3.5 -4 -4 q3.5 -0.5 4 -4z'/%3E%3Cpath d='M160 45 q1.6 11.4 13 13 q-11.4 1.6 -13 13 q-1.6 -11.4 -13 -13 q11.4 -1.6 13 -13z'/%3E%3Cpath d='M232 25 q0.6 4.4 5 5 q-4.4 0.6 -5 5 q-0.6 -4.4 -5 -5 q4.4 -0.6 5 -5z'/%3E%3Cpath d='M296 44 q1.0 7.0 8 8 q-7.0 1.0 -8 8 q-1.0 -7.0 -8 -8 q7.0 -1.0 8 -8z'/%3E%3Cpath d='M60 105 q0.6 4.4 5 5 q-4.4 0.6 -5 5 q-0.6 -4.4 -5 -5 q4.4 -0.6 5 -5z'/%3E%3Cpath d='M128 123 q1.1 7.9 9 9 q-7.9 1.1 -9 9 q-1.1 -7.9 -9 -9 q7.9 -1.1 9 -9z'/%3E%3Cpath d='M200 100 q0.5 3.5 4 4 q-3.5 0.5 -4 4 q-0.5 -3.5 -4 -4 q3.5 -0.5 4 -4z'/%3E%3Cpath d='M268 129 q1.3 9.7 11 11 q-9.7 1.3 -11 11 q-1.3 -9.7 -11 -11 q9.7 -1.3 11 -11z'/%3E%3Cpath d='M36 174 q1.4 10.6 12 12 q-10.6 1.4 -12 12 q-1.4 -10.6 -12 -12 q10.6 -1.4 12 -12z'/%3E%3Cpath d='M104 204 q0.5 3.5 4 4 q-3.5 0.5 -4 4 q-0.5 -3.5 -4 -4 q3.5 -0.5 4 -4z'/%3E%3Cpath d='M176 173 q0.8 6.2 7 7 q-6.2 0.8 -7 7 q-0.8 -6.2 -7 -7 q6.2 -0.8 7 -7z'/%3E%3Cpath d='M248 211 q0.6 4.4 5 5 q-4.4 0.6 -5 5 q-0.6 -4.4 -5 -5 q4.4 -0.6 5 -5z'/%3E%3Cpath d='M300 187 q1.1 7.9 9 9 q-7.9 1.1 -9 9 q-1.1 -7.9 -9 -9 q7.9 -1.1 9 -9z'/%3E%3Cpath d='M68 264 q1.0 7.0 8 8 q-7.0 1.0 -8 8 q-1.0 -7.0 -8 -8 q7.0 -1.0 8 -8z'/%3E%3Cpath d='M140 291 q0.6 4.4 5 5 q-4.4 0.6 -5 5 q-0.6 -4.4 -5 -5 q4.4 -0.6 5 -5z'/%3E%3Cpath d='M212 252 q1.2 8.8 10 10 q-8.8 1.2 -10 10 q-1.2 -8.8 -10 -10 q8.8 -1.2 10 -10z'/%3E%3Cpath d='M284 284 q0.5 3.5 4 4 q-3.5 0.5 -4 4 q-0.5 -3.5 -4 -4 q3.5 -0.5 4 -4z'/%3E%3Cpath d='M12 236 q0.5 3.5 4 4 q-3.5 0.5 -4 4 q-0.5 -3.5 -4 -4 q3.5 -0.5 4 -4z'/%3E%3Cpath d='M184 17 q0.4 2.6 3 3 q-2.6 0.4 -3 3 q-0.4 -2.6 -3 -3 q2.6 -0.4 3 -3z'/%3E%3C/g%3E%3C/svg%3E"); }
+:root {
+  --creme: #E8DFC4; --preto: #1D1D1B; --verde-claro: #4A5236; --verde: #2E3322;
+  --superficie: #373E28; --linha: rgba(232,223,196,.16); --linha-forte: rgba(232,223,196,.34);
+  --texto-2: rgba(232,223,196,.72); --texto-3: rgba(232,223,196,.46);
+  --display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --ui: 'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --suave: cubic-bezier(.2,.8,.3,1);
+  --topo: env(safe-area-inset-top, 0px);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--ui); background: var(--verde); color: var(--creme);
+  font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+a { color: inherit; }
+svg { display: block; }
+kbd {
+  font: inherit; font-size: .85em; border: 1px solid var(--linha-forte);
+  border-radius: 5px; padding: 1px 6px; color: var(--texto-2);
+}
+
+.ceu {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: var(--pattern); background-size: 300px 300px; opacity: .45;
+}
+
+/* ── O carrossel de slides ───────────────────────────────────────────────
+   Rolagem horizontal com encaixe: é o que dá deslize no celular de graça,
+   sem biblioteca nenhuma, e o teclado só empurra a rolagem. */
+.deck {
+  position: relative; z-index: 1;
+  display: flex; height: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.deck::-webkit-scrollbar { display: none; }
+
+.slide {
+  flex: 0 0 100%; width: 100%; height: 100%;
+  scroll-snap-align: center; scroll-snap-stop: always;
+  display: grid; place-items: center;
+  padding: calc(38px + var(--topo)) clamp(20px, 5vw, 64px) 96px;
+  overflow-y: auto;
+}
+.meio { width: 100%; max-width: 1000px; }
+.meio.estreito { max-width: 660px; }
+.centro { text-align: center; }
+.centro .lead, .lead.centro { margin-left: auto; margin-right: auto; }
+
+.numero {
+  display: block; font-family: var(--display); font-size: 12.5px;
+  letter-spacing: .2em; color: var(--texto-3); margin-bottom: 10px;
+}
+.slide h2 {
+  font-family: var(--display); font-weight: 700; line-height: 1.08;
+  font-size: clamp(28px, 5vw, 46px); margin-bottom: 12px;
+}
+.enorme {
+  font-family: var(--display); font-weight: 700; line-height: 1.1;
+  font-size: clamp(34px, 7vw, 68px); margin-bottom: 20px;
+}
+.lead { font-size: clamp(15px, 1.9vw, 18px); color: var(--texto-2); max-width: 58ch; }
+.nota { font-size: 13.5px; color: var(--texto-3); line-height: 1.5; margin-top: 12px; }
+.rot { font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--texto-3); }
+.mono { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--texto-3); }
+.display { font-family: var(--display); font-weight: 700; }
+.link { font-size: 13px; white-space: nowrap; }
+
+/* ── Capa ────────────────────────────────────────────────────────────── */
+.capa .marca { width: min(430px, 78vw); height: auto; margin: 0 auto 28px; }
+.capa .sobrescrito {
+  text-align: center; font-size: 11px; letter-spacing: .34em;
+  text-transform: uppercase; color: var(--texto-3); margin-bottom: 16px;
+}
+.capa .chamada {
+  font-family: var(--display); font-style: italic; text-align: center;
+  font-size: clamp(17px, 2.9vw, 24px); line-height: 1.45; color: var(--texto-2);
+  max-width: 30ch; margin: 0 auto;
+}
+/* Em fluxo normal, e não flutuando: posicionado por cima ele entrava na
+   conta da altura e fazia a capa se declarar cheia demais para a tela. */
+.dica-nav {
+  text-align: center; margin-top: 38px;
+  font-size: 12.5px; color: var(--texto-3);
+  animation: piscar 3.4s ease-in-out infinite;
+}
+@keyframes piscar { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+
+/* ── Cartões ─────────────────────────────────────────────────────────── */
+.cartoes { display: grid; gap: 13px; margin-top: 24px; }
+.cartoes.tres { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.cartoes.dois { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.cartao {
+  background: var(--superficie); border: 1px solid var(--linha);
+  border-radius: 16px; padding: 20px;
+  transition: border-color .3s ease, transform .3s var(--suave);
+}
+.cartao:hover { border-color: var(--linha-forte); transform: translateY(-2px); }
+.cartao h3 { font-family: var(--display); font-size: 18px; font-weight: 700; margin-bottom: 7px; }
+.cartao p { font-size: 14px; color: var(--texto-2); }
+.cartao ul { list-style: none; }
+.cartao li { position: relative; padding-left: 19px; margin-bottom: 8px; font-size: 14px; color: var(--texto-2); }
+.cartao li::before {
+  content: ''; position: absolute; left: 2px; top: 8px; width: 7px; height: 7px;
+  background: var(--creme); opacity: .55;
+  clip-path: polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);
+}
+.marcador { display: inline-block; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; padding: 4px 11px; border-radius: 999px; margin-bottom: 11px; }
+.bom .marcador { background: rgba(168,192,138,.18); color: #C3D6A9; }
+.ruim .marcador { background: rgba(217,142,122,.18); color: #E4A996; }
+
+.aviso {
+  display: flex; gap: 13px; align-items: flex-start; margin-top: 20px;
+  background: var(--superficie); border: 1px solid var(--linha);
+  border-left: 3px solid var(--creme); border-radius: 14px; padding: 16px 18px;
+}
+.aviso-ico { flex: none; width: 24px; height: 24px; color: var(--creme); }
+.aviso-ico svg { width: 100%; height: 100%; }
+.aviso strong { display: block; margin-bottom: 3px; font-size: 15px; }
+.aviso p { font-size: 13.5px; color: var(--texto-2); }
+
+/* ── Equipe ──────────────────────────────────────────────────────────── */
+.equipe { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); margin-top: 26px; }
+.pessoa {
+  display: flex; align-items: center; gap: 18px; min-width: 0;
+  background: var(--superficie); border: 1px solid var(--linha);
+  border-radius: 18px; padding: 18px;
+  transition: border-color .3s ease, transform .3s var(--suave);
+}
+.pessoa:hover { border-color: var(--linha-forte); transform: translateY(-2px); }
+.retrato {
+  flex: none; width: 104px; height: 104px; border-radius: 50%;
+  object-fit: cover; border: 1px solid var(--linha-forte);
+  background: var(--verde-claro); display: grid; place-items: center;
+  font-family: var(--display); font-size: 38px; font-weight: 700; color: var(--creme);
+}
+.pessoa.carregando .retrato { animation: pulsar 1.3s ease-in-out infinite; }
+@keyframes pulsar { 0%,100% { opacity: .45; } 50% { opacity: .85; } }
+.pessoa-nome { font-family: var(--display); font-size: 23px; font-weight: 700; line-height: 1.15; }
+.pessoa-funcao { display: flex; align-items: center; gap: 7px; margin-top: 4px; }
+.pessoa-funcao svg { width: 14px; height: 14px; color: var(--creme); opacity: .8; }
+.pessoa-bio { margin-top: 9px; font-size: 14px; color: var(--texto-2); line-height: 1.5; }
+
+/* ── Palco ───────────────────────────────────────────────────────────── */
+.palco { margin-top: 22px; border: 1px solid var(--linha); border-radius: 18px; overflow: hidden; }
+.palco-barra {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 11px 15px; background: var(--superficie); border-bottom: 1px solid var(--linha);
+}
+.pilula {
+  padding: 6px 14px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--linha-forte); color: var(--texto-2);
+  transition: background .25s var(--suave), color .25s ease, border-color .25s ease;
+}
+.pilula:hover { border-color: var(--creme); color: var(--creme); }
+.pilula.ativa { background: var(--creme); color: var(--verde); border-color: var(--creme); }
+.pilula-fim { margin-left: auto; }
+.palco-piso {
+  display: grid; place-items: center; padding: clamp(26px, 5vh, 56px) 24px;
+  background: var(--verde); transition: background .45s var(--suave);
+}
+.palco-piso.creme { background: var(--creme); }
+.palco-piso.preto { background: var(--preto); }
+.palco-piso .marca { width: min(340px, 88%); height: auto; }
+.palco-piso.creme .marca text[fill="#E8DFC4"], .palco-piso.creme .marca g[fill="#E8DFC4"] { fill: #2E3322; }
+.palco-piso.creme .marca g[stroke="#E8DFC4"] { stroke: #2E3322; }
+.palco-piso.creme .marca text[fill="#1D1D1B"] { fill: rgba(46,51,34,.22); }
+
+.respiro { padding: 0; outline: 1px dashed transparent; transition: outline-color .3s ease, padding .35s var(--suave); }
+.respiro.mostrando { padding: 7%; outline-color: rgba(232,223,196,.55); }
+.palco-piso.creme .respiro.mostrando { outline-color: rgba(46,51,34,.42); }
+
+.pattern-palco { min-height: 190px; background-image: var(--pattern); }
+.palco-barra input[type=range] { flex: 1; min-width: 80px; max-width: 170px; }
+input[type=range] { -webkit-appearance: none; appearance: none; height: 3px; background: var(--linha-forte); border-radius: 999px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 17px; height: 17px; border-radius: 50%; background: var(--creme); cursor: pointer; }
+input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 50%; background: var(--creme); cursor: pointer; border: none; }
+
+.selo-vitrine { width: 78px; margin: 0 auto 12px; }
+.selo-vitrine svg { width: 100%; height: auto; }
+
+/* ── Cores ───────────────────────────────────────────────────────────── */
+.cores { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); margin-top: 24px; }
+.cor {
+  text-align: left; border: 1px solid var(--linha); border-radius: 16px;
+  overflow: hidden; background: var(--superficie);
+  transition: transform .3s var(--suave), border-color .3s ease;
+}
+.cor:hover { transform: translateY(-4px); border-color: var(--linha-forte); }
+.cor-amostra { display: block; height: 84px; background: var(--c); position: relative; }
+.cor-amostra::after {
+  content: 'copiar'; position: absolute; inset: auto 0 8px; text-align: center;
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--t); opacity: 0; transition: opacity .25s ease;
+}
+.cor:hover .cor-amostra::after, .cor:focus-visible .cor-amostra::after { opacity: .6; }
+.cor-nome { display: block; padding: 12px 14px 0; font-family: var(--display); font-size: 17px; font-weight: 700; }
+.cor-hex { display: block; padding: 2px 14px 0; font-size: 12.5px; color: var(--texto-3); font-variant-numeric: tabular-nums; }
+.cor-uso { display: block; padding: 7px 14px 15px; font-size: 12.5px; color: var(--texto-2); line-height: 1.45; }
+
+/* ── Tipografia ──────────────────────────────────────────────────────── */
+.fontes { display: grid; gap: 13px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); margin-top: 22px; }
+.fonte { padding: 20px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 18px; }
+.fonte-cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.fonte-cabeca h3 { font-family: var(--display); font-size: 22px; font-weight: 700; margin-top: 3px; }
+.amostra { line-height: 1.2; word-break: break-word; margin-bottom: 12px; min-height: 1.2em; }
+.amostra.display { font-family: var(--display); font-weight: 700; }
+.amostra.ui { font-family: var(--ui); color: var(--texto-2); }
+.controle { display: flex; align-items: center; gap: 12px; }
+.controle input { flex: 1; }
+
+/* ── Destaques ───────────────────────────────────────────────────────── */
+.destaques { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 26px 0 6px; }
+.destaque { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100px; padding: 6px 4px; }
+.anel {
+  width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--linha-forte);
+  display: grid; place-items: center; color: var(--creme);
+  transition: background .35s var(--suave), border-color .3s ease, transform .35s var(--suave);
+}
+.anel svg { width: 30px; height: 30px; transition: color .3s ease; }
+.destaque:hover .anel, .destaque:focus-visible .anel { background: var(--creme); border-color: var(--creme); transform: translateY(-4px) scale(1.04); }
+.destaque:hover .anel svg, .destaque:focus-visible .anel svg { color: var(--verde); }
+.destaque:hover .rot { color: var(--creme); }
+
+/* ── Voz ─────────────────────────────────────────────────────────────── */
+.frases { display: grid; gap: 11px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); margin-top: 24px; }
+.frase {
+  text-align: left; padding: 18px; border-radius: 16px;
+  background: var(--superficie); border: 1px solid var(--linha);
+  display: flex; flex-direction: column; gap: 9px;
+  transition: background .3s var(--suave), transform .3s var(--suave), border-color .3s ease;
+}
+.frase .display { font-size: 19px; font-style: italic; line-height: 1.3; }
+.frase:hover { background: var(--creme); color: var(--verde); border-color: var(--creme); transform: translateY(-3px); }
+.frase:hover .rot { color: rgba(46,51,34,.6); }
+
+/* ── O que não fazer ─────────────────────────────────────────────────── */
+.nao-lista { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); margin-top: 22px; }
+.nao-item { display: flex; gap: 12px; align-items: flex-start; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; padding: 14px 16px; }
+.nao-item .x { flex: none; width: 22px; height: 22px; border-radius: 50%; background: rgba(217,142,122,.18); color: #E4A996; display: grid; place-items: center; font-size: 14px; line-height: 1; }
+.nao-item strong { display: block; font-size: 14px; margin-bottom: 2px; }
+.nao-item p { font-size: 12.5px; color: var(--texto-3); line-height: 1.45; }
+
+/* ── Fim ─────────────────────────────────────────────────────────────── */
+.regua { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; color: var(--creme); }
+.regua::before, .regua::after { content: ''; flex: 1; height: 1px; background: var(--linha); }
+.regua svg { width: 15px; height: 15px; }
+.botoes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  background: var(--creme); color: var(--verde); border-radius: 999px;
+  padding: 11px 22px; font-size: 14.5px; font-weight: 500;
+  transition: transform .25s var(--suave), opacity .25s ease;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-fantasma { background: none; color: var(--creme); border: 1px solid var(--linha-forte); }
+.btn-fantasma:hover { background: var(--creme); color: var(--verde); border-color: var(--creme); }
+
+/* ── Controles da apresentação ───────────────────────────────────────── */
+.barra-progresso { position: fixed; top: var(--topo); left: 0; right: 0; height: 2px; background: var(--linha); z-index: 30; }
+.barra-progresso span { display: block; height: 100%; background: var(--creme); width: 0; transition: width .4s var(--suave); }
+
+.controles {
+  position: fixed; z-index: 30; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(29,29,27,.82); backdrop-filter: blur(14px);
+  border: 1px solid var(--linha); border-radius: 999px; padding: 5px;
+}
+.seta {
+  width: 40px; height: 40px; border-radius: 50%; font-size: 22px; line-height: 1;
+  color: var(--texto-2); display: grid; place-items: center;
+  transition: background .25s var(--suave), color .25s ease;
+}
+.seta:hover:not([disabled]) { background: var(--creme); color: var(--verde); }
+.seta[disabled] { opacity: .3; cursor: default; }
+.contador {
+  min-width: 74px; padding: 0 14px; height: 40px; border-radius: 999px;
+  font-size: 13px; font-variant-numeric: tabular-nums; color: var(--texto-2);
+  transition: background .25s var(--suave), color .25s ease;
+}
+.contador:hover { background: rgba(232,223,196,.1); color: var(--creme); }
+
+/* ── Índice ──────────────────────────────────────────────────────────── */
+.indice {
+  position: fixed; inset: 0; z-index: 50; background: rgba(29,29,27,.96);
+  backdrop-filter: blur(18px); padding: clamp(24px, 5vw, 54px);
+  overflow-y: auto; animation: aparecer .28s var(--suave) both;
+}
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+.indice-cabeca { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.indice-cabeca h2 { font-family: var(--display); font-size: 26px; }
+.fechar { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--linha-forte); font-size: 22px; line-height: 1; }
+.fechar:hover { background: var(--creme); color: var(--verde); }
+.indice-lista { display: grid; gap: 9px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+.indice-item {
+  display: flex; align-items: baseline; gap: 11px; text-align: left;
+  padding: 14px 16px; border-radius: 13px; border: 1px solid var(--linha);
+  transition: background .25s var(--suave), border-color .25s ease;
+}
+.indice-item:hover { background: var(--superficie); border-color: var(--linha-forte); }
+.indice-item.ativo { background: var(--creme); color: var(--verde); border-color: var(--creme); }
+.indice-item .n { font-family: var(--display); font-size: 12.5px; opacity: .55; flex: none; }
+
+/* ── Copiado ─────────────────────────────────────────────────────────── */
+.copiado {
+  position: fixed; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 14px); z-index: 60;
+  background: var(--creme); color: var(--verde); font-size: 14px; font-weight: 500;
+  padding: 10px 20px; border-radius: 999px; opacity: 0; pointer-events: none;
+  transition: opacity .25s ease, transform .3s var(--suave);
+  box-shadow: 0 12px 34px rgba(0,0,0,.34);
+}
+.copiado.aparece { opacity: 1; transform: translate(-50%, 0); }
+
+/* Num celular, um slide dessa densidade não cabe inteiro — ele rola por
+   dentro. Sem aviso, a pessoa acha que o slide acabou e passa adiante; a
+   sombra na borda de baixo é o sinal de que ainda há coisa ali. */
+.slide.tem-mais::after {
+  content: ''; position: fixed; left: 0; right: 0;
+  bottom: calc(70px + env(safe-area-inset-bottom, 0px)); height: 74px;
+  background: linear-gradient(transparent, var(--verde) 78%);
+  pointer-events: none; z-index: 20;
+}
+.slide.tem-mais .desce {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 21;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--texto-3); pointer-events: none;
+  animation: acenar 2.2s ease-in-out infinite;
+}
+@keyframes acenar { 0%,100% { transform: translate(-50%, 0); opacity: .5; }
+                    50% { transform: translate(-50%, 4px); opacity: .95; } }
+
+@media (max-width: 560px) {
+  .slide { padding: calc(28px + var(--topo)) 18px 92px; }
+  .destaque { width: 86px; }
+  .anel { width: 62px; height: 62px; }
+  .anel svg { width: 26px; height: 26px; }
+  .retrato { width: 78px; height: 78px; font-size: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Impresso: um slide por página, nas cores da marca. */
+@media print {
+  html, body { height: auto; overflow: visible; background: #2E3322 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; animation: none !important; }
+  .deck { display: block; height: auto; overflow: visible; }
+  .slide { width: auto; height: auto; min-height: 0; page-break-after: always; break-after: page;
+           padding: 26px 0; display: block; }
+  .ceu { position: absolute; }
+  .controles, .barra-progresso, .indice, .copiado, .dica-nav, .palco-barra { display: none; }
+}
+
+</style>
+</head>
+<body>
+<div class="ceu" aria-hidden="true"></div>
+
+<div class="deck" id="deck">
+
+<!-- 1 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide capa" data-titulo="Capa">
+  <div class="meio">
+    <svg class="marca" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Alento — Studio de Beleza">
+  <defs>
+    <path id="s4" d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/>
+  </defs>
+
+  <!-- relevo -->
+  <text x="316" y="151" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#1D1D1B" opacity=".9">Alento</text>
+  <!-- letra -->
+  <text x="310" y="145" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#E8DFC4">Alento</text>
+
+  <g fill="#E8DFC4">
+    <use href="#s4" transform="translate(112,54) scale(.28)"/>
+    <use href="#s4" transform="translate(500,44) scale(.44)"/>
+    <use href="#s4" transform="translate(96,178) scale(.22)"/>
+  </g>
+
+  <g stroke="#E8DFC4" stroke-width="1.5" opacity=".8">
+    <line x1="128" y1="200" x2="168" y2="200"/>
+    <line x1="452" y1="200" x2="492" y2="200"/>
+  </g>
+  <text x="310" y="206" text-anchor="middle" textLength="264" lengthAdjust="spacing"
+        font-family="Jost, Helvetica, Arial, sans-serif" font-size="20" fill="#E8DFC4">STUDIO DE BELEZA</text>
+</svg>
+    <p class="sobrescrito">Manual da marca</p>
+    <p class="chamada">Tudo o que faz o Alento parecer o Alento —<br>
+      e continuar parecendo, em qualquer lugar.</p>
+    <p class="dica-nav">Use as setas <kbd>←</kbd> <kbd>→</kbd> ou deslize para o lado</p>
+  </div>
+</section>
+
+<!-- 2 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="A marca">
+  <div class="meio estreito centro">
+    <span class="numero">01</span>
+    <p class="enorme">Alento é o fôlego<br>que devolve.</p>
+    <p class="lead">O nome fala de respirar de novo. É isso que o studio
+      entrega: uma pausa que renova.</p>
+  </div>
+</section>
+
+<!-- 3 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="O que somos">
+  <div class="meio">
+    <span class="numero">01</span>
+    <h2>O que sustenta a marca</h2>
+    <div class="cartoes tres">
+      <div class="cartao"><h3>O que somos</h3>
+        <p>Um studio pequeno e cuidadoso. Duas profissionais, cada cliente
+          com tempo e atenção. Nada de linha de produção.</p></div>
+      <div class="cartao"><h3>O que prometemos</h3>
+        <p>Beleza que acolhe e renova. A cliente sai mais bonita e mais leve
+          do que entrou.</p></div>
+      <div class="cartao"><h3>Como soamos</h3>
+        <p>Caloroso sem ser bobo. Cuidadoso sem ser formal. Falamos com ela,
+          não para ela.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Quem faz">
+  <div class="meio">
+    <span class="numero">02</span>
+    <h2>Quem dá o alento</h2>
+    <p class="lead">A marca não é o logo. São elas — o logo só a faz reconhecível
+      antes de a cliente entrar.</p>
+    <div class="equipe" id="equipe">
+      <div class="pessoa carregando"><span class="retrato"></span>
+        <div><strong>Carregando…</strong></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="O logo">
+  <div class="meio">
+    <span class="numero">03</span>
+    <h2>O logo</h2>
+    <p class="lead">Escolha a versão pela largura disponível, não pelo gosto do dia.</p>
+    <div class="palco">
+      <div class="palco-barra">
+        <span class="rot">Ver sobre</span>
+        <button class="pilula ativa" data-fundo="verde">Verde</button>
+        <button class="pilula" data-fundo="creme">Creme</button>
+        <button class="pilula" data-fundo="preto">Preto</button>
+        <button class="pilula pilula-fim" id="ver-respiro">Área de respiro</button>
+      </div>
+      <div class="palco-piso" id="palco-piso">
+        <div class="respiro" id="respiro"><svg class="marca" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 250" role="img" aria-label="Alento — Studio de Beleza">
+  <defs>
+    <path id="s4" d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/>
+  </defs>
+
+  <!-- relevo -->
+  <text x="316" y="151" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#1D1D1B" opacity=".9">Alento</text>
+  <!-- letra -->
+  <text x="310" y="145" text-anchor="middle" textLength="352" lengthAdjust="spacingAndGlyphs"
+        font-family="Playfair Display, Georgia, serif" font-size="136" font-weight="700"
+        font-style="italic" fill="#E8DFC4">Alento</text>
+
+  <g fill="#E8DFC4">
+    <use href="#s4" transform="translate(112,54) scale(.28)"/>
+    <use href="#s4" transform="translate(500,44) scale(.44)"/>
+    <use href="#s4" transform="translate(96,178) scale(.22)"/>
+  </g>
+
+  <g stroke="#E8DFC4" stroke-width="1.5" opacity=".8">
+    <line x1="128" y1="200" x2="168" y2="200"/>
+    <line x1="452" y1="200" x2="492" y2="200"/>
+  </g>
+  <text x="310" y="206" text-anchor="middle" textLength="264" lengthAdjust="spacing"
+        font-family="Jost, Helvetica, Arial, sans-serif" font-size="20" fill="#E8DFC4">STUDIO DE BELEZA</text>
+</svg></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Versões do logo">
+  <div class="meio">
+    <span class="numero">03</span>
+    <h2>Três versões</h2>
+    <div class="cartoes tres">
+      <div class="cartao"><h3>Principal</h3>
+        <p>O wordmark completo, com as estrelas e a linha <em>Studio de Beleza</em>.
+          Fachada, site, cartão.</p>
+        <p class="nota">Mínimo: 140px na tela · 35mm no papel</p></div>
+      <div class="cartao"><h3>Reduzido</h3>
+        <p>Só o wordmark, sem a linha de baixo. Rodapé, assinatura de e-mail,
+          etiqueta pequena.</p>
+        <p class="nota">Abaixo de 140px a linha some antes de ficar ilegível</p></div>
+      <div class="cartao centro"><div class="selo-vitrine"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Alento">
+  <circle cx="100" cy="100" r="98" fill="#E8DFC4"/>
+  <text x="88" y="140" font-family="Playfair Display, Georgia, serif" font-size="122"
+        font-weight="700" text-anchor="middle" fill="#2E3322">A</text>
+  <path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z" transform="translate(140,118) scale(.34)" fill="#2E3322"/>
+</svg></div>
+        <h3>Selo</h3>
+        <p>O "A" com a estrela no círculo. Avatar do Instagram, ícone do app,
+          adesivo, carimbo.</p></div>
+    </div>
+    <div class="aviso">
+      <span class="aviso-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z"/></svg></span>
+      <div><strong>A área de respiro é sagrada</strong>
+        <p>Margem livre em volta do logo, do tamanho da altura da letra <em>A</em>.
+          Texto ou borda dentro dessa faixa é o que faz marca boa parecer amadora.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="As cores">
+  <div class="meio">
+    <span class="numero">04</span>
+    <h2>As cores</h2>
+    <p class="lead">Quatro, e só. Toque para copiar o código — é o que se cola
+      no Canva, no Instagram ou na gráfica.</p>
+    <div class="cores">
+      <button class="cor" data-hex="#E8DFC4" style="--c:#E8DFC4;--t:#2E3322">
+        <span class="cor-amostra"></span><span class="cor-nome">Creme</span>
+        <span class="cor-hex">#E8DFC4</span>
+        <span class="cor-uso">Letra sobre o verde, fundos claros, botões</span></button>
+      <button class="cor" data-hex="#2E3322" style="--c:#2E3322;--t:#E8DFC4">
+        <span class="cor-amostra"></span><span class="cor-nome">Verde</span>
+        <span class="cor-hex">#2E3322</span>
+        <span class="cor-uso">O fundo da marca. A cor que se reconhece de longe</span></button>
+      <button class="cor" data-hex="#4A5236" style="--c:#4A5236;--t:#E8DFC4">
+        <span class="cor-amostra"></span><span class="cor-nome">Verde claro</span>
+        <span class="cor-hex">#4A5236</span>
+        <span class="cor-uso">Camadas sobre o verde: cartões, caixas, separações</span></button>
+      <button class="cor" data-hex="#1D1D1B" style="--c:#1D1D1B;--t:#E8DFC4">
+        <span class="cor-amostra"></span><span class="cor-nome">Preto</span>
+        <span class="cor-hex">#1D1D1B</span>
+        <span class="cor-uso">O relevo do logo. Nunca como fundo principal</span></button>
+    </div>
+    <div class="aviso">
+      <span class="aviso-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.6C12 20.6 3.6 15.2 3.6 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.4 2.5c0 5.7-8.4 11.1-8.4 11.1z"/></svg></span>
+      <div><strong>A proporção importa mais que a paleta</strong>
+        <p>O verde domina, o creme escreve, o verde claro separa, o preto só
+          aparece no relevo. Uma peça majoritariamente creme enfraquece a marca,
+          mesmo com as cores certas.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Tipografia">
+  <div class="meio">
+    <span class="numero">05</span>
+    <h2>A tipografia</h2>
+    <p class="lead">Duas fontes: uma para chamar, outra para explicar.
+      Arraste para ver em qualquer tamanho.</p>
+    <div class="fontes">
+      <div class="fonte">
+        <div class="fonte-cabeca"><div><span class="rot">Títulos e números</span>
+          <h3>Playfair Display</h3></div>
+          <a class="link" href="https://fonts.google.com/specimen/Playfair+Display" target="_blank" rel="noopener">Baixar</a></div>
+        <p class="amostra display" id="amostra-display">Realce sua melhor versão</p>
+        <div class="controle"><input type="range" id="tam-display" min="20" max="76" value="44"
+          aria-label="Tamanho do título"><span class="mono" id="tam-display-valor">44px</span></div>
+        <p class="nota">Serifada, com contraste forte entre traço grosso e fino.
+          É ela que dá o ar de cuidado.</p>
+      </div>
+      <div class="fonte">
+        <div class="fonte-cabeca"><div><span class="rot">Textos e rótulos</span>
+          <h3>Jost</h3></div>
+          <a class="link" href="https://fonts.google.com/specimen/Jost" target="_blank" rel="noopener">Baixar</a></div>
+        <p class="amostra ui" id="amostra-ui">Cuidado que transforma.</p>
+        <div class="controle"><input type="range" id="tam-ui" min="12" max="40" value="22"
+          aria-label="Tamanho do texto"><span class="mono" id="tam-ui-valor">22px</span></div>
+        <p class="nota">Geométrica e legível em corpo pequeno. Em caixa alta com
+          espaçamento largo, vira a assinatura da marca.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ─────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Destaques">
+  <div class="meio centro">
+    <span class="numero">06</span>
+    <h2>Os destaques</h2>
+    <p class="lead centro">Cinco ícones em círculo, traço fino. São os destaques do
+      Instagram e a navegação do site. Toque para copiar o desenho.</p>
+    <div class="destaques">
+      <button class="destaque" data-nome="cabelos"><span class="anel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M7.8 16.2 19.5 3.2M16.2 16.2 4.5 3.2"/></svg></span><span class="rot">Cabelos</span></button>
+      <button class="destaque" data-nome="tratamentos"><span class="anel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z"/></svg></span><span class="rot">Tratamentos</span></button>
+      <button class="destaque" data-nome="unhas"><span class="anel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="2.4" width="4" height="4" rx="1.1"/><path d="M11 6.4v1.5l-1.9 2.2a2 2 0 0 0-.5 1.3V20a1.4 1.4 0 0 0 1.4 1.4h4a1.4 1.4 0 0 0 1.4-1.4v-6.6a2 2 0 0 0-.5-1.3L13 9.9V6.4"/></svg></span><span class="rot">Unhas</span></button>
+      <button class="destaque" data-nome="agenda"><span class="anel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.2" y="5.2" width="17.6" height="15.6" rx="2.4"/><path d="M8 3.2v4M16 3.2v4M3.2 10.4h17.6"/></svg></span><span class="rot">Agenda</span></button>
+      <button class="destaque" data-nome="sobre"><span class="anel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.6C12 20.6 3.6 15.2 3.6 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.4 2.5c0 5.7-8.4 11.1-8.4 11.1z"/></svg></span><span class="rot">Sobre nós</span></button>
+    </div>
+    <p class="nota">Traço de 1,35px num quadro de 24. Pontas arredondadas.
+      Nunca preenchidos — o vazio dentro do círculo é parte do desenho.</p>
+  </div>
+</section>
+
+<!-- 10 ────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Pattern">
+  <div class="meio">
+    <span class="numero">07</span>
+    <h2>A estrela e o pattern</h2>
+    <p class="lead">Sozinha ela separa; repetida, vira o céu que forra os fundos.
+      Mexa nos controles e veja onde ele começa a atrapalhar.</p>
+    <div class="palco">
+      <div class="palco-barra">
+        <span class="rot">Densidade</span>
+        <input type="range" id="densidade" min="140" max="460" value="300" aria-label="Densidade do pattern">
+        <span class="rot">Opacidade</span>
+        <input type="range" id="opacidade" min="3" max="30" value="9" aria-label="Opacidade do pattern">
+      </div>
+      <div class="palco-piso pattern-palco" id="pattern-palco">
+        <p class="display" style="font-size:clamp(20px,3.4vw,32px);text-align:center">
+          Seu momento de pausa,<br>só para você.</p>
+      </div>
+    </div>
+    <p class="nota">Como fundo, sempre abaixo de 12% de opacidade. Se você
+      <em>repara</em> no pattern, ele está forte demais.</p>
+  </div>
+</section>
+
+<!-- 11 ────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="A voz">
+  <div class="meio">
+    <span class="numero">08</span>
+    <h2>A voz</h2>
+    <p class="lead">As frases oficiais da marca. Toque para copiar.</p>
+    <div class="frases">
+      <button class="frase" data-copiar="Realce sua melhor versão."><span class="display">Realce sua melhor versão.</span><span class="rot">Chamada principal</span></button>
+      <button class="frase" data-copiar="Beleza que acolhe e renova."><span class="display">Beleza que acolhe e renova.</span><span class="rot">Assinatura</span></button>
+      <button class="frase" data-copiar="Seu momento de pausa, só para você."><span class="display">Seu momento de pausa, só para você.</span><span class="rot">Convite</span></button>
+      <button class="frase" data-copiar="Confiança começa com autocuidado."><span class="display">Confiança começa com autocuidado.</span><span class="rot">Reflexão</span></button>
+      <button class="frase" data-copiar="Cuidado que transforma."><span class="display">Cuidado que transforma.</span><span class="rot">Apoio</span></button>
+      <button class="frase" data-copiar="Estamos prontas para te receber!"><span class="display">Estamos prontas para te receber!</span><span class="rot">Chamado para ação</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- 12 ────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="Assim sim, assim não">
+  <div class="meio">
+    <span class="numero">08</span>
+    <h2>Como se fala</h2>
+    <div class="cartoes dois">
+      <div class="cartao bom"><span class="marcador">Assim sim</span>
+        <ul><li>"Te esperamos quinta, às 9h45."</li>
+          <li>"Seu momento de pausa, só para você."</li>
+          <li>"Qualquer coisa, é só chamar."</li></ul>
+        <p class="nota">Segunda pessoa, frases curtas, verbo no presente.
+          Como quem fala olhando nos olhos.</p></div>
+      <div class="cartao ruim"><span class="marcador">Assim não</span>
+        <ul><li>"Prezada cliente, informamos que…"</li>
+          <li>"IMPERDÍVEL!!! CORRE QUE ACABA!!!"</li>
+          <li>"Realizamos procedimentos estéticos capilares."</li></ul>
+        <p class="nota">Nem formalidade de repartição, nem gritaria de liquidação.
+          Nenhuma das duas é acolhimento.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 ────────────────────────────────────────────────────────────────── -->
+<section class="slide" data-titulo="O que não fazer">
+  <div class="meio">
+    <span class="numero">09</span>
+    <h2>O que não fazer</h2>
+    <p class="lead">A marca se perde aos poucos, numa peça de cada vez.</p>
+    <div class="nao-lista">
+      <div class="nao-item"><span class="x">×</span><div><strong>Esticar ou achatar o logo</strong>
+        <p>Redimensione pelo canto, segurando a proporção.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Trocar a cor do logo</strong>
+        <p>Creme sobre verde, ou verde sobre creme. Não existe logo rosa.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Pôr o logo sobre foto movimentada</strong>
+        <p>Se o fundo tem textura, use uma faixa de cor sólida atrás.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Escrever "Alento" em outra fonte</strong>
+        <p>O nome escrito é imagem, não texto. Use sempre o arquivo.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Encostar coisas no logo</strong>
+        <p>A área de respiro vale também para bordas e cantos de imagem.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Usar o pattern forte demais</strong>
+        <p>Ele é textura, não estampa. Acima de 12% começa a competir.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Cores de fora da paleta</strong>
+        <p>Uma peça com dourado e rosa não é do Alento, por mais bonita que seja.</p></div></div>
+      <div class="nao-item"><span class="x">×</span><div><strong>Girar ou inclinar o logo</strong>
+        <p>Ele vive na horizontal. Sempre.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 ────────────────────────────────────────────────────────────────── -->
+<section class="slide fim" data-titulo="Fim">
+  <div class="meio centro">
+    <div class="regua"><svg viewBox="-60 -60 120 120" fill="currentColor" aria-hidden="true"><path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/></svg></div>
+    <p class="enorme">Beleza que acolhe<br>e renova.</p>
+    <p class="lead centro">Rua dos Manacás, 464 — Sala 3, 2º andar (frente)<br>
+      Jd. da Glória, Cotia/SP · CEP 06711-500</p>
+    <div class="botoes">
+      <a class="btn" href="vitrine.html">Site das clientes</a>
+      <a class="btn" href="manual-da-marca.html">Manual completo</a>
+      <button class="btn btn-fantasma" onclick="window.print()">Salvar em PDF</button>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ── Controles ───────────────────────────────────────────────────────── -->
+<div class="barra-progresso"><span id="progresso"></span></div>
+
+<nav class="controles" aria-label="Navegação da apresentação">
+  <button class="seta" id="anterior" aria-label="Slide anterior">‹</button>
+  <button class="contador" id="contador" aria-label="Ver todos os slides">1 / 14</button>
+  <button class="seta" id="proximo" aria-label="Próximo slide">›</button>
+</nav>
+
+<div class="indice" id="indice" hidden>
+  <div class="indice-cabeca">
+    <h2>Todos os slides</h2>
+    <button class="fechar" id="fechar-indice" aria-label="Fechar">×</button>
+  </div>
+  <div class="indice-lista" id="indice-lista"></div>
+</div>
+
+<div class="copiado" id="copiado" role="status" aria-live="polite"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// APRESENTAÇÃO
+//
+// Os slides são um carrossel com encaixe de rolagem. Isso dá o deslize no
+// celular sem biblioteca nenhuma, e o teclado só empurra a mesma rolagem —
+// um caminho só para todas as formas de navegar.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const deck = document.getElementById('deck');
+const slides = [...document.querySelectorAll('.slide')];
+const elContador = document.getElementById('contador');
+const elProgresso = document.getElementById('progresso');
+const btAnterior = document.getElementById('anterior');
+const btProximo = document.getElementById('proximo');
+let atual = 0;
+
+function irPara(i, suave = true) {
+  const destino = Math.max(0, Math.min(slides.length - 1, i));
+  // Deslizar por treze slides até o começo leva vários segundos e não ajuda
+  // ninguém: salto longo é instantâneo, passo a passo é suave.
+  const perto = Math.abs(destino - atual) <= 2;
+  atual = destino;
+  deck.scrollTo({ left: atual * deck.clientWidth,
+                  behavior: suave && perto ? 'smooth' : 'auto' });
+  marcar();
+}
+
+function marcar() {
+  elContador.textContent = `${atual + 1} / ${slides.length}`;
+  elProgresso.style.width = ((atual + 1) / slides.length * 100) + '%';
+  btAnterior.disabled = atual === 0;
+  btProximo.disabled = atual === slides.length - 1;
+  document.querySelectorAll('.indice-item').forEach((b, i) =>
+    b.classList.toggle('ativo', i === atual));
+  slides.forEach((s, i) => { if (i !== atual) s.classList.remove('tem-mais'); });
+  setTimeout(conferirAltura, 260);
+  // O endereço guarda o slide: dá para mandar o link já aberto numa parte.
+  const alvo = '#' + (atual + 1);
+  if (location.hash !== alvo) history.replaceState(null, '', alvo);
+}
+
+// A rolagem manda: seja ela do dedo, da roda ou do teclado.
+let esperando;
+deck.addEventListener('scroll', () => {
+  clearTimeout(esperando);
+  esperando = setTimeout(() => {
+    const i = Math.round(deck.scrollLeft / deck.clientWidth);
+    if (i !== atual) { atual = i; marcar(); }
+  }, 90);
+}, { passive: true });
+
+btAnterior.onclick = () => irPara(atual - 1);
+btProximo.onclick = () => irPara(atual + 1);
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea')) return;
+  const indiceAberto = !document.getElementById('indice').hidden;
+  if (e.key === 'Escape') { indiceAberto ? fecharIndice() : abrirIndice(); return; }
+  if (indiceAberto) return;
+  if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); irPara(atual + 1); }
+  else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); irPara(atual - 1); }
+  else if (e.key === 'Home') { e.preventDefault(); irPara(0); }
+  else if (e.key === 'End') { e.preventDefault(); irPara(slides.length - 1); }
+});
+
+// Redimensionar (ou girar o celular) muda a largura de cada slide.
+addEventListener('resize', () => irPara(atual, false));
+
+// ── Índice ─────────────────────────────────────────────────────────────────
+const indice = document.getElementById('indice');
+const lista = document.getElementById('indice-lista');
+lista.innerHTML = slides.map((s, i) =>
+  `<button class="indice-item" data-ir="${i}">
+     <span class="n">${String(i + 1).padStart(2, '0')}</span>
+     <span>${s.dataset.titulo}</span>
+   </button>`).join('');
+lista.querySelectorAll('[data-ir]').forEach((b) => b.onclick = () => {
+  fecharIndice(); irPara(Number(b.dataset.ir));
+});
+function abrirIndice() { indice.hidden = false; marcar(); }
+function fecharIndice() { indice.hidden = true; }
+elContador.onclick = abrirIndice;
+document.getElementById('fechar-indice').onclick = fecharIndice;
+indice.onclick = (e) => { if (e.target === indice) fecharIndice(); };
+
+// Abre no slide pedido pelo endereço.
+const pedido = Number(location.hash.slice(1));
+if (pedido >= 1 && pedido <= slides.length) irPara(pedido - 1, false);
+else marcar();
+
+// ── Slide que não cabe na tela ─────────────────────────────────────────────
+// Ele rola por dentro; sem aviso, quem lê acha que acabou e passa adiante.
+function conferirAltura() {
+  for (const s of slides) {
+    const sobra = s.scrollHeight - s.clientHeight;
+    const temMais = sobra > 8 && s.scrollTop < sobra - 8;
+    s.classList.toggle('tem-mais', temMais);
+    let aviso = s.querySelector('.desce');
+    if (temMais && !aviso) {
+      aviso = document.createElement('span');
+      aviso.className = 'desce';
+      aviso.textContent = 'role para ver mais ↓';
+      s.appendChild(aviso);
+    } else if (!temMais && aviso) aviso.remove();
+  }
+}
+slides.forEach((s) => s.addEventListener('scroll', conferirAltura, { passive: true }));
+addEventListener('resize', conferirAltura);
+addEventListener('load', conferirAltura);
+setTimeout(conferirAltura, 400);
+
+// ── Copiar com um toque ────────────────────────────────────────────────────
+// Um manual que obriga a digitar o código da cor à mão é um manual que
+// ninguém segue. Tudo o que serve em outro lugar sai daqui pronto.
+const avisoCopiado = document.getElementById('copiado');
+let sumindo;
+function copiar(texto, recado) {
+  const pronto = () => {
+    avisoCopiado.textContent = recado;
+    avisoCopiado.classList.add('aparece');
+    clearTimeout(sumindo);
+    sumindo = setTimeout(() => avisoCopiado.classList.remove('aparece'), 1800);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(texto).then(pronto, () => reserva(texto, pronto));
+  } else reserva(texto, pronto);
+}
+function reserva(texto, pronto) {
+  const campo = document.createElement('textarea');
+  campo.value = texto;
+  campo.setAttribute('readonly', '');
+  campo.style.cssText = 'position:fixed;top:-9999px';
+  document.body.appendChild(campo);
+  campo.select();
+  try { document.execCommand('copy'); pronto(); } catch {}
+  campo.remove();
+}
+document.querySelectorAll('.cor').forEach((b) =>
+  b.onclick = () => copiar(b.dataset.hex, b.dataset.hex + ' copiado'));
+document.querySelectorAll('.frase').forEach((b) =>
+  b.onclick = () => copiar(b.dataset.copiar, 'Frase copiada'));
+document.querySelectorAll('.destaque').forEach((b) =>
+  b.onclick = () => copiar(b.querySelector('svg').outerHTML, 'Desenho do ícone copiado'));
+
+// ── O logo sobre cada fundo ────────────────────────────────────────────────
+const piso = document.getElementById('palco-piso');
+document.querySelectorAll('[data-fundo]').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('[data-fundo]').forEach((x) => x.classList.remove('ativa'));
+  b.classList.add('ativa');
+  piso.className = 'palco-piso ' + (b.dataset.fundo === 'verde' ? '' : b.dataset.fundo);
+});
+const respiro = document.getElementById('respiro');
+document.getElementById('ver-respiro').onclick = (e) => {
+  const mostrando = respiro.classList.toggle('mostrando');
+  e.currentTarget.classList.toggle('ativa', mostrando);
+};
+
+// ── Tipografia ao vivo ─────────────────────────────────────────────────────
+function ligarTamanho(faixaId, amostraId, valorId) {
+  const faixa = document.getElementById(faixaId);
+  const amostra = document.getElementById(amostraId);
+  const valor = document.getElementById(valorId);
+  const aplicar = () => {
+    amostra.style.fontSize = faixa.value + 'px';
+    valor.textContent = faixa.value + 'px';
+  };
+  faixa.oninput = aplicar;
+  aplicar();
+}
+ligarTamanho('tam-display', 'amostra-display', 'tam-display-valor');
+ligarTamanho('tam-ui', 'amostra-ui', 'tam-ui-valor');
+
+// ── Pattern ao vivo ────────────────────────────────────────────────────────
+const palcoPattern = document.getElementById('pattern-palco');
+const densidade = document.getElementById('densidade');
+const opacidade = document.getElementById('opacidade');
+function pintarPattern() {
+  palcoPattern.style.backgroundSize = densidade.value + 'px';
+  palcoPattern.style.filter = `opacity(${Number(opacidade.value) / 9})`;
+}
+densidade.oninput = pintarPattern;
+opacidade.oninput = pintarPattern;
+pintarPattern();
+
+// ── As fotos vêm do sistema, não de arquivos soltos ────────────────────────
+// Elas sobem a própria foto no app; o slide lê a mesma view pública que o site
+// das clientes usa. Assim a apresentação nunca fica com uma foto antiga, e
+// trocar a foto no sistema troca aqui também.
+const ICO_FUNCAO = {
+  cabelo: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.35\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"18\" r=\"2.5\"/><circle cx=\"18\" cy=\"18\" r=\"2.5\"/><path d=\"M7.8 16.2 19.5 3.2M16.2 16.2 4.5 3.2\"/></svg>",
+  unhas: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.35\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"10\" y=\"2.4\" width=\"4\" height=\"4\" rx=\"1.1\"/><path d=\"M11 6.4v1.5l-1.9 2.2a2 2 0 0 0-.5 1.3V20a1.4 1.4 0 0 0 1.4 1.4h4a1.4 1.4 0 0 0 1.4-1.4v-6.6a2 2 0 0 0-.5-1.3L13 9.9V6.4\"/></svg>",
+  ambos: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.35\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z\"/></svg>",
+};
+const NOME_FUNCAO = { cabelo: 'Cabelos', unhas: 'Unhas', ambos: 'Unhas e cabelos' };
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function pintarEquipe(pessoas) {
+  const alvo = document.getElementById('equipe');
+  if (!pessoas.length) {
+    alvo.innerHTML = `<p class="nota">A equipe aparece aqui assim que cada uma
+      subir a própria foto no sistema, em Comissões &rarr; Equipe.</p>`;
+    return;
+  }
+  alvo.innerHTML = pessoas.map((p) => `
+    <div class="pessoa">
+      ${p.foto
+        ? `<img class="retrato" src="${esc(p.foto)}" alt="${esc(p.nome)}">`
+        : `<span class="retrato">${esc((p.nome || '?')[0].toUpperCase())}</span>`}
+      <div class="crescer">
+        <div class="pessoa-nome">${esc(p.apelido || p.nome)}</div>
+        <div class="pessoa-funcao">${ICO_FUNCAO[p.funcao] || ICO_FUNCAO.ambos}
+          <span class="rot">${NOME_FUNCAO[p.funcao] || 'Studio'}</span></div>
+        ${p.bio ? `<p class="pessoa-bio">${esc(p.bio)}</p>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+(async () => {
+  const cfg = window.ALENTO_CONFIG;
+  if (!cfg?.url) return pintarEquipe([]);
+  try {
+    const r = await fetch(`${cfg.url}/rest/v1/equipe_publica?select=nome,apelido,funcao,foto,bio`,
+      { headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey } });
+    if (!r.ok) throw new Error(r.status);
+    pintarEquipe(await r.json());
+  } catch {
+    pintarEquipe([]);
+  }
+})();
+
+</script>
+</body>
+</html>
