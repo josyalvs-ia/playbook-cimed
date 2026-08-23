@@ -566,6 +566,62 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .avatar.verde { background: var(--verde-claro); color: var(--creme); }
 .avatar.lg { width: 46px; height: 46px; font-size: 20px; }
 
+/* ── Retrato de quem atende ────────────────────────────────────────────────*/
+/* O fio creme ao redor é a mesma moldura dos ícones de destaque do manual. */
+.retrato {
+  border-radius: 50%; flex: none; object-fit: cover;
+  border: 1px solid var(--linha-forte); background: var(--verde-claro);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-weight: 700; color: var(--creme);
+  overflow: hidden;
+}
+.retrato.vazio { background: var(--creme); color: var(--verde); border-color: transparent; }
+
+/* Escolher a foto: prévia grande ao lado do botão, para ver o enquadramento. */
+.foto-campo {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 18px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--linha);
+}
+.foto-campo .btn { cursor: pointer; }
+
+/* ── Destaques da marca ────────────────────────────────────────────────────*/
+/* A fileira de círculos do pack de redes sociais, virada em navegação. */
+.destaques {
+  display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  margin: 0 0 34px;
+}
+.destaque-marca {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  padding: 6px 4px; width: 92px; color: var(--texto-2);
+  transition: color .25s ease;
+}
+.destaque-anel {
+  width: 62px; height: 62px; border-radius: 50%;
+  border: 1px solid var(--linha-forte);
+  display: grid; place-items: center;
+  transition: background .3s cubic-bezier(.2,.8,.3,1),
+              border-color .3s ease, transform .3s cubic-bezier(.2,.8,.3,1);
+}
+.destaque-anel .ico { width: 25px; height: 25px; transition: color .25s ease; }
+.destaque-rotulo {
+  font-size: 9.5px; font-weight: 500; letter-spacing: 0.18em;
+  text-transform: uppercase; line-height: 1.3; text-align: center;
+}
+.destaque-nota { font-size: 11px; color: var(--texto-3); line-height: 1; }
+
+.destaque-marca:hover .destaque-anel,
+.destaque-marca:focus-visible .destaque-anel { border-color: var(--creme); transform: translateY(-3px); }
+.destaque-marca:hover, .destaque-marca:focus-visible { color: var(--creme); }
+
+/* Escolhido: o círculo enche de creme e o ícone vira verde — o mesmo contraste
+   dos blocos claros do manual. */
+.destaque-marca.ativo { color: var(--creme); }
+.destaque-marca.ativo .destaque-anel {
+  background: var(--creme); border-color: var(--creme);
+  box-shadow: 0 8px 22px rgba(232, 223, 196, .14);
+}
+.destaque-marca.ativo .destaque-anel .ico { color: var(--verde); }
+
 /* Scrollbar discreta */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }

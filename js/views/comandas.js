@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato } from '../ui.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
 import { resumo, taxaDe, premissas } from '../metricas.js';
 
@@ -129,7 +129,9 @@ function linhasComanda(lista) {
         <td class="num">${fmt.dataCurta(c.data)}</td>
         <td><strong>${esc(c.cliente_nome || 'Sem cadastro')}</strong></td>
         <td class="t2 pequeno truncar" style="max-width:280px" title="${esc(nomes)}">${esc(nomes) || '—'}</td>
-        <td class="pequeno">${esc(profs.get(c.profissional_id)?.nome || '—')}</td>
+        <td class="pequeno">${(() => { const p = profs.get(c.profissional_id); return p
+          ? `<span class="flex" style="gap:7px">${retrato(p, { tam: 24 })}${esc(p.nome)}</span>`
+          : '—'; })()}</td>
         <td class="pequeno t2">${forma ? esc(forma.nome) : (c.status === 'aberta' ? '<span class="selo alerta">aberta</span>' : '—')}</td>
         <td class="n"><strong>${fmt.brl(c.total)}</strong></td>
         <td style="width:30px">${ico('editar')}</td>

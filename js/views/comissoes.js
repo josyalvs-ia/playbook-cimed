@@ -1,6 +1,7 @@
 // COMISSÕES — quanto cada profissional produziu e quanto tem a receber.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio, hoje } from '../ui.js';
+import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio, hoje,
+         retrato, fotoReduzida } from '../ui.js';
 import * as M from '../metricas.js';
 import { baixarCSV } from './precificacao.js';
 
@@ -41,7 +42,7 @@ export function render(raiz) {
       ${fechamentos.map((f) => `
         <div class="cartao">
           <div class="cartao-cabeca">
-            <span class="avatar lg verde">${esc(f.profissional.nome[0].toUpperCase())}</span>
+            ${retrato(f.profissional, { tam: 46 })}
             <div class="crescer">
               <h3>${esc(f.profissional.nome)}</h3>
               <div class="pequeno t3">${fmt.pct(f.profissional.comissao_pct, 0)} de comissão ·
@@ -127,7 +128,7 @@ export function abrirEquipe() {
       </tr></thead><tbody>
       ${db.estado.profissionais.map((p) => `<tr>
         <td><div class="flex" style="gap:9px">
-          <span class="avatar verde">${esc(p.nome[0].toUpperCase())}</span>
+          ${retrato(p, { tam: 38 })}
           <span><strong>${esc(p.nome)}</strong>
             ${p.user_id
               ? '<div class="pequeno t3">acessa o app</div>'
@@ -156,10 +157,31 @@ export function abrirEquipe() {
 export function abrirProfissional(id) {
   const p = id ? db.estado.profissionais.find((x) => x.id === id)
               : { funcao: 'unhas', comissao_pct: 0.5, ativo: true, atende: true };
+  let foto = p.foto || null;
+
   abrirModal({
     titulo: id ? p.nome : 'Nova profissional',
     corpo: `
+      <div class="foto-campo">
+        <div id="foto-previa">${retrato({ ...p, foto }, { tam: 92 })}</div>
+        <div class="crescer">
+          <div class="rotulo" style="margin-bottom:6px">Foto</div>
+          <p class="pequeno t3" style="margin-bottom:9px">Aparece no canto de quem está
+            usando o sistema e para a cliente na hora de escolher com quem marcar.</p>
+          <div class="flex" style="gap:8px;flex-wrap:wrap">
+            <label class="btn btn-sm" style="cursor:pointer">${ico('subir')} Escolher foto
+              <input type="file" id="foto-arquivo" accept="image/*" hidden></label>
+            <button class="btn btn-sm btn-fantasma" id="foto-tirar"
+              ${foto ? '' : 'hidden'}>Tirar foto</button>
+          </div>
+        </div>
+      </div>
       <label class="campo"><span>Nome</span><input name="nome" value="${esc(p.nome || '')}" required></label>
+      <label class="campo"><span>Como se apresenta para a cliente</span>
+        <input name="bio" value="${esc(p.bio || '')}" maxlength="90"
+               placeholder="Nails designer. Alongamento em gel e blindagem.">
+        <span class="dica t3">Uma linha curta, que aparece embaixo do nome no site
+          das clientes.</span></label>
       <div class="linha-campos">
         <label class="campo"><span>Função</span>
           <select name="funcao">
@@ -179,6 +201,22 @@ export function abrirProfissional(id) {
           <div class="pequeno t3">Desmarcado, some dos atendimentos e das comissões, mas continua
             com acesso ao sistema. É o caso de quem só administra.</div>
         </span></label>`,
+    aoAbrir: (veu) => {
+      const previa = veu.querySelector('#foto-previa');
+      const tirar  = veu.querySelector('#foto-tirar');
+      const pintar = () => {
+        previa.innerHTML = retrato({ ...p, foto }, { tam: 92 });
+        tirar.hidden = !foto;
+      };
+      veu.querySelector('#foto-arquivo').onchange = async (e) => {
+        const arquivo = e.target.files[0];
+        if (!arquivo) return;
+        try { foto = await fotoReduzida(arquivo); pintar(); }
+        catch (err) { avisar(err.message, 'erro'); }
+        e.target.value = '';
+      };
+      tirar.onclick = () => { foto = null; pintar(); };
+    },
     acoes: [
       ...(id ? [{ texto: ico('lixo') + ' Excluir', classe: 'btn-perigo', onClick: async (fechar) => {
         const atendimentos = db.estado.comandas.filter((c) => c.profissional_id === id).length;
@@ -194,7 +232,7 @@ export function abrirProfissional(id) {
         const d = lerForm(veu);
         if (!d.nome) return avisar('Informe o nome', 'erro');
         await db.salvar('profissionais', {
-          ...p, nome: d.nome, funcao: d.funcao,
+          ...p, nome: d.nome, funcao: d.funcao, bio: d.bio || null, foto,
           comissao_pct: (Number(d.pct) || 0) / 100,
           ativo: !!d.ativo, atende: !!d.atende,
         });

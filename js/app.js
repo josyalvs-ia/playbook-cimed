@@ -4,7 +4,8 @@
 
 import * as db from './db.js';
 import * as nov from './novidades.js';
-import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado } from './ui.js';
+import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado, retrato,
+         destaque } from './ui.js';
 
 const raizApp = document.getElementById('app');
 
@@ -107,7 +108,7 @@ function desenharCasca() {
         </nav>
         <div class="lateral-rodape">
           <div class="flex" style="gap:9px">
-            <span class="avatar" id="avatar-eu">A</span>
+            <span id="retrato-eu">${retrato(db.eu, { tam: 36 })}</span>
             <span class="crescer truncar">
               <span style="font-size:13.5px;font-weight:600" id="nome-eu">—</span>
               <span class="pequeno t3" id="status-sync" style="display:block"></span>
@@ -153,7 +154,8 @@ function desenharCasca() {
 
   const nome = db.eu?.nome || 'Equipe';
   document.getElementById('nome-eu').textContent = nome;
-  document.getElementById('avatar-eu').textContent = nome[0].toUpperCase();
+  const canto = document.getElementById('retrato-eu');
+  if (canto) canto.innerHTML = retrato(db.eu, { tam: 36 });
 }
 
 /** Marca o sino quando há coisa nova, e avisa na tela se a aba estiver de fundo. */
@@ -197,7 +199,7 @@ function abrirMais() {
               </button>`).join('')}`;
         }).join('')}
         <div class="menu-rodape">
-          <span class="avatar">${esc(nome[0].toUpperCase())}</span>
+          ${retrato(db.eu, { tam: 42 })}
           <span class="crescer truncar">
             <span style="font-size:14px;font-weight:600;display:block">${esc(nome)}</span>
             <span class="pequeno t3" id="status-sync-mais"></span>

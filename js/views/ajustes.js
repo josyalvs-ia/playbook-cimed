@@ -1,6 +1,6 @@
 // AJUSTES — dados do studio, link do Trinks, equipe, backup e carga inicial.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm } from '../ui.js';
+import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, retrato } from '../ui.js';
 import { abrirEquipe } from './comissoes.js';
 import { abrirBloqueio } from './agenda.js';
 
@@ -30,7 +30,7 @@ export function render(raiz) {
         <div class="tabela-wrap mb"><table><tbody>
           ${db.estado.profissionais.map((p) => `<tr>
             <td><div class="flex" style="gap:9px">
-              <span class="avatar verde">${esc(p.nome[0].toUpperCase())}</span>
+              ${retrato(p, { tam: 38 })}
               <span><strong>${esc(p.nome)}</strong>
                 <div class="pequeno t3">${p.user_id ? 'com acesso ao app' : 'sem login'} ·
                   ${p.atende === false ? 'não atende clientes' : fmt.pct(p.comissao_pct, 0) + ' de comissão'}</div></span>

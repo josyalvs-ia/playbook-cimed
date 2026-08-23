@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid, linkMapa } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid, linkMapa, retrato } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
 
 let dia = hoje();
@@ -105,7 +105,7 @@ function coluna(prof, itens) {
   return `
     <div class="cartao">
       <div class="cartao-cabeca">
-        <span class="avatar verde">${esc(prof.nome[0].toUpperCase())}</span>
+        ${retrato(prof, { tam: 34 })}
         <h3>${esc(prof.nome)}</h3>
         <span class="t3 pequeno">${itens.length}</span>
       </div>

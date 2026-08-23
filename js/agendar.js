@@ -6,7 +6,8 @@
 // pede para marcar. Nome e telefone das outras clientes ficam do outro lado.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { esc, fmt, avisar, precoTexto, linkMapa } from './ui.js';
+import { esc, fmt, avisar, precoTexto, linkMapa, retrato, destaque, icoDestaque,
+         familiaDe } from './ui.js';
 
 const DIAS_A_FRENTE = 45;
 const GUARDADOS = 'alento.meus-horarios';
@@ -37,12 +38,14 @@ export function esquecer(codigo) {
   } catch {}
 }
 
-export async function iniciarAgendamento({ sb, servicos, categorias, studio, raiz }) {
+export async function iniciarAgendamento({ sb, servicos, categorias, studio, equipe = [], raiz }) {
   let etapa = 1;
   let escolha = { servico: null, dia: null, horario: null };
+  let familia = null;                 // destaque escolhido no passo 1
   let livres = [];
 
   const nomeCat = (id) => categorias.find((c) => c.id === id)?.nome || id;
+  const quemE = (id) => equipe.find((p) => p.id === id) || null;
 
   function pintar() {
     raiz.innerHTML = `
@@ -56,17 +59,36 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
   }
 
   // ── 1. Serviço ───────────────────────────────────────────────────────────
+  // A escolha começa pelos destaques do manual: unhas, cabelos, tratamentos.
+  // São dezenas de serviços — pedir a família primeiro encurta a lista para o
+  // tamanho de uma tela de celular.
   function passoServico() {
+    const familias = ['unhas', 'cabelos', 'tratamentos']
+      .filter((f) => servicos.some((s) => familiaDe(s.categoria) === f));
+    const rotulo = { unhas: 'Unhas', cabelos: 'Cabelos', tratamentos: 'Tratamentos' };
+
+    const visiveis = familia ? servicos.filter((s) => familiaDe(s.categoria) === familia) : servicos;
     const porCat = new Map();
-    for (const s of servicos) {
+    for (const s of visiveis) {
       if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);
       porCat.get(s.categoria).push(s);
     }
+
     document.getElementById('ag-corpo').innerHTML = `
-      <p class="t2 pequeno mb">O que você quer fazer?</p>
+      ${familias.length > 1 ? `
+        <nav class="destaques" id="ag-familias">
+          ${familias.map((f) => destaque(f, rotulo[f], {
+            attrs: `data-fam="${f}"`,
+            nota: `${servicos.filter((s) => familiaDe(s.categoria) === f).length} serviços`,
+          })).join('')}
+        </nav>` : ''}
+      <p class="t2 pequeno mb centro">${familia
+        ? `${rotulo[familia]} — escolha o serviço`
+        : 'O que você quer fazer?'}</p>
       ${[...porCat.entries()].map(([cat, itens]) => `
         <div class="ag-grupo">
-          <div class="ag-grupo-titulo">${esc(nomeCat(cat))}</div>
+          <div class="ag-grupo-titulo">
+            ${icoDestaque(familiaDe(cat))}${esc(nomeCat(cat))}</div>
           ${itens.map((s) => `
             <button class="ag-opcao" data-serv="${esc(s.id)}">
               <span class="crescer">
@@ -76,6 +98,15 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
               <span class="ag-preco">${esc(precoTexto(s))}</span>
             </button>`).join('')}
         </div>`).join('')}`;
+
+    raiz.querySelectorAll('[data-fam]').forEach((b) => {
+      b.classList.toggle('ativo', b.dataset.fam === familia);
+      b.onclick = () => {
+        familia = familia === b.dataset.fam ? null : b.dataset.fam;
+        passoServico();
+        raiz.querySelector('#ag-familias')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      };
+    });
 
     raiz.querySelectorAll('[data-serv]').forEach((b) => b.onclick = () => {
       escolha.servico = servicos.find((s) => s.id === b.dataset.serv);
@@ -114,7 +145,14 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
     raiz.querySelectorAll('[data-dia]').forEach((b) => b.onclick = () => {
       escolha.dia = b.dataset.dia; escolha.horario = null; passoHorario();
     });
-    raiz.querySelector('.ag-dia.atual')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+    // Centraliza o dia escolhido movendo SÓ a tira. `scrollIntoView` aqui
+    // arrastava a página inteira junto — a vitrine atrás da tela de
+    // agendamento saía do lugar e o dedo acertava o campo errado.
+    const tira = raiz.querySelector('#dias');
+    const atual = tira?.querySelector('.ag-dia.atual');
+    if (tira && atual) {
+      tira.scrollLeft = atual.offsetLeft - (tira.clientWidth - atual.offsetWidth) / 2;
+    }
     buscarHorarios();
   }
 
@@ -144,8 +182,10 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
         <div class="ag-turno-titulo">${titulo}</div>
         <div class="ag-horas">
           ${itens.map((h) => `
-            <button class="ag-hora" data-quando="${esc(h.quando)}" data-prof="${esc(h.prof_id)}">
-              ${hora(h.quando)}<span>${esc(h.prof_nome)}</span>
+            <button class="ag-hora" data-quando="${esc(h.quando)}" data-prof="${esc(h.prof_id)}"
+                    data-prof-nome="${esc(h.prof_nome)}">
+              ${retrato(quemE(h.prof_id) || { nome: h.prof_nome }, { tam: 26, cls: 'ag-hora-foto' })}
+              <b>${hora(h.quando)}</b><span>${esc(h.prof_nome)}</span>
             </button>`).join('')}
         </div>
       </div>` : '';
@@ -153,7 +193,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
 
     alvo.querySelectorAll('[data-quando]').forEach((b) => b.onclick = () => {
       escolha.horario = { quando: b.dataset.quando, prof_id: b.dataset.prof,
-                          prof_nome: b.textContent.trim().split('\n').pop().trim() };
+                          prof_nome: b.dataset.profNome };
       etapa = 3; pintar();
     });
   }
@@ -163,6 +203,16 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
     const h = escolha.horario;
     document.getElementById('ag-corpo').innerHTML = `
       <button class="ag-voltar" id="voltar">&larr; Trocar horário</button>
+      ${(() => { const p = quemE(h.prof_id); return p ? `
+        <div class="ag-com">
+          ${retrato(p, { tam: 58 })}
+          <div class="crescer">
+            <div class="pequeno t3" style="letter-spacing:.16em;text-transform:uppercase;font-size:10px">
+              Quem vai te atender</div>
+            <div style="font-family:var(--display);font-size:19px;font-weight:700">${esc(p.apelido || p.nome)}</div>
+            ${p.bio ? `<div class="pequeno t2">${esc(p.bio)}</div>` : ''}
+          </div>
+        </div>` : ''; })()}
       <div class="ag-resumo">
         <div class="linha"><span>Serviço</span><strong>${esc(escolha.servico.nome)}</strong></div>
         <div class="linha"><span>Quando</span><strong>${dataLonga(h.quando)} às ${hora(h.quando)}</strong></div>

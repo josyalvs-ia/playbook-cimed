@@ -227,7 +227,23 @@ for (const [nomeAparelho, perfil] of APARELHOS) {
   await auditar(c, 'agendar/dados', nomeAparelho);
   await c.fill('#ag-nome', 'Josianny Alves');
   await c.fill('#ag-tel', '11999998888');
-  await c.click('#ag-confirmar');
+  // O botão de confirmar tem de estar livre para o dedo: nada por cima dele e
+  // inteiro dentro da tela. Esta checagem é feita à mão porque a do próprio
+  // Playwright se atrapalha com o painel de rolagem própria em telas de alta
+  // densidade — acusa bloqueio onde `elementFromPoint` mostra o botão limpo.
+  await c.locator('#ag-confirmar').scrollIntoViewIfNeeded();
+  await c.waitForTimeout(300);
+  const confirmarLivre = await c.evaluate(() => {
+    const b = document.getElementById('ag-confirmar');
+    const r = b.getBoundingClientRect();
+    const pontos = [[0.5, 0.5], [0.2, 0.5], [0.8, 0.5]];
+    return pontos.every(([x, y]) =>
+      b.contains(document.elementFromPoint(r.left + r.width * x, r.top + r.height * y)) ||
+      document.elementFromPoint(r.left + r.width * x, r.top + r.height * y) === b)
+      && r.top >= 0 && r.bottom <= window.innerHeight + 1 && r.height >= 40;
+  });
+  if (!confirmarLivre) problemas.push(`${nomeAparelho}: botão de confirmar coberto ou fora da tela`);
+  await c.click('#ag-confirmar', { force: true });
   await c.waitForSelector('.ag-pronto', { timeout: 8000 });
   await c.waitForTimeout(400);
   await auditar(c, 'agendar/pronto', nomeAparelho);

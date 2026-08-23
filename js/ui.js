@@ -37,6 +37,46 @@ export function ico(nome, cls = 'ico') {
     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${TRACOS[nome] || ''}</svg>`;
 }
 
+// ─── Destaques da marca ────────────────────────────────────────────────────
+// Os cinco ícones em círculo do pack de redes sociais: tesoura, estrela,
+// esmalte, calendário e coração. Mesmo traço fino e mesmo anel do manual.
+// Aqui eles não são enfeite — são a navegação do studio.
+const DESTAQUES = {
+  cabelos:     '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M7.8 16.2 19.5 3.2M16.2 16.2 4.5 3.2"/>',
+  tratamentos: '<path d="M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z"/>',
+  unhas:       '<rect x="10" y="2.4" width="4" height="4" rx="1.1"/><path d="M11 6.4v1.5l-1.9 2.2a2 2 0 0 0-.5 1.3V20a1.4 1.4 0 0 0 1.4 1.4h4a1.4 1.4 0 0 0 1.4-1.4v-6.6a2 2 0 0 0-.5-1.3L13 9.9V6.4"/>',
+  agenda:      '<rect x="3.2" y="5.2" width="17.6" height="15.6" rx="2.4"/><path d="M8 3.2v4M16 3.2v4M3.2 10.4h17.6"/>',
+  sobre:       '<path d="M12 20.6C12 20.6 3.6 15.2 3.6 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.4 2.5c0 5.7-8.4 11.1-8.4 11.1z"/>',
+};
+
+/** Qual destaque do manual representa cada categoria da tabela. */
+export const FAMILIA_DA_CATEGORIA = {
+  maos: 'unhas', pes: 'unhas', combos: 'unhas', blindagem: 'unhas',
+  alongamento: 'unhas', 'combo-along': 'unhas',
+  'cab-escova': 'cabelos', 'cab-corte': 'cabelos', 'cab-cor': 'cabelos',
+  'cab-tratamento': 'tratamentos', 'cab-terapia': 'tratamentos',
+};
+export const familiaDe = (cat) => FAMILIA_DA_CATEGORIA[cat] || 'tratamentos';
+
+/** O ícone do destaque, sem o anel — para títulos e listas. */
+export function icoDestaque(nome, cls = 'ico') {
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"
+    >${DESTAQUES[nome] || DESTAQUES.tratamentos}</svg>`;
+}
+
+/**
+ * O destaque inteiro: anel, ícone e rótulo em caixa alta espaçada, como na
+ * fileira do manual. `tag` vira <button> quando serve para clicar.
+ */
+export function destaque(nome, rotulo, { tag = 'button', attrs = '', nota = '' } = {}) {
+  return `<${tag} class="destaque-marca" data-destaque="${esc(nome)}" ${attrs}>
+    <span class="destaque-anel">${icoDestaque(nome, 'ico')}</span>
+    <span class="destaque-rotulo">${esc(rotulo)}</span>
+    ${nota ? `<span class="destaque-nota">${esc(nota)}</span>` : ''}
+  </${tag}>`;
+}
+
 /** Estrela de 4 pontas — o motivo gráfico da marca. */
 export function estrela(cls = '') {
   return `<span class="estrela ${cls}"><svg viewBox="-60 -60 120 120">
@@ -62,6 +102,50 @@ export function ceuEstrelado() {
       --atraso:${atraso}s; --dur:${dur}s">
       <svg viewBox="-60 -60 120 120"><path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z" fill="currentColor"/></svg>
     </span>`).join('')}</div>`;
+}
+
+/**
+ * Reduz a foto escolhida a um quadrado de 256px e devolve uma data URL JPEG.
+ *
+ * O corte é central e a escala é a maior das duas — é o que enquadra o rosto
+ * em vez de espremer a foto. Reduzir aqui, no aparelho, é o que permite
+ * guardar a foto na própria linha da profissional: 256px em JPEG dá uns 20 KB,
+ * e assim ninguém precisa configurar armazenamento de arquivos no Supabase.
+ */
+export function fotoReduzida(arquivo, { lado = 256, qualidade = 0.82 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!arquivo || !arquivo.type.startsWith('image/')) {
+      return reject(new Error('Escolha uma imagem (JPG ou PNG).'));
+    }
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Não consegui abrir essa imagem.')); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const tela = document.createElement('canvas');
+      tela.width = tela.height = lado;
+      const ctx = tela.getContext('2d');
+      const escala = Math.max(lado / img.width, lado / img.height);
+      const l = img.width * escala;
+      const a = img.height * escala;
+      ctx.drawImage(img, (lado - l) / 2, (lado - a) / 2, l, a);
+      resolve(tela.toDataURL('image/jpeg', qualidade));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * O rosto de quem atende, com a inicial como reserva. Serve tanto para a
+ * equipe dentro do sistema quanto para a cliente escolhendo com quem marcar.
+ */
+export function retrato(prof, { tam = 40, cls = '' } = {}) {
+  const nome = prof?.nome || '?';
+  const estilo = `width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.4)}px`;
+  return prof?.foto
+    ? `<img class="retrato ${cls}" src="${esc(prof.foto)}" alt="${esc(nome)}" style="${estilo}">`
+    : `<span class="retrato vazio ${cls}" style="${estilo}" aria-hidden="true"
+        >${esc(nome[0].toUpperCase())}</span>`;
 }
 
 // ─── Formatação ────────────────────────────────────────────────────────────

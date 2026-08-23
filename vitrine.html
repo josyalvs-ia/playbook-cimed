@@ -31,15 +31,53 @@
   .capa p { color: var(--texto-2); max-width: 44ch; margin: 0 auto; }
 
   .secao { margin-bottom: 34px; }
+  /* Título com o ícone do destaque: cada bloco da tabela carrega a marca da
+     família a que pertence. */
+  .secao-marca { flex: none; display: grid; place-items: center;
+                 width: 30px; height: 30px; border-radius: 50%;
+                 border: 1px solid var(--linha-forte); color: var(--creme); }
+  .secao-marca .ico { width: 15px; height: 15px; }
+  .secao-titulo::before { display: none; }
+
+  .filtro-aviso {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    flex-wrap: wrap; margin: -18px 0 28px;
+    font-size: 13px; color: var(--texto-3);
+  }
+  .filtro-aviso button {
+    color: var(--creme); text-decoration: underline; text-underline-offset: 3px;
+    font-size: 13px;
+  }
+
+  /* Quem cuida de você */
+  .equipe { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+  .pessoa {
+    display: flex; align-items: center; gap: 16px; min-width: 0;
+    background: var(--superficie); border: 1px solid var(--linha);
+    border-radius: var(--r-lg); padding: 18px;
+    transition: border-color .3s ease, transform .3s cubic-bezier(.2,.8,.3,1);
+  }
+  .pessoa:hover { border-color: var(--linha-forte); transform: translateY(-2px); }
+  .pessoa-nome { font-family: var(--display); font-size: 21px; font-weight: 700; line-height: 1.15; }
+  .pessoa-funcao {
+    display: flex; align-items: center; gap: 6px; margin-top: 3px;
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--texto-3);
+  }
+  .pessoa-funcao .ico { width: 13px; height: 13px; }
+  .pessoa-bio { margin-top: 8px; font-size: 13.5px; color: var(--texto-2); line-height: 1.5; }
   .secao-titulo {
     display: flex; align-items: center; gap: 14px;
     margin-bottom: 14px;
   }
   .secao-titulo::before, .secao-titulo::after { content: ''; flex: 1; height: 1px; background: var(--linha); }
+  /* O título quebra em vez de esticar a página: com o círculo do destaque na
+     frente, "Lavagem, Escova e Finalização" não cabe numa linha de celular. */
   .secao-titulo span {
     font-size: 11.5px; font-weight: 500; letter-spacing: 0.26em;
-    text-transform: uppercase; color: var(--texto-2); white-space: nowrap;
+    text-transform: uppercase; color: var(--texto-2); min-width: 0;
   }
+  .secao-titulo > span:not(.secao-marca) { flex: 1; }
 
   .preco-linha {
     display: flex; align-items: baseline; gap: 12px;
@@ -106,8 +144,10 @@
   .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); }
 
   .ag-grupo { margin-bottom: 22px; }
-  .ag-grupo-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+  .ag-grupo-titulo { display: flex; align-items: center; gap: 8px;
+                     font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
                      color: var(--texto-3); margin-bottom: 9px; }
+  .ag-grupo-titulo .ico { width: 14px; height: 14px; flex: none; color: var(--creme); opacity: .7; }
   .ag-opcao { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
               background: var(--superficie); border: 1px solid var(--linha);
               border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
@@ -141,17 +181,29 @@
   .ag-turno-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
                      color: var(--texto-3); margin-bottom: 10px; }
   .ag-horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 8px; }
-  .ag-hora { padding: 11px 6px; border-radius: 10px; border: 1px solid var(--linha-forte);
+  /* O rosto de quem atende vem junto do horário: a cliente escolhe a pessoa e
+     a hora no mesmo gesto, sem ter de decorar nome nenhum. */
+  .ag-hora { padding: 10px 6px; border-radius: 10px; border: 1px solid var(--linha-forte);
              background: var(--superficie); color: var(--texto);
-             font-family: var(--display); font-size: 17px; font-weight: 700;
-             display: flex; flex-direction: column; align-items: center; gap: 1px; }
+             display: flex; flex-direction: column; align-items: center; gap: 3px;
+             transition: background .2s ease, border-color .2s ease, color .2s ease,
+                         transform .2s cubic-bezier(.2,.8,.3,1); }
+  .ag-hora b { font-family: var(--display); font-size: 17px; font-weight: 700; line-height: 1; }
   .ag-hora span { font-family: var(--ui); font-size: 11px; font-weight: 400;
                   color: var(--texto-3); }
+  .ag-hora-foto { margin-bottom: 1px; }
   .ag-hora:hover, .ag-hora:focus-visible { background: var(--creme); color: var(--verde);
-                                           border-color: var(--creme); }
+                                           border-color: var(--creme); transform: translateY(-2px); }
   .ag-hora:hover span, .ag-hora:focus-visible span { color: rgba(46,51,34,.6); }
 
   .ag-vazio { text-align: center; padding: 34px 16px; color: var(--texto-3); }
+
+  /* Quem vai atender, com o rosto — logo antes de a cliente deixar os dados. */
+  .ag-com {
+    display: flex; align-items: center; gap: 14px; min-width: 0;
+    background: var(--superficie); border: 1px solid var(--linha);
+    border-radius: var(--r); padding: 14px 16px; margin-bottom: 16px;
+  }
   .ag-vazio a { color: var(--creme); }
 
   .ag-resumo { background: var(--superficie); border: 1px solid var(--linha);
@@ -239,7 +291,8 @@
 
 <script type="module">
 import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
-import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa } from './js/ui.js';
+import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa,
+         destaque, icoDestaque, familiaDe, retrato } from './js/ui.js';
 import { iniciarAgendamento, meusHorarios, desmarcar, hora, dataLonga } from './js/agendar.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
@@ -262,26 +315,33 @@ async function carregar() {
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
     const sb = createClient(cfg.url, cfg.anonKey);
     sbCliente = sb;
-    const [{ data: servicos }, { data: conf }] = await Promise.all([
+    // A equipe vem da view `equipe_publica`: só nome, foto e apresentação.
+    // Se o banco ainda não tiver a view, a página segue sem a seção.
+    const [{ data: servicos }, { data: conf }, { data: equipe }] = await Promise.all([
       sb.from('servicos').select('*').eq('ativo', true),
       sb.from('config').select('*').in('chave', ['studio', 'categorias']),
+      sb.from('equipe_publica').select('*').then((r) => r, () => ({ data: [] })),
     ]);
     if (!servicos?.length) throw new Error('vazio');
     const studio = conf?.find((c) => c.chave === 'studio')?.valor || {};
     return {
       servicos: servicos.filter((s) => s.tipo !== 'adicional').sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
       adicionais: servicos.filter((s) => s.tipo === 'adicional'),
+      equipe: equipe || [],
       studio,
     };
   } catch {
-    return { servicos: SERVICOS, adicionais: ADICIONAIS, studio: {} };
+    return { servicos: SERVICOS, adicionais: ADICIONAIS, equipe: [], studio: {} };
   }
 }
 
-function grupo(titulo, itens) {
+function grupo(titulo, itens, cat) {
   if (!itens.length) return '';
-  return `<section class="secao">
-    <div class="secao-titulo"><span>${esc(titulo)}</span></div>
+  const fam = familiaDe(cat);
+  return `<section class="secao" data-familia="${esc(fam)}">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque(fam)}</span>
+      <span>${esc(titulo)}</span></div>
     <div>${itens.map((s) => `
       <div class="preco-linha">
         <span class="nome">${esc(s.nome)}
@@ -295,7 +355,7 @@ function grupo(titulo, itens) {
   </section>`;
 }
 
-const { servicos, adicionais, studio } = await carregar();
+const { servicos, adicionais, equipe, studio } = await carregar();
 
 const porCat = new Map();
 for (const s of servicos) {
@@ -316,16 +376,31 @@ document.getElementById('vitrine').innerHTML = `
     <p class="assenta-3" style="position:relative;z-index:1">Cuidado que transforma. Beleza que acolhe e renova.</p>
   </header>
 
+  <nav class="destaques" id="destaques" aria-label="Filtrar por tipo de serviço">
+    ${destaque('unhas', 'Unhas', { attrs: 'data-familia="unhas"' })}
+    ${destaque('cabelos', 'Cabelos', { attrs: 'data-familia="cabelos"' })}
+    ${destaque('tratamentos', 'Tratamentos', { attrs: 'data-familia="tratamentos"' })}
+    ${destaque('agenda', 'Agenda', { attrs: 'data-acao="agendar"' })}
+    ${destaque('sobre', 'Sobre nós', { attrs: 'data-acao="sobre"' })}
+  </nav>
+
+  <div class="filtro-aviso" id="filtro-aviso" hidden>
+    Mostrando só uma parte da tabela.
+    <button id="limpar-filtro">Ver tudo</button>
+  </div>
+
   ${CATEGORIAS_SERVICO
     .filter((c) => porCat.has(c.id))
-    .map((c) => grupo(c.nome, porCat.get(c.id))).join('')}
+    .map((c) => grupo(c.nome, porCat.get(c.id), c.id)).join('')}
 
   ${[...porCat.entries()]
     .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
-    .map(([id, itens]) => grupo(id, itens)).join('')}
+    .map(([id, itens]) => grupo(id, itens, id)).join('')}
 
   ${adicionais.length ? `<section class="secao">
-    <div class="secao-titulo"><span>Adicionais</span></div>
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('unhas')}</span>
+      <span>Adicionais</span></div>
     ${adicionais.map((a) => `<div class="preco-linha">
         <span class="nome">${esc(a.nome)}${a.unidade ? `<span class="obs">${esc(a.unidade)}</span>` : ''}</span>
         <span class="valor">+ ${fmt.brl(a.preco)}</span>
@@ -348,8 +423,30 @@ document.getElementById('vitrine').innerHTML = `
     </div>
   </section>
 
-  <section class="secao">
-    <div class="secao-titulo"><span>Boas de saber</span></div>
+  ${equipe.length ? `<section class="secao" id="sobre">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('sobre')}</span>
+      <span>Quem cuida de você</span></div>
+    <div class="equipe">
+      ${equipe.map((p) => `
+        <div class="pessoa">
+          ${retrato(p, { tam: 104 })}
+          <div class="crescer">
+            <div class="pessoa-nome">${esc(p.apelido || p.nome)}</div>
+            <div class="pessoa-funcao">
+              ${icoDestaque(p.funcao === 'cabelo' ? 'cabelos' : p.funcao === 'ambos' ? 'tratamentos' : 'unhas')}
+              ${p.funcao === 'cabelo' ? 'Cabelos' : p.funcao === 'ambos' ? 'Unhas e cabelos' : 'Unhas'}
+            </div>
+            ${p.bio ? `<p class="pessoa-bio">${esc(p.bio)}</p>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+  </section>` : ''}
+
+  <section class="secao" id="boas-de-saber">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('tratamentos')}</span>
+      <span>Boas de saber</span></div>
     ${REGRAS.map((r) => `
       <div style="margin-bottom:20px">
         <div class="rotulo" style="margin-bottom:8px">${esc(r.titulo)}</div>
@@ -404,6 +501,57 @@ function pintarMeusHorarios() {
 }
 pintarMeusHorarios();
 
+// ── Destaques: a fileira de círculos do manual, virada em navegação ─────────
+// Clicar num deles esconde o que não é daquela família e leva a página até a
+// primeira seção que sobrou. Clicar de novo no mesmo mostra tudo — não existe
+// beco sem saída.
+{
+  const barra = document.getElementById('destaques');
+  const secoes = [...document.querySelectorAll('.secao[data-familia]')];
+  let familiaAtiva = null;
+
+  const aplicar = () => {
+    for (const sec of secoes) {
+      sec.hidden = !!familiaAtiva && sec.dataset.familia !== familiaAtiva;
+    }
+    barra.querySelectorAll('[data-familia]').forEach((b) =>
+      b.classList.toggle('ativo', b.dataset.familia === familiaAtiva));
+    document.getElementById('filtro-aviso').hidden = !familiaAtiva;
+  };
+
+  // Uma família sem nenhum serviço não vira botão morto: some da fileira.
+  const existentes = new Set(secoes.map((x) => x.dataset.familia));
+  barra.querySelectorAll('[data-familia]').forEach((b) => {
+    if (!existentes.has(b.dataset.familia)) b.remove();
+  });
+
+  barra.querySelectorAll('[data-familia]').forEach((b) => {
+    b.onclick = () => {
+      familiaAtiva = familiaAtiva === b.dataset.familia ? null : b.dataset.familia;
+      aplicar();
+      if (familiaAtiva) {
+        secoes.find((x) => x.dataset.familia === familiaAtiva)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+  });
+
+  barra.querySelector('[data-acao="sobre"]')?.addEventListener('click', () => {
+    familiaAtiva = null; aplicar();
+    (document.getElementById('sobre') || document.getElementById('boas-de-saber'))
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  barra.querySelector('[data-acao="agendar"]')?.addEventListener('click', () => {
+    document.getElementById('btn-agendar')?.click();
+  });
+
+  document.getElementById('limpar-filtro').onclick = () => {
+    familiaAtiva = null; aplicar();
+    barra.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  aplicar();
+}
+
 // ── Agendamento ────────────────────────────────────────────────────────────
 // Só funciona com o banco conectado: sem ele a página é apenas a tabela, e o
 // botão manda para o WhatsApp em vez de prometer algo que não vai acontecer.
@@ -432,7 +580,7 @@ document.getElementById('btn-agendar').onclick = async () => {
     sb: sbCliente,
     servicos: servicos.filter((s) => s.preco_tipo !== 'avaliacao'),
     categorias: CATEGORIAS_SERVICO,
-    studio,
+    studio, equipe,
     raiz: tela.querySelector('#ag-raiz'),
   });
 };

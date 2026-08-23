@@ -651,7 +651,50 @@ await p2.waitForTimeout(700);
   await p2.waitForTimeout(300);
 }
 
-// ── 19. Todo campo editável tem contraste real ──
+// ── 19. Foto da profissional ──
+// Um PNG de 1×1 pixel, o menor arquivo de imagem que existe. Serve para provar
+// o caminho inteiro: escolher arquivo → reduzir no aparelho → salvar → aparecer
+// no canto de quem está usando e na lista da equipe.
+{
+  await p2.evaluate(() => { location.hash = '#/comissoes'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#equipe');
+  await p2.waitForSelector('[data-prof]');
+  await p2.click('[data-prof]');
+  await p2.waitForSelector('#foto-previa');   // o campo de arquivo é oculto de propósito
+
+  const PIXEL = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64');
+  await p2.setInputFiles('#foto-arquivo', { name: 'laura.png', mimeType: 'image/png', buffer: PIXEL });
+  await p2.waitForTimeout(600);
+
+  const previa = await p2.getAttribute('#foto-previa img', 'src');
+  checagens.push(['foto: a prévia aparece já reduzida',
+    !!previa && previa.startsWith('data:image/jpeg')]);
+  checagens.push(['foto: cabe numa linha do banco', (previa || '').length < 60000]);
+
+  await p2.fill('input[name=bio]', 'Cabeleireira. Corte, cor e tratamento.');
+  await p2.click('text=Salvar');
+  await p2.waitForTimeout(900);
+
+  const salva = await p2.evaluate(() => {
+    const t = globalThis.__DB.profissionais || [];
+    const x = t.find((y) => y.foto);
+    return { foto: !!x?.foto, bio: x?.bio || '' };
+  });
+  checagens.push(['foto: fica guardada no cadastro', salva.foto]);
+  checagens.push(['foto: a apresentação também', salva.bio.includes('Cabeleireira')]);
+
+  await p2.evaluate(async () => { const db = await import('./js/db.js'); await db.recarregar(); });
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(900);
+  checagens.push(['foto: a coluna da agenda mostra o rosto',
+    await p2.locator('.agenda-colunas img.retrato, img.retrato').count() > 0]);
+  await p2.screenshot({ path: '/tmp/shot-foto.png' });
+}
+
+// ── 20. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {
