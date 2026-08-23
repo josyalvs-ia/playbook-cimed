@@ -266,6 +266,55 @@ export async function remover(tabela, id) {
   }
 }
 
+/**
+ * O banco tem tudo o que esta versão do app precisa?
+ *
+ * Existe para não haver mais adivinhação. Quando o `schema.sql` avança e o
+ * banco de quem já estava usando fica para trás, o sintoma chega torto: a foto
+ * salva na tela e some no login seguinte, o cartão de horário não desmarca. Em
+ * vez de deduzir isso pelo sintoma, o app pergunta.
+ *
+ * Cada item traz o que resolve, para a resposta não ser só "faltou".
+ */
+const EXIGENCIAS = [
+  { o_que: 'Foto e apresentação da equipe', tipo: 'coluna', tabela: 'profissionais', coluna: 'foto',
+    serve_para: 'a foto de cada uma aparecer no sistema e para a cliente' },
+  { o_que: 'Apresentação da equipe', tipo: 'coluna', tabela: 'profissionais', coluna: 'bio',
+    serve_para: 'a linha que descreve cada uma no site das clientes' },
+  { o_que: 'Equipe visível para a cliente', tipo: 'view', nome: 'equipe_publica',
+    serve_para: 'mostrar quem atende no site sem expor a comissão' },
+  { o_que: 'Conferência dos horários da cliente', tipo: 'funcao', nome: 'situacao_agendamentos',
+    args: { p_tokens: [] },
+    serve_para: 'tirar do celular dela o horário que já foi cancelado' },
+  { o_que: 'Agendamento pelo site', tipo: 'funcao', nome: 'horarios_livres',
+    args: { p_servico_id: '__x__', p_data: '2000-01-01' },
+    serve_para: 'a cliente ver os horários livres e marcar' },
+];
+
+export async function conferirBanco() {
+  if (!cliente) return { erro: 'Sem conexão com o servidor.' };
+  const faltando = [];
+
+  for (const e of EXIGENCIAS) {
+    try {
+      if (e.tipo === 'coluna') {
+        const { error } = await cliente.from(e.tabela).select(e.coluna).limit(1);
+        if (error) throw error;
+      } else if (e.tipo === 'view') {
+        const { error } = await cliente.from(e.nome).select('id').limit(1);
+        if (error) throw error;
+      } else {
+        const { error } = await cliente.rpc(e.nome, e.args);
+        // A função existe: erro de dado (serviço inexistente) não é falta dela.
+        if (error && /does not exist|could not find|schema cache/i.test(error.message)) throw error;
+      }
+    } catch (err) {
+      faltando.push({ ...e, motivo: String(err?.message || err) });
+    }
+  }
+  return { faltando };
+}
+
 // ─── Config (premissas, link do Trinks…) ───────────────────────────────────
 export function cfg(chave, padrao = null) {
   const r = estado.config.find((c) => c.chave === chave);

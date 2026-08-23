@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Como comprar o domínio — Alento Studio de Beleza</title>
+<meta name="description" content="Passo a passo para Laura e Julia registrarem alentoostudio.com.br no registro.br.">
+<meta name="theme-color" content="#2E3322">
+<link rel="icon" href="assets/selo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --creme: #E8DFC4; --preto: #1D1D1B; --verde-claro: #4A5236; --verde: #2E3322;
+    --superficie: #373E28; --linha: rgba(232,223,196,.16); --linha-forte: rgba(232,223,196,.34);
+    --texto-2: rgba(232,223,196,.72); --texto-3: rgba(232,223,196,.48);
+    --display: 'Playfair Display', Georgia, serif;
+    --ui: 'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--ui); background: var(--verde); color: var(--creme);
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    padding: 0 20px 80px;
+  }
+  .folha { max-width: 720px; margin: 0 auto; }
+
+  header { text-align: center; padding: 56px 0 34px; }
+  header img { width: min(300px, 78%); margin: 0 auto 20px; display: block; }
+  header h1 { font-family: var(--display); font-size: clamp(28px, 6vw, 40px); line-height: 1.15; }
+  header p { color: var(--texto-2); margin-top: 12px; }
+
+  .aviso {
+    display: flex; gap: 12px; background: var(--superficie);
+    border: 1px solid var(--linha); border-left: 3px solid var(--creme);
+    border-radius: 12px; padding: 16px 18px; margin: 26px 0;
+  }
+  .aviso strong { display: block; margin-bottom: 3px; }
+  .aviso p { font-size: 14.5px; color: var(--texto-2); }
+
+  .passo { margin: 34px 0; }
+  .passo-cabeca { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .passo-num {
+    flex: none; width: 40px; height: 40px; border-radius: 50%;
+    background: var(--creme); color: var(--verde);
+    display: grid; place-items: center;
+    font-family: var(--display); font-weight: 700; font-size: 19px;
+  }
+  .passo h2 { font-family: var(--display); font-size: 23px; font-weight: 700; line-height: 1.2; }
+  .passo-corpo { padding-left: 54px; }
+  @media (max-width: 560px) { .passo-corpo { padding-left: 0; } }
+
+  ol, ul { margin: 12px 0 0; padding-left: 0; list-style: none; }
+  li { position: relative; padding-left: 26px; margin-bottom: 11px; color: var(--texto-2); }
+  li::before {
+    content: ''; position: absolute; left: 3px; top: 10px;
+    width: 8px; height: 8px; background: var(--creme); opacity: .6;
+    clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+  }
+  li strong, p strong { color: var(--creme); }
+  code {
+    background: rgba(232,223,196,.1); border-radius: 5px; padding: 2px 7px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .92em;
+    word-break: break-all;
+  }
+  a { color: var(--creme); text-underline-offset: 3px; }
+
+  .regua { display: flex; align-items: center; gap: 14px; margin: 44px 0; color: var(--texto-3); }
+  .regua::before, .regua::after { content: ''; flex: 1; height: 1px; background: var(--linha); }
+  .estrela { width: 15px; height: 15px; }
+
+  table { border-collapse: collapse; width: 100%; margin-top: 14px; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 8px; border-bottom: 1px solid var(--linha); }
+  th { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--texto-3); font-weight: 500; }
+  td:last-child, th:last-child { text-align: right; white-space: nowrap; }
+
+  footer { text-align: center; color: var(--texto-3); font-size: 14px; margin-top: 50px; }
+
+  .imprimir {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--linha-forte); border-radius: 999px;
+    padding: 10px 20px; font-size: 14.5px; margin-top: 20px; cursor: pointer;
+    background: none; color: var(--creme); font: inherit; font-size: 14.5px;
+  }
+  .imprimir:hover { background: var(--creme); color: var(--verde); border-color: var(--creme); }
+
+  /* Salvar em PDF é só imprimir escolhendo "Salvar como PDF": em papel, o
+     verde vira tinta demais, então a versão impressa é clara. */
+  @media print {
+    body { background: #fff; color: #1D1D1B; padding: 0; font-size: 12pt; }
+    header { padding: 0 0 20px; }
+    header img { filter: invert(1) brightness(.35); }
+    .imprimir, footer { display: none; }
+    .aviso { background: #f4f1e6; border-color: #ccc; border-left-color: #2E3322; }
+    .passo { break-inside: avoid; }
+    .passo-num { background: #2E3322; color: #fff; }
+    li, .aviso p, td { color: #333; }
+    li::before { background: #2E3322; }
+    code { background: #eee; }
+    a { color: #2E3322; }
+    a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #666; }
+    th, td { border-color: #ddd; }
+  }
+</style>
+</head>
+<body>
+<div class="folha">
+
+<header>
+  <img src="assets/marca.svg" alt="Alento — Studio de Beleza">
+  <h1>Como comprar o domínio do studio</h1>
+  <p>Passo a passo para registrar <strong>alentoostudio.com.br</strong>.<br>
+     Leva uns 15 minutos e custa <strong>R$ 40 por ano</strong>.</p>
+  <button class="imprimir" onclick="window.print()">Salvar em PDF ou imprimir</button>
+</header>
+
+<div class="aviso">
+  <div>
+    <strong>Por que registro.br e não outro site</strong>
+    <p>Todo domínio <code>.com.br</code> passa pelo registro.br, que é o órgão oficial
+    brasileiro. Comprar por revendedores custa mais caro e coloca um intermediário
+    entre vocês e o domínio. Aqui é direto na fonte, pelo preço de tabela.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">1</span>
+    <h2>Decidir de quem fica o domínio</h2>
+  </div>
+  <div class="passo-corpo">
+    <p>O domínio fica no nome de quem registrar. Vale conversar antes, porque mudar
+    depois dá trabalho.</p>
+    <ul>
+      <li><strong>CPF de uma de vocês</strong> — mais simples, resolve hoje. Quem
+        registrar é a dona do domínio.</li>
+      <li><strong>CNPJ do studio</strong> — se já existe empresa aberta, é o mais
+        indicado: o domínio pertence ao negócio, não a uma pessoa.</li>
+    </ul>
+    <p style="margin-top:14px">Quem registrar precisa ter em mãos: <strong>CPF ou CNPJ,
+    e-mail e telefone</strong>.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">2</span>
+    <h2>Ver se o nome está livre</h2>
+  </div>
+  <div class="passo-corpo">
+    <ul>
+      <li>Abra <a href="https://registro.br" target="_blank" rel="noopener">registro.br</a></li>
+      <li>No campo de busca do meio da página, digite <code>alentoostudio.com.br</code>
+        — atenção aos <strong>dois "o"</strong> no meio, é assim mesmo que vocês querem</li>
+      <li>Clique em <strong>Pesquisar</strong></li>
+    </ul>
+    <p style="margin-top:14px">Se aparecer <strong>"disponível"</strong> em verde, pode seguir.
+    Se disser que já está registrado, me avise: a gente escolhe uma variação junto.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">3</span>
+    <h2>Criar a conta</h2>
+  </div>
+  <div class="passo-corpo">
+    <ul>
+      <li>Clique em <strong>Login</strong>, no canto superior direito, e depois em
+        <strong>Criar conta</strong></li>
+      <li>Escolha <strong>Pessoa física</strong> (CPF) ou <strong>Pessoa jurídica</strong> (CNPJ),
+        conforme decidiram no passo 1</li>
+      <li>Preencha os dados e confirme o e-mail que chegar na caixa de entrada</li>
+    </ul>
+    <div class="aviso" style="margin-top:18px">
+      <div>
+        <strong>Guardem o login com carinho</strong>
+        <p>É com ele que se renova o domínio todo ano. Perder o acesso significa perder o
+        endereço do site. Anotem em lugar seguro e deixem as duas sabendo.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">4</span>
+    <h2>Registrar e pagar</h2>
+  </div>
+  <div class="passo-corpo">
+    <ul>
+      <li>Já logada, pesquise <code>alentoostudio.com.br</code> de novo</li>
+      <li>Clique em <strong>Registrar</strong></li>
+      <li>Escolha o período: <strong>1 ano sai R$ 40</strong>. Vale pegar 3 anos
+        (R$ 120) para não correr risco de esquecer a renovação</li>
+      <li>Pague por <strong>boleto, Pix ou cartão</strong></li>
+    </ul>
+    <table>
+      <thead><tr><th>Período</th><th>Valor</th></tr></thead>
+      <tbody>
+        <tr><td>1 ano</td><td>R$ 40</td></tr>
+        <tr><td>3 anos</td><td>R$ 120</td></tr>
+        <tr><td>5 anos</td><td>R$ 200</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px">Por Pix ou cartão, o domínio fica ativo em minutos.
+    Por boleto, leva de 1 a 3 dias úteis.</p>
+  </div>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">5</span>
+    <h2>Me avisar que está pronto</h2>
+  </div>
+  <div class="passo-corpo">
+    <p>Com o domínio pago, o resto é comigo. Vou configurar para que
+    <code>www.alentoostudio.com.br</code> abra o site das clientes, e o sistema de vocês
+    fique num endereço separado.</p>
+    <p style="margin-top:12px">Para isso vou precisar que alguém entre no registro.br e
+    ajuste o <strong>DNS</strong> — eu passo exatamente o que colar, é copiar e colar em
+    quatro campos. Depois disso o endereço novo começa a funcionar em algumas horas.</p>
+    <div class="aviso" style="margin-top:18px">
+      <div>
+        <strong>Enquanto isso o site já funciona</strong>
+        <p>Os endereços atuais continuam valendo e não param quando o domínio entrar.
+        O domínio só troca o endereço por um mais bonito de dizer e de imprimir no cartão.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="regua">
+  <svg class="estrela" viewBox="-60 -60 120 120" fill="currentColor">
+    <path d="M0-56Q7-7 56 0Q7 7 0 56Q-7 7-56 0Q-7-7 0-56Z"/></svg>
+</div>
+
+<div class="passo">
+  <div class="passo-cabeca">
+    <span class="passo-num">?</span>
+    <h2>Perguntas que costumam aparecer</h2>
+  </div>
+  <div class="passo-corpo">
+    <ul>
+      <li><strong>Precisa contratar hospedagem?</strong> Não. O site já está hospedado e
+        não custa nada. O domínio é só o endereço.</li>
+      <li><strong>E se esquecermos de renovar?</strong> O registro.br avisa por e-mail com
+        antecedência e o domínio fica algumas semanas em carência antes de ser liberado.
+        Ainda assim, pegar 3 anos evita o susto.</li>
+      <li><strong>Dá para ter e-mail <code>@alentoostudio.com.br</code>?</strong> Dá, mas é
+        um serviço à parte (o Google cobra por caixa). Podemos ver isso depois, com calma.</li>
+      <li><strong>E se quisermos mudar de nome?</strong> O domínio é independente do site.
+        Trocar o nome significa registrar outro domínio; o site continua o mesmo.</li>
+    </ul>
+  </div>
+</div>
+
+<footer>
+  <p>Alento Studio de Beleza · Rua dos Manacás, 464 — Sala 3, Jd. da Glória, Cotia/SP</p>
+</footer>
+
+</div>
+</body>
+</html>

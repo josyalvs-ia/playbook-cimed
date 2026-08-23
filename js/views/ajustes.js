@@ -79,6 +79,7 @@ export function render(raiz) {
         <div class="flex envolve" style="gap:8px">
           <button class="btn" id="backup">${ico('baixar')}Baixar backup</button>
           <button class="btn" id="recarregar">${ico('nuvem')}Recarregar do servidor</button>
+          <button class="btn" id="conferir-banco">${ico('check')}Conferir o banco</button>
           <button class="btn btn-fantasma" id="seed">Instalar dados iniciais</button>
         </div>
         <div class="aviso mt">${ico('info')}<div>
@@ -133,6 +134,42 @@ export function render(raiz) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     avisar('Backup baixado');
+  };
+
+  // Em vez de deduzir pelo sintoma que o banco ficou para trás, pergunta.
+  raiz.querySelector('#conferir-banco').onclick = async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true; b.textContent = 'Conferindo…';
+    const { faltando, erro } = await db.conferirBanco();
+    b.disabled = false; b.innerHTML = ico('check') + 'Conferir o banco';
+
+    if (erro) return avisar(erro, 'erro');
+
+    abrirModal({
+      titulo: faltando.length ? 'O banco está atrasado' : 'Banco em dia',
+      corpo: faltando.length ? `
+        <p class="t2 mb">Estas partes do sistema não vão funcionar até você rodar a
+          atualização do banco. É o que faz a foto sumir no próximo login, por exemplo:
+          o app salva no aparelho, o servidor recusa, e o que ficou só no celular
+          desaparece.</p>
+        <div class="tabela-wrap mb"><table><tbody>
+          ${faltando.map((f) => `<tr>
+            <td><strong>${esc(f.o_que)}</strong>
+              <div class="pequeno t3">serve para ${esc(f.serve_para)}</div></td>
+            <td class="n"><span class="selo erro">falta</span></td>
+          </tr>`).join('')}
+        </tbody></table></div>
+        <div class="aviso">${ico('info')}<div>
+          <strong>Como resolver, uma vez só:</strong><br>
+          1. Abra o Supabase e vá em <strong>SQL Editor → New query</strong><br>
+          2. Cole o conteúdo do arquivo <code>db/atualizar.sql</code> do repositório<br>
+          3. Clique em <strong>Run</strong><br>
+          4. Volte aqui e toque em <strong>Recarregar do servidor</strong>
+        </div></div>`
+        : `<div class="aviso ok">${ico('check')}<div>
+            O banco tem tudo o que esta versão do sistema precisa. Se alguma coisa não
+            estiver salvando, não é por aqui.</div></div>`,
+    });
   };
 
   raiz.querySelector('#recarregar').onclick = async () => {

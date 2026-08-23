@@ -23,7 +23,17 @@ function tabela(nome){ return memoria[nome] || (memoria[nome] = []); }
 function query(nome){
   const q = {
     _rows: () => tabela(nome),
-    select(){ return Object.assign(Promise.resolve({data: tabela(nome), error:null}), q); },
+    select(cols){
+      // O teste pode esconder uma coluna, para exercitar o "banco atrasado".
+      const some = globalThis.__SEM_COLUNA;
+      if (some && String(cols || '').split(',').map(x => x.trim()).includes(some)) {
+        const erro = { code: 'PGRST204', message: 'Could not find the ' + some + ' column of ' + nome };
+        return Object.assign(Promise.resolve({ data: null, error: erro }),
+          { ...q, limit: () => Promise.resolve({ data: null, error: erro }) });
+      }
+      return Object.assign(Promise.resolve({data: tabela(nome), error:null}),
+        { ...q, limit: () => Promise.resolve({ data: tabela(nome), error: null }) });
+    },
     eq(){ return this; }, in(){ return this; }, single(){ return this; },
     upsert(r){ const arr = Array.isArray(r)?r:[r];
       // O teste pode mandar o banco recusar, para exercitar o caminho do erro.
@@ -953,7 +963,37 @@ await p2.waitForTimeout(700);
     lateral.includes('v' + versao), lateral.trim()]);
 }
 
-// ── 24. Todo campo editável tem contraste real ──
+// ── 24. O sistema confere o banco sozinho ──
+// Banco atrasado se manifestava torto: a foto salvava e sumia no login
+// seguinte. Agora dá para perguntar, em vez de deduzir pelo sintoma.
+{
+  // Banco em dia: o falso responde a tudo.
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#conferir-banco');
+  await p2.waitForSelector('.modal');
+  checagens.push(['conferir banco: diz quando está tudo certo',
+    /Banco em dia/.test(nb(await p2.textContent('.modal')))]);
+  await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(400);
+
+  // Agora com a coluna da foto faltando, como no banco de verdade dela.
+  await p2.evaluate(() => { globalThis.__SEM_COLUNA = 'foto'; });
+  await p2.click('#conferir-banco');
+  await p2.waitForSelector('.modal');
+  const painel = nb(await p2.textContent('.modal'));
+  checagens.push(['conferir banco: aponta o que falta', /O banco está atrasado/.test(painel)]);
+  checagens.push(['conferir banco: nomeia a parte quebrada', /Foto e apresentação/.test(painel)]);
+  checagens.push(['conferir banco: explica para que serve', /a foto de cada uma/.test(painel)]);
+  checagens.push(['conferir banco: ensina o caminho completo',
+    /SQL Editor/.test(painel) && /atualizar\.sql/.test(painel) && /Recarregar do servidor/.test(painel)]);
+  await p2.screenshot({ path: '/tmp/shot-conferir-banco.png' });
+  await p2.evaluate(() => { globalThis.__SEM_COLUNA = null; });
+  await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(400);
+}
+
+// ── 25. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {
