@@ -169,7 +169,7 @@ function abrirNovidades() {
 
   abrirModal({
     titulo: 'Novidades',
-    corpo: lista.length ? `
+    corpo: (lista.length ? `
       <div class="novidades">
         ${lista.map((n) => `
           <button class="novidade ${n.lida ? '' : 'nao-lida'}" data-ir-agenda="${esc(n.quando)}">
@@ -180,16 +180,29 @@ function abrirNovidades() {
             </span>
             ${n.lida ? '' : '<span class="selo">nova</span>'}
           </button>`).join('')}
-      </div>
-      ${perm !== 'granted' ? `
-        <div class="aviso mt">${ico('sino')}<div>
-          Quer ser avisada na tela quando uma cliente marcar, mesmo com o app numa aba
-          de fundo? <button class="btn btn-sm mt" id="pedir-aviso">Ativar avisos</button>
-        </div></div>` : ''}`
+      </div>`
       : `<div class="vazio">${estrela()}
           <p>Nada novo por aqui.</p>
           <p class="pequeno t3">Quando uma cliente marcar ou desmarcar pelo site,
-            aparece nesta lista.</p></div>`,
+            aparece nesta lista.</p></div>`)
+      // O convite para ativar os avisos aparece SEMPRE que ainda não foram
+      // ativados. Deixá-lo só junto das novidades criava um nó: só dava para
+      // ativar depois de já ter perdido a primeira.
+      + (perm === 'granted' ? `
+        <div class="aviso ok mt">${ico('check')}<div>
+          Avisos ativados neste aparelho. Com o app aberto em outra aba, você recebe
+          o aviso na tela quando uma cliente marcar.</div></div>`
+        : perm === 'denied' ? `
+        <div class="aviso alerta mt">${ico('sino')}<div>
+          Os avisos estão <strong>bloqueados</strong> para este site no navegador.
+          Para liberar: clique no cadeado ao lado do endereço &rarr;
+          <strong>Notificações</strong> &rarr; Permitir.</div></div>`
+        : perm === 'indisponivel' ? ''
+        : `<div class="aviso mt">${ico('sino')}<div>
+            <strong>Quer ser avisada na hora?</strong> Com o app aberto numa aba de
+            fundo, o computador te avisa quando uma cliente marcar ou desmarcar.
+            <button class="btn btn-primario btn-sm mt" id="pedir-aviso">Ativar avisos</button>
+          </div></div>`),
     acoes: lista.length ? [
       { texto: 'Limpar', classe: 'btn-fantasma', onClick: (f) => { nov.limpar(); f(); atualizarSino(); } },
       { texto: 'Marcar como lidas', classe: 'btn-primario', onClick: (f) => {
@@ -210,9 +223,17 @@ function abrirNovidades() {
         atualizarSino();
       });
       veu.querySelector('#pedir-aviso')?.addEventListener('click', async (e) => {
-        const r = await nov.pedirPermissao();
-        e.target.textContent = r === 'granted' ? 'Avisos ativados' : 'Avisos bloqueados no navegador';
         e.target.disabled = true;
+        const r = await nov.pedirPermissao();
+        if (r === 'granted') {
+          e.target.textContent = 'Pronto! Avisos ativados';
+          new Notification('Alento', {
+            body: 'É assim que você vai ser avisada de um novo horário. ✨',
+            icon: 'assets/icone-192.png',
+          });
+        } else {
+          e.target.textContent = 'O navegador bloqueou os avisos';
+        }
       });
     },
   });

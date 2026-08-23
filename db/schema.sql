@@ -521,6 +521,25 @@ grant execute on function public.horarios_livres(text, date) to anon, authentica
 grant execute on function public.criar_agendamento(text, uuid, timestamptz, text, text, text) to anon, authenticated;
 grant execute on function public.cancelar_agendamento(uuid) to anon, authenticated;
 
+-- ── Tempo real ─────────────────────────────────────────────────────────────
+-- Tabela nova não entra sozinha na publicação do Realtime, e sem isso o app de
+-- uma não fica sabendo do que a outra fez. O app também confere sozinho de
+-- tempos em tempos, então isto é o que deixa a notícia instantânea.
+do $$
+declare t text;
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach t in array array['agendamentos', 'comandas', 'caixa', 'bloqueios'] loop
+      if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+      ) then
+        execute format('alter publication supabase_realtime add table public.%I', t);
+      end if;
+    end loop;
+  end if;
+end $$;
+
 -- Horário inicial para quem ainda não configurou: terça a sábado, 9h às 19h,
 -- com uma hora de almoço. Editável em Ajustes → Horários.
 insert into horarios (profissional_id, dia_semana, abre, fecha, pausa_inicio, pausa_fim)

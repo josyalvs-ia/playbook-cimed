@@ -11,18 +11,8 @@ import { esc, fmt, avisar, precoTexto, linkMapa } from './ui.js';
 const DIAS_A_FRENTE = 45;
 const GUARDADOS = 'alento.meus-horarios';
 
-/**
- * O recado que fica na tela depois de marcar. Sorteia uma para que quem marca
- * sempre não leia a mesma frase — no tom do manual: acolher, não vender.
- */
-const RECADOS = [
-  'Seu momento de pausa já tem hora marcada.',
-  'Reservado: um tempinho só seu.',
-  'A gente já está preparando tudo. Vem como você estiver.',
-  'Cuidado que transforma — e agora tem dia e hora.',
-  'Beleza que acolhe e renova. Te esperamos.',
-  'Guardamos esse horário para você. Vai ser bom te ver.',
-];
+/** A frase que fecha o agendamento. Escolhida pelo studio, do manual da marca. */
+const RECADO = 'Beleza que acolhe e renova. Te esperamos.';
 
 /** Horários que esta pessoa marcou, guardados no navegador dela. */
 export function meusHorarios() {
@@ -220,7 +210,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
 
   function mostrarPronto(r, nome) {
     const zap = String(studio.whatsapp || '').replace(/\D/g, '');
-    const recado = RECADOS[Math.floor(Math.random() * RECADOS.length)];
+
 
     guardar({ codigo: r.codigo, quando: r.quando, servico: r.servico,
               prof: r.prof_nome, nome });
@@ -232,7 +222,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, rai
         <img class="ag-marca" src="assets/marca.svg" alt="Alento — Studio de Beleza">
         <div class="ag-selo">✓</div>
         <h2>Horário marcado!</h2>
-        <p class="ag-recado">${esc(recado)}</p>
+        <p class="ag-recado">${esc(RECADO)}</p>
         <p class="t2">${esc(nome.split(' ')[0])}, te esperamos <strong>${dataLonga(r.quando)}
           às ${hora(r.quando)}</strong>, com ${esc(r.prof_nome)}.</p>
         <div class="ag-resumo mt">

@@ -262,14 +262,54 @@ export async function iniciar() {
   window.addEventListener('online', drenarFila);
   cliente.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT') location.reload(); });
 
-  // Tempo real: o que a Laura fecha aparece na tela da Ju sem recarregar.
+  // Tempo real: o que a Laura fecha aparece na tela da Ju na hora.
+  // Só funciona se as tabelas estiverem publicadas no Realtime do Supabase —
+  // e tabela nova NÃO entra sozinha. Por isso não dá para depender disto.
   try {
     cliente.channel('alento')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => { recarregar(); })
       .subscribe();
-  } catch { /* realtime é um bônus; o app funciona sem ele */ }
+  } catch { /* segue com a checagem periódica abaixo */ }
+
+  vigiar();
 
   return { estado: 'pronto' };
+}
+
+/**
+ * Checagem periódica.
+ *
+ * É o que garante que um horário marcado pela cliente apareça — mesmo sem o
+ * Realtime ligado, mesmo com a aba em segundo plano. Sem ela, o app só
+ * descobre novidade quando alguém recarrega a página.
+ *
+ * O volume é irrisório para um studio de duas pessoas: um punhado de consultas
+ * por hora. Com a aba escondida o intervalo dobra, para não gastar bateria.
+ */
+const VIGIA_ATIVO   = 45_000;
+const VIGIA_OCULTO  = 120_000;
+let vigiaId = null;
+
+function vigiar() {
+  const agendar = () => {
+    clearTimeout(vigiaId);
+    const espera = document.visibilityState === 'visible' ? VIGIA_ATIVO : VIGIA_OCULTO;
+    vigiaId = setTimeout(async () => {
+      if (navigator.onLine) {
+        await drenarFila();
+        await recarregar();
+      }
+      agendar();
+    }, espera);
+  };
+
+  // Voltou para a aba: confere na hora, sem esperar o próximo ciclo.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && navigator.onLine) recarregar();
+    agendar();
+  });
+
+  agendar();
 }
 
 export function estaVazio() {
