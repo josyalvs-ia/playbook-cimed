@@ -148,6 +148,41 @@ export function retrato(prof, { tam = 40, cls = '' } = {}) {
         >${esc(nome[0].toUpperCase())}</span>`;
 }
 
+/**
+ * Faz os números grandes subirem até o valor final em vez de simplesmente
+ * aparecerem. Meio segundo, desacelerando no fim — o suficiente para o olho
+ * acompanhar e entender que aquilo é dinheiro entrando, sem virar espetáculo.
+ *
+ * Quem pediu menos movimento no sistema recebe o número pronto.
+ */
+export function contarAte(el, valor, formatar, ms = 620) {
+  const parado = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (parado || !Number.isFinite(valor) || valor === 0) {
+    el.textContent = formatar(valor);
+    return;
+  }
+  const inicio = performance.now();
+  const passo = (agora) => {
+    const t = Math.min(1, (agora - inicio) / ms);
+    const suave = 1 - Math.pow(1 - t, 3);
+    el.textContent = formatar(valor * suave);
+    if (t < 1) requestAnimationFrame(passo);
+    else el.textContent = formatar(valor);
+  };
+  requestAnimationFrame(passo);
+}
+
+/**
+ * Liga a contagem em todo elemento marcado com `data-conta`, dentro de um
+ * pedaço de tela recém-desenhado. O valor cru vai no atributo; o texto que já
+ * está lá é o formato de reserva se algo der errado.
+ */
+export function animarNumeros(raiz, formatar = fmt.brlCurto) {
+  raiz.querySelectorAll('[data-conta]').forEach((el) => {
+    contarAte(el, Number(el.dataset.conta), formatar);
+  });
+}
+
 // ─── Formatação ────────────────────────────────────────────────────────────
 const _brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const _num = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });

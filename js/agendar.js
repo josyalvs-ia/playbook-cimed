@@ -51,10 +51,17 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     raiz.innerHTML = `
       <div class="ag-passos">
         ${['Serviço', 'Dia e hora', 'Seus dados'].map((t, i) => `
-          <span class="ag-passo ${etapa === i + 1 ? 'atual' : etapa > i + 1 ? 'feito' : ''}">
-            <b>${i + 1}</b>${t}</span>`).join('')}
+          <button class="ag-passo ${etapa === i + 1 ? 'atual' : etapa > i + 1 ? 'feito' : ''}"
+                  ${etapa > i + 1 ? `data-voltar-para="${i + 1}"` : 'disabled'}>
+            <b>${etapa > i + 1 ? '✓' : i + 1}</b>${t}</button>`).join('')}
       </div>
       <div id="ag-corpo"></div>`;
+
+    // Passo já cumprido volta a ser clicável: dá para trocar o serviço no meio
+    // do caminho sem recomeçar do zero.
+    raiz.querySelectorAll('[data-voltar-para]').forEach((b) => b.onclick = () => {
+      etapa = Number(b.dataset.voltarPara); pintar();
+    });
     ({ 1: passoServico, 2: passoHorario, 3: passoDados }[etapa])();
   }
 
@@ -139,7 +146,12 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
             <span class="mes">${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
           </button>`).join('')}
       </div>
-      <div id="ag-horarios"><p class="t3 pequeno centro" style="padding:26px">Procurando horários…</p></div>`;
+      <div id="ag-horarios">
+        <div class="ag-turno-titulo">Procurando horários…</div>
+        <div class="ag-horas">
+          ${Array.from({ length: 8 }, () => '<span class="ag-esqueleto"></span>').join('')}
+        </div>
+      </div>`;
 
     raiz.querySelector('#voltar').onclick = () => { etapa = 1; pintar(); };
     raiz.querySelectorAll('[data-dia]').forEach((b) => b.onclick = () => {

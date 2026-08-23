@@ -162,8 +162,44 @@ h3 { font-size: 15px; font-weight: 600; }
 /* O fundo estrelado respira devagar, quase imperceptível. */
 @keyframes respirar { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.62; } }
 
+/* ── Movimento ─────────────────────────────────────────────────────────────*/
+/* Cada tela entra subindo alguns pixels, e os cartões entram em cascata: a
+   ordem em que aparecem já conta em que ordem ler. Nada acima de meio
+   segundo — é respiração, não espetáculo. */
+@keyframes subir {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+#conteudo > * { animation: subir .34s cubic-bezier(.2,.8,.3,1) both; }
+#conteudo .grade > *:nth-child(1) { animation: subir .38s cubic-bezier(.2,.8,.3,1) .02s both; }
+#conteudo .grade > *:nth-child(2) { animation: subir .38s cubic-bezier(.2,.8,.3,1) .07s both; }
+#conteudo .grade > *:nth-child(3) { animation: subir .38s cubic-bezier(.2,.8,.3,1) .12s both; }
+#conteudo .grade > *:nth-child(4) { animation: subir .38s cubic-bezier(.2,.8,.3,1) .17s both; }
+
+/* O cartão levanta um fio quando o ponteiro passa: mostra que é clicável sem
+   precisar de sombra pesada. */
+.cartao, .kpi { transition: transform .25s cubic-bezier(.2,.8,.3,1), border-color .25s ease; }
+.kpi:hover { transform: translateY(-2px); border-color: var(--linha-forte); }
+
+/* Linha de tabela que abre alguma coisa reage ao toque. */
+tbody tr[data-comanda]:hover, tbody tr[style*="cursor:pointer"]:hover { background: var(--elevado); }
+tbody tr { transition: background .18s ease; }
+
+/* O sino balança quando chega novidade. */
+@keyframes badalar {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-13deg); } 30% { transform: rotate(11deg); }
+  45% { transform: rotate(-8deg); }  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+}
+.sino.tocando .ico { animation: badalar .8s ease-in-out; transform-origin: 50% 15%; }
+
 /* Quem pediu menos movimento no sistema recebe tudo parado. */
 @media (prefers-reduced-motion: reduce) {
+  #conteudo > *, #conteudo .grade > * { animation: none !important; }
+  .cartao, .kpi, .destaque-anel, .ag-hora, .pessoa { transition: none !important; }
+  .kpi:hover { transform: none; }
+  .sino.tocando .ico { animation: none; }
   .ceu .estrela { animation: none; opacity: 0.3; }
   .assenta, .assenta-2, .assenta-3 { animation: none; }
   body::before { animation: none; }

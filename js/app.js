@@ -168,6 +168,15 @@ function atualizarSino({ recemChegadas = 0 } = {}) {
   if (recemChegadas) {
     const ultima = nov.novidades()[0];
     if (ultima) nov.avisarNaTela(ultima);
+    // O sino balança uma vez: quem está com o app aberto na frente percebe
+    // sem precisar de som nem de aviso do sistema.
+    const sino = document.getElementById('btn-sino');
+    if (sino) {
+      sino.classList.remove('tocando');
+      void sino.offsetWidth;               // reinicia a animação
+      sino.classList.add('tocando');
+      setTimeout(() => sino.classList.remove('tocando'), 900);
+    }
   }
 }
 

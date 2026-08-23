@@ -1,6 +1,6 @@
 // PAINEL — o que importa saber ao abrir o studio de manhã.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, mesAtual } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, mesAtual, animarNumeros } from '../ui.js';
 import * as M from '../metricas.js';
 import { irPara } from '../app.js';
 
@@ -28,22 +28,22 @@ export function render(raiz) {
     <div class="grade c4 mb">
       <div class="kpi destaque">
         <div class="rotulo">Hoje</div>
-        <div class="valor">${fmt.brlCurto(rDia.bruto)}</div>
+        <div class="valor" data-conta="${rDia.bruto}">${fmt.brlCurto(rDia.bruto)}</div>
         <div class="nota">${rDia.atendimentos} atendimento${rDia.atendimentos === 1 ? '' : 's'}</div>
       </div>
       <div class="kpi">
         <div class="rotulo">Mês até agora</div>
-        <div class="valor">${fmt.brlCurto(rMes.bruto)}</div>
+        <div class="valor" data-conta="${rMes.bruto}">${fmt.brlCurto(rMes.bruto)}</div>
         <div class="nota">ticket médio ${fmt.brl(rMes.ticket)}</div>
       </div>
       <div class="kpi">
         <div class="rotulo">Sobra do mês</div>
-        <div class="valor ${rMes.resultado < 0 ? 'erro-c' : 'ok-c'}">${fmt.brlCurto(rMes.resultado)}</div>
+        <div class="valor ${rMes.resultado < 0 ? 'erro-c' : 'ok-c'}" data-conta="${rMes.resultado}">${fmt.brlCurto(rMes.resultado)}</div>
         <div class="nota">receita − taxa, imposto, material e fixo</div>
       </div>
       <div class="kpi">
         <div class="rotulo">Saldo do caixa no mês</div>
-        <div class="valor ${caixaMes.saldo < 0 ? 'erro-c' : ''}">${fmt.brlCurto(caixaMes.saldo)}</div>
+        <div class="valor ${caixaMes.saldo < 0 ? 'erro-c' : ''}" data-conta="${caixaMes.saldo}">${fmt.brlCurto(caixaMes.saldo)}</div>
         <div class="nota">${fmt.brl(caixaMes.entradas)} entrou · ${fmt.brl(caixaMes.saidas)} saiu</div>
       </div>
     </div>
@@ -110,6 +110,7 @@ export function render(raiz) {
     </div>`;
 
   raiz.querySelectorAll('[data-ir]').forEach((b) => b.onclick = () => irPara(b.dataset.ir));
+  animarNumeros(raiz);
 }
 
 function alertas({ abertas, emFalta }) {

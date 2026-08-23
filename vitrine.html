@@ -6,9 +6,21 @@
 <title>Alento — Studio de Beleza | Tabela de valores</title>
 <meta name="description" content="Tabela de valores do Alento Studio de Beleza. Manicure, pedicure, esmaltação em gel, banho de gel e alongamento. Agende seu horário.">
 <meta name="theme-color" content="#2E3322">
-<meta property="og:title" content="Alento — Studio de Beleza">
-<meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e agende seu horário.">
+
+<!-- Como o link aparece no WhatsApp, no Instagram e no Google. É este que
+     circula entre as clientes: a imagem é a marca, não o ícone do app.
+     Gerada por testes/previa.mjs. -->
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Alento Studio de Beleza">
+<meta property="og:title" content="Alento — Studio de Beleza">
+<meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
+<meta property="og:url" content="https://josyalvs-ia.github.io/playbook-cimed/vitrine.html">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Alento — Studio de Beleza">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="assets/selo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,6 +153,25 @@
                 font-size: 10.5px; background: rgba(232,223,196,.12); }
   .ag-passo.atual { color: var(--creme); border-top-color: var(--creme); }
   .ag-passo.atual b { background: var(--creme); color: var(--verde); }
+  /* Passo já cumprido é um botão de verdade: volta para lá. */
+  .ag-passo { background: none; border-left: none; border-right: none; border-bottom: none;
+              text-align: left; transition: color .2s ease, border-color .2s ease; }
+  .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); cursor: pointer; }
+  .ag-passo.feito b { background: rgba(232,223,196,.22); color: var(--creme); }
+  .ag-passo.feito:hover { color: var(--creme); border-top-color: var(--creme); }
+  .ag-passo[disabled] { cursor: default; }
+
+  /* Enquanto o banco responde, o lugar dos horários já existe — a lista não
+     salta na tela quando as respostas chegam. */
+  .ag-esqueleto {
+    height: 62px; border-radius: 10px;
+    background: linear-gradient(100deg, var(--superficie) 30%, var(--elevado) 50%, var(--superficie) 70%);
+    background-size: 300% 100%; animation: brilhar 1.25s ease-in-out infinite;
+  }
+  @keyframes brilhar { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ag-esqueleto { animation: none; background: var(--superficie); }
+  }
   .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); }
 
   .ag-grupo { margin-bottom: 22px; }
@@ -272,6 +303,8 @@
     .ag-desmarcar { padding: 14px 8px; display: inline-block; font-size: 14px; }
     .ag-opcao { padding: 16px; }
     .ag-hora { padding: 14px 6px; }
+    /* Agora que o passo cumprido volta atrás, ele é alvo de dedo: 44px. */
+    .ag-passo { padding-top: 12px; padding-bottom: 10px; min-height: 44px; }
     .ag-dia { width: 66px; padding: 12px 4px; }
     .ag-fechar { min-height: 40px; padding: 9px 16px; }
 
