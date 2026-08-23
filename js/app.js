@@ -5,23 +5,23 @@
 import * as db from './db.js';
 import * as nov from './novidades.js';
 import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado, retrato,
-         destaque } from './ui.js';
+         destaque, icoDestaque } from './ui.js';
 
 const raizApp = document.getElementById('app');
 
 // ─── Mapa de telas ─────────────────────────────────────────────────────────
 const TELAS = {
-  painel:       { titulo: 'Painel',        icone: 'painel',   mod: () => import('./views/painel.js'),       tab: true },
-  agenda:       { titulo: 'Agenda',        icone: 'agenda',   mod: () => import('./views/agenda.js'),       tab: true },
-  comandas:     { titulo: 'Atendimentos',  icone: 'comanda',  mod: () => import('./views/comandas.js'),     tab: true },
-  clientes:     { titulo: 'Clientes',      icone: 'clientes', mod: () => import('./views/clientes.js') },
-  estoque:      { titulo: 'Estoque',       icone: 'estoque',  mod: () => import('./views/estoque.js') },
-  caixa:        { titulo: 'Caixa',         icone: 'caixa',    mod: () => import('./views/caixa.js'),        tab: true },
-  servicos:     { titulo: 'Tabela de preços', icone: 'tabela',   mod: () => import('./views/servicos.js') },
-  precificacao: { titulo: 'Precificação',  icone: 'grafico',  mod: () => import('./views/precificacao.js') },
-  comissoes:    { titulo: 'Comissões',     icone: 'comissao', mod: () => import('./views/comissoes.js') },
-  relatorios:   { titulo: 'Relatórios',    icone: 'grafico',  mod: () => import('./views/relatorios.js') },
-  ajustes:      { titulo: 'Ajustes',       icone: 'ajustes',  mod: () => import('./views/ajustes.js') },
+  painel:       { titulo: 'Painel',        icone: 'painel', marca: 'tratamentos',   mod: () => import('./views/painel.js'),       tab: true },
+  agenda:       { titulo: 'Agenda',        icone: 'agenda', marca: 'agenda',   mod: () => import('./views/agenda.js'),       tab: true },
+  comandas:     { titulo: 'Atendimentos',  icone: 'comanda', marca: 'unhas',  mod: () => import('./views/comandas.js'),     tab: true },
+  clientes:     { titulo: 'Clientes',      icone: 'clientes', marca: 'sobre', mod: () => import('./views/clientes.js') },
+  estoque:      { titulo: 'Estoque',       icone: 'estoque', marca: 'unhas',  mod: () => import('./views/estoque.js') },
+  caixa:        { titulo: 'Caixa',         icone: 'caixa', marca: 'tratamentos',    mod: () => import('./views/caixa.js'),        tab: true },
+  servicos:     { titulo: 'Tabela de preços', icone: 'tabela', marca: 'cabelos',   mod: () => import('./views/servicos.js') },
+  precificacao: { titulo: 'Precificação',  icone: 'grafico', marca: 'tratamentos',  mod: () => import('./views/precificacao.js') },
+  comissoes:    { titulo: 'Comissões',     icone: 'comissao', marca: 'sobre', mod: () => import('./views/comissoes.js') },
+  relatorios:   { titulo: 'Relatórios',    icone: 'grafico', marca: 'tratamentos',  mod: () => import('./views/relatorios.js') },
+  ajustes:      { titulo: 'Ajustes',       icone: 'ajustes', marca: 'agenda',  mod: () => import('./views/ajustes.js') },
 };
 
 const GRUPOS = [
@@ -49,7 +49,8 @@ async function montarTela() {
   const alvo = document.getElementById('conteudo');
   if (!alvo) return;
 
-  document.getElementById('titulo-tela').textContent = tela.titulo;
+  const topo = document.getElementById('titulo-tela');
+  topo.innerHTML = `<span class="titulo-marca">${icoDestaque(tela.marca || 'tratamentos')}</span>${esc(tela.titulo)}`;
   document.querySelectorAll('[data-rota]').forEach((b) => {
     b.classList.toggle('ativo', b.dataset.rota === rota);
   });
@@ -318,9 +319,17 @@ function atualizarStatusSync() {
   const el = document.getElementById('status-sync');
   if (!el) return;
   const p = db.pendentes();
+  const travado = p && db.ultimoErro;
+
   if (!navigator.onLine) { el.textContent = 'Offline — salvando no aparelho'; el.className = 'pequeno alerta-c'; }
+  else if (travado) { el.textContent = `${p} não subiram — ver motivo`; el.className = 'pequeno erro-c sync-travado'; }
   else if (p) { el.textContent = `${p} para sincronizar`; el.className = 'pequeno alerta-c'; }
   else { el.textContent = 'Sincronizado'; el.className = 'pequeno t3'; }
+
+  // Nada travado é invisível. Se o servidor está recusando, dá para tocar e
+  // descobrir o quê — antes ficava só um número que nunca baixava.
+  el.style.cursor = travado ? 'pointer' : '';
+  el.onclick = travado ? abrirPendencias : null;
 
   const badge = document.getElementById('badge-estoque');
   if (badge) {
@@ -328,6 +337,34 @@ function atualizarStatusSync() {
     badge.hidden = !baixos;
     badge.textContent = baixos;
   }
+}
+
+/** O que está preso na fila, por que, e o que fazer a respeito. */
+function abrirPendencias() {
+  const e = db.ultimoErro;
+  abrirModal({
+    titulo: 'Não consegui salvar no servidor',
+    corpo: `
+      <div class="aviso erro">${ico('alerta')}<div>
+        <strong>${esc(e?.curto || 'O servidor recusou a gravação.')}</strong>
+        <div class="pequeno mt">${esc(e?.comoResolver || '')}</div>
+      </div>
+      <p class="t2 pequeno mt">
+        São <strong>${db.pendentes()}</strong> alteração(ões) guardadas neste aparelho.
+        Elas não se perderam — mas também não estão no servidor, então
+        <strong>somem quando você entrar de outro lugar</strong>. Resolvido o motivo
+        acima, toque em "Tentar de novo" e elas sobem.</p>
+      <p class="pequeno t3 mt">Última recusa: ${esc(e?.tabela || '—')},
+        ${e?.quando ? new Date(e.quando).toLocaleString('pt-BR') : '—'}.</p>`,
+    acoes: [
+      { texto: 'Tentar de novo', classe: 'btn-primario sync-tentar', onClick: async (fechar) => {
+        await db.drenarFila();
+        atualizarStatusSync();
+        if (!db.pendentes()) { fechar(); avisar('Tudo sincronizado'); }
+        else avisar('Ainda não subiu. O motivo continua o mesmo.', 'erro');
+      } },
+    ],
+  });
 }
 
 // ─── Telas de entrada ──────────────────────────────────────────────────────

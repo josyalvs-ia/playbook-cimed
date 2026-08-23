@@ -18,7 +18,11 @@ export function render(raiz) {
   else lista.sort((a, b) => a.c.nome.localeCompare(b.c.nome, 'pt-BR'));
 
   const ativas = db.estado.clientes.length;
-  const total = db.estado.comandas.filter((c) => c.status === 'fechada')
+  // Faturamento DAS CLIENTES CADASTRADAS. Somar toda comanda fechada aqui
+  // dava um cartão que se contradizia: "0 clientes" ao lado de "R$ 90,00",
+  // porque atendimento sem cadastro entrava na conta do mesmo jeito.
+  const total = db.estado.comandas
+    .filter((c) => c.status === 'fechada' && c.cliente_id)
     .reduce((s, c) => s + Number(c.total || 0), 0);
 
   raiz.innerHTML = `

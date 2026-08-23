@@ -41,6 +41,9 @@ function intervalo() {
     return { de: ini.toISOString().slice(0, 10), ate: hoje() };
   }
   if (filtro.periodo === 'mes') return { de: hoje().slice(0, 8) + '01', ate: hoje() };
+  // "Tudo" existe para o atendimento que ficou fora da janela não virar um
+  // valor fantasma: aparecia no faturamento e não havia tela que o mostrasse.
+  if (filtro.periodo === 'tudo') return { de: '0000-01-01', ate: '9999-12-31' };
   return { de: filtro.de, ate: filtro.ate };
 }
 
@@ -58,7 +61,7 @@ export function render(raiz) {
   raiz.innerHTML = `
     <div class="flex envolve mb" style="gap:8px">
       <div class="pilulas crescer">
-        ${[['hoje', 'Hoje'], ['semana', '7 dias'], ['mes', 'Este mês'], ['custom', 'Escolher']]
+        ${[['hoje', 'Hoje'], ['semana', '7 dias'], ['mes', 'Este mês'], ['tudo', 'Tudo'], ['custom', 'Escolher']]
           .map(([id, t]) => `<button class="pilula ${filtro.periodo === id ? 'ativa' : ''}" data-per="${id}">${t}</button>`).join('')}
       </div>
       <select id="f-prof" style="width:auto;min-width:150px">
@@ -72,6 +75,14 @@ export function render(raiz) {
         <label class="campo"><span>De</span><input type="date" id="f-de" value="${de}"></label>
         <label class="campo"><span>Até</span><input type="date" id="f-ate" value="${ate}"></label>
       </div>` : ''}
+
+    ${(() => {
+      const fora = db.estado.comandas.length - lista.length;
+      return fora > 0 && filtro.periodo !== 'tudo' ? `
+        <div class="aviso mb">${ico('info')}<div>
+          Há <strong>${fora}</strong> atendimento(s) fora deste período.
+          <button class="btn btn-sm mt" id="ver-tudo">Ver todos</button></div></div>` : '';
+    })()}
 
     <div class="grade c4 mb">
       <div class="kpi destaque"><div class="rotulo">Faturado</div>
@@ -105,6 +116,9 @@ export function render(raiz) {
 
   raiz.querySelectorAll('[data-per]').forEach((b) => b.onclick = () => {
     filtro.periodo = b.dataset.per; render(raiz);
+  });
+  raiz.querySelector('#ver-tudo')?.addEventListener('click', () => {
+    filtro.periodo = 'tudo'; render(raiz);
   });
   raiz.querySelector('#f-prof').onchange = (e) => { filtro.profissional = e.target.value; render(raiz); };
   raiz.querySelector('#f-de')?.addEventListener('change', (e) => { filtro.de = e.target.value; render(raiz); });
@@ -152,10 +166,9 @@ export function abrirComanda(id, inicial) {
     : { id: uid(), data: inicial?.data || hoje(), status: 'aberta', desconto: 0,
         cliente_nome: inicial?.cliente_nome || null,
         cliente_id: inicial?.cliente_id || null,
-        // Quem está logada só é a profissional padrão se ela mesma atender.
-        profissional_id: inicial?.profissional_id
-                         || (db.eu?.atende !== false ? db.eu?.id : null)
-                         || atendentes()[0]?.id || null };
+        // Em branco de propósito. Vir com alguém já escolhido faz a comanda
+        // inteira ser lançada no nome errado quando ninguém repara no campo.
+        profissional_id: inicial?.profissional_id || null };
 
   let itens = existente
     ? db.estado.comanda_itens.filter((i) => i.comanda_id === id).map((i) => ({ ...i }))
@@ -188,6 +201,7 @@ export function abrirComanda(id, inicial) {
         </label>
         <label class="campo"><span>Profissional</span>
           <select id="prof">
+            <option value="">Escolha quem atendeu…</option>
             ${atendentes().map((p) =>
               `<option value="${p.id}" ${c.profissional_id === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
           </select>
@@ -350,6 +364,12 @@ export function abrirComanda(id, inicial) {
     if (!itens.length) return avisar('Adicione ao menos um serviço', 'erro');
     const forma = veu.querySelector('.pilula.ativa')?.dataset.pg;
     if (fecharComanda && !forma) return avisar('Escolha a forma de pagamento', 'erro');
+    // Comanda fechada sem dono não entra em comissão nenhuma e some do
+    // fechamento do mês — melhor cobrar agora do que descobrir no dia 30.
+    if (fecharComanda && !$('#prof').value) {
+      $('#prof').focus();
+      return avisar('Escolha quem atendeu', 'erro');
+    }
 
     // Cliente: acha pelo nome ou cadastra na hora.
     let clienteId = null;

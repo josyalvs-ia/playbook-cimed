@@ -178,8 +178,35 @@ h3 { font-size: 15px; font-weight: 600; }
 
 /* O cartão levanta um fio quando o ponteiro passa: mostra que é clicável sem
    precisar de sombra pesada. */
-.cartao, .kpi { transition: transform .25s cubic-bezier(.2,.8,.3,1), border-color .25s ease; }
-.kpi:hover { transform: translateY(-2px); border-color: var(--linha-forte); }
+.cartao, .kpi { transition: transform .25s cubic-bezier(.2,.8,.3,1), border-color .25s ease,
+                            box-shadow .25s ease; }
+.kpi:hover { transform: translateY(-3px); border-color: var(--creme); }
+.cartao:hover { border-color: var(--linha-forte); }
+
+/* No celular não existe ponteiro: o retorno vem do toque. Toda coisa
+   clicável afunda um fio enquanto o dedo está em cima. */
+.btn:active, .pilula:active, .nav-item:active, .tabbar button:active,
+.destaque-marca:active, .menu-item:active, .kpi:active, tbody tr[style*="cursor:pointer"]:active {
+  transform: scale(0.975);
+}
+.btn, .pilula, .nav-item, .menu-item { transition: transform .12s ease, background .2s ease,
+                                                   color .2s ease, border-color .2s ease; }
+
+/* O item escolhido no menu lateral ganha a estrela da marca ao lado. */
+.nav-item.ativo { position: relative; }
+.nav-item.ativo::after {
+  content: ''; position: absolute; right: 12px; width: 9px; height: 9px;
+  background: var(--creme); opacity: .8;
+  clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+  animation: surgir .35s cubic-bezier(.2,1.4,.5,1) both;
+}
+
+/* Botão que está trabalhando mostra que está: nada de clicar duas vezes. */
+.btn[disabled] { opacity: .55; cursor: default; }
+
+/* Selo e contador chegam pulsando uma vez, para o olho encontrar. */
+@keyframes surgir { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.contador, .ponto { animation: surgir .3s cubic-bezier(.2,1.4,.5,1) both; }
 
 /* Linha de tabela que abre alguma coisa reage ao toque. */
 tbody tr[data-comanda]:hover, tbody tr[style*="cursor:pointer"]:hover { background: var(--elevado); }
@@ -197,8 +224,12 @@ tbody tr { transition: background .18s ease; }
 /* Quem pediu menos movimento no sistema recebe tudo parado. */
 @media (prefers-reduced-motion: reduce) {
   #conteudo > *, #conteudo .grade > * { animation: none !important; }
-  .cartao, .kpi, .destaque-anel, .ag-hora, .pessoa { transition: none !important; }
-  .kpi:hover { transform: none; }
+  .cartao, .kpi, .destaque-anel, .ag-hora, .pessoa, .btn, .pilula,
+  .nav-item, .menu-item { transition: none !important; }
+  .kpi:hover, .btn:active, .pilula:active, .nav-item:active,
+  .tabbar button:active, .destaque-marca:active, .menu-item:active,
+  .kpi:active { transform: none; }
+  .nav-item.ativo::after, .contador, .ponto { animation: none; }
   .sino.tocando .ico { animation: none; }
   .ceu .estrela { animation: none; opacity: 0.3; }
   .assenta, .assenta-2, .assenta-3 { animation: none; }
@@ -283,6 +314,16 @@ tbody tr { transition: background .18s ease; }
 }
 .cartao-cabeca > .ico { width: 18px; height: 18px; opacity: 0.55; }
 .cartao-cabeca > .estrela { font-size: 13px; opacity: 0.75; }
+
+/* O título de cada tela vem com o círculo do destaque da marca a que ela
+   pertence — a mesma fileira do manual, agora dentro do sistema. */
+.topo h1 { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.titulo-marca {
+  flex: none; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--linha-forte); color: var(--creme);
+}
+.titulo-marca .ico { width: 16px; height: 16px; }
 .cartao-cabeca h2, .cartao-cabeca h3 { margin-right: auto; }
 
 .grade { display: grid; gap: 14px; min-width: 0; }
@@ -381,6 +422,9 @@ tbody tr { transition: background .18s ease; }
 .marca-tipo { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--texto-3); }
 .marca-tipo.marcou    { background: var(--ok); }
 .marca-tipo.remarcou  { background: var(--creme); }
+
+/* Aviso de sincronização travada: sublinhado porque é para tocar. */
+.sync-travado { text-decoration: underline; text-underline-offset: 3px; }
 .marca-tipo.desmarcou { background: var(--erro); }
 .marca-tipo.faltou    { background: var(--alerta); }
 

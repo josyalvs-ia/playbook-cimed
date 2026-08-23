@@ -26,6 +26,11 @@ function query(nome){
     select(){ return Object.assign(Promise.resolve({data: tabela(nome), error:null}), q); },
     eq(){ return this; }, in(){ return this; }, single(){ return this; },
     upsert(r){ const arr = Array.isArray(r)?r:[r];
+      // O teste pode mandar o banco recusar, para exercitar o caminho do erro.
+      const recusa = globalThis.__RECUSAR;
+      if (recusa && recusa.tabela === nome) {
+        const out = { data: null, error: recusa.erro };
+        return Object.assign(Promise.resolve(out), {select:()=>({single:()=>Promise.resolve(out)})}); }
       for (const x of arr){ const t=tabela(nome); const i=t.findIndex(y=>y.id===x.id||(y.chave&&y.chave===x.chave));
         if(i>=0) t[i]={...t[i],...x}; else t.push({...x}); }
       const out = {data: arr[0], error:null};
@@ -763,7 +768,54 @@ await p2.waitForTimeout(700);
     medidas.length === 0, medidas.join(' | ')]);
 }
 
-// ── 20. Todo campo editável tem contraste real ──
+// ── 20. Quando o servidor recusa, o sistema avisa ──
+// Foi o que aconteceu de verdade: a foto salvava na tela, o banco recusava
+// porque ainda não tinha a coluna, e o app engolia o erro. Ficava só um
+// "4 para sincronizar" que nunca baixava — e a foto sumia no próximo login.
+{
+  await p2.evaluate(() => {
+    globalThis.__RECUSAR = { tabela: 'clientes',
+      erro: { code: 'PGRST204', message: "Could not find the 'foto' column of 'clientes'" } };
+  });
+  await p2.evaluate(() => { location.hash = '#/clientes'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#nova');
+  await p2.waitForSelector('input[name=nome]');
+  await p2.fill('input[name=nome]', 'Teste da Recusa');
+  await p2.click('text=Salvar');
+  await p2.waitForTimeout(800);
+
+  const aviso = nb(await p2.textContent('#toasts'));
+  checagens.push(['recusa: diz na hora que o banco não aceitou',
+    /coluna|recusou|não tem/i.test(aviso), aviso.trim().slice(0, 80)]);
+
+  await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(500);
+  const status = nb(await p2.textContent('#status-sync'));
+  checagens.push(['recusa: o canto avisa que não subiu, e não "para sincronizar"',
+    /não subiram|ver motivo/i.test(status), status.trim()]);
+
+  await p2.click('#status-sync');
+  await p2.waitForSelector('.modal');
+  const painel = nb(await p2.textContent('.modal'));
+  checagens.push(['recusa: o painel explica o motivo', /coluna/i.test(painel)]);
+  checagens.push(['recusa: o painel ensina o caminho', /SQL Editor/i.test(painel)]);
+  checagens.push(['recusa: avisa que some ao entrar de outro lugar',
+    /somem quando você entrar de outro lugar/i.test(painel)]);
+  await p2.screenshot({ path: '/tmp/shot-recusa.png' });
+
+  // Resolvido o motivo, "Tentar de novo" sobe tudo.
+  await p2.evaluate(() => { globalThis.__RECUSAR = null; });
+  await p2.click('.sync-tentar');
+  await p2.waitForFunction(
+    () => JSON.parse(localStorage.getItem('alento.fila.v1') || '[]').length === 0,
+    null, { timeout: 8000 }).catch(() => {});
+  const fila = await p2.evaluate(() => localStorage.getItem('alento.fila.v1'));
+  checagens.push(['recusa: resolvido o motivo, a fila sobe',
+    JSON.parse(fila || '[]').length === 0, String(fila).slice(0, 120)]);
+}
+
+// ── 21. Todo campo editável tem contraste real ──
 // A regra antiga só pegava inputs com `type` declarado; os demais ficavam com
 // o branco do navegador e a letra creme, ilegíveis.
 for (const t of ['ajustes','caixa','clientes','estoque']) {

@@ -97,10 +97,53 @@ function lerFila() {
 function gravarFila(f) { localStorage.setItem(CHAVE_FILA, JSON.stringify(f)); }
 export function pendentes() { return lerFila().length; }
 
-function enfileirar(op) {
+/**
+ * Por que a última tentativa de subir não deu certo.
+ *
+ * Antes, tudo o que falhava caía na fila sem uma palavra: a tela mostrava
+ * "4 para sincronizar" e ninguém tinha como saber que o servidor estava
+ * recusando — nem o quê. Um dado salvo só no aparelho some no próximo login,
+ * porque a carga do servidor substitui o que estava em memória.
+ */
+export let ultimoErro = null;
+
+/** Traduz o economês do Postgres para o que a pessoa precisa fazer. */
+function explicar(erro, tabela) {
+  const msg = String(erro?.message || erro || '');
+  const col = msg.match(/'([a-z_]+)' column/i)?.[1] || msg.match(/column "([a-z_]+)"/i)?.[1];
+  if (erro?.code === 'PGRST204' || /could not find the .* column|column .* does not exist/i.test(msg)) {
+    return {
+      curto: `O banco ainda não tem a coluna ${col ? `"${col}"` : 'nova'} em ${tabela}.`,
+      comoResolver: 'Abra o Supabase → SQL Editor → New query, cole o conteúdo de '
+                  + 'db/atualizar.sql do repositório e clique em Run. Depois volte aqui '
+                  + 'e toque em "Recarregar do servidor".',
+    };
+  }
+  if (erro?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
+    return { curto: 'O banco recusou a gravação nesta conta.',
+             comoResolver: 'Confira em Comissões → Equipe se esta pessoa está com acesso liberado.' };
+  }
+  if (/failed to fetch|networkerror|offline/i.test(msg)) {
+    return { curto: 'Sem conexão com o servidor agora.',
+             comoResolver: 'Fica guardado no aparelho e sobe sozinho quando a internet voltar.' };
+  }
+  return { curto: msg || 'O servidor recusou a gravação.',
+           comoResolver: 'Se continuar, mostre esta mensagem para quem cuida do sistema.' };
+}
+
+function enfileirar(op, erro) {
   const f = lerFila();
   f.push({ ...op, ts: Date.now() });
   gravarFila(f);
+
+  // Falta de rede é normal e a fila resolve sozinha. Recusa do servidor não é:
+  // ali a fila nunca vai esvaziar, e é preciso dizer isso na hora.
+  const offline = !navigator.onLine || /failed to fetch|networkerror|offline/i.test(String(erro?.message || ''));
+  if (!offline) {
+    ultimoErro = { ...explicar(erro, op.tabela), tabela: op.tabela, quando: new Date().toISOString() };
+    console.error('Alento — o servidor recusou:', op.tabela, erro);
+    avisar(ultimoErro.curto + ' Guardei no aparelho por enquanto.', 'erro');
+  }
   notificar();
 }
 
@@ -119,13 +162,19 @@ export async function drenarFila() {
         const { error } = await cliente.from(op.tabela).delete().eq('id', op.id);
         if (error) throw error;
       }
-    } catch {
+    } catch (e) {
       restante.push(op);
+      const offline = !navigator.onLine || /failed to fetch|networkerror/i.test(String(e?.message || ''));
+      if (!offline) {
+        ultimoErro = { ...explicar(e, op.tabela), tabela: op.tabela, quando: new Date().toISOString() };
+        console.error('Alento — o servidor recusou:', op.tabela, e);
+      }
     }
   }
   gravarFila(restante);
   if (f.length !== restante.length) {
     avisar(`${f.length - restante.length} alteração(ões) sincronizada(s)`);
+    if (!restante.length) ultimoErro = null;
     await recarregar();
   }
   notificar();
@@ -178,8 +227,8 @@ export async function salvar(tabela, registro) {
     const j = estado[tabela].findIndex((x) => x.id === r.id);
     if (j >= 0) estado[tabela][j] = data;
     salvarCache();
-  } catch {
-    enfileirar({ acao: 'upsert', tabela, dados: r });
+  } catch (e) {
+    enfileirar({ acao: 'upsert', tabela, dados: r }, e);
   }
   return r;
 }
@@ -199,8 +248,8 @@ export async function salvarLote(tabela, registros) {
       if (!cliente || !navigator.onLine) throw new Error('offline');
       const { error } = await cliente.from(tabela).upsert(parte);
       if (error) throw error;
-    } catch {
-      parte.forEach((r) => enfileirar({ acao: 'upsert', tabela, dados: r }));
+    } catch (e) {
+      parte.forEach((r) => enfileirar({ acao: 'upsert', tabela, dados: r }, e));
     }
   }
 }
@@ -212,8 +261,8 @@ export async function remover(tabela, id) {
     if (!cliente || !navigator.onLine) throw new Error('offline');
     const { error } = await cliente.from(tabela).delete().eq('id', id);
     if (error) throw error;
-  } catch {
-    enfileirar({ acao: 'remover', tabela, id });
+  } catch (e) {
+    enfileirar({ acao: 'remover', tabela, id }, e);
   }
 }
 
@@ -233,8 +282,8 @@ export async function setCfg(chave, valor) {
     if (!cliente || !navigator.onLine) throw new Error('offline');
     const { error } = await cliente.from('config').upsert(r);
     if (error) throw error;
-  } catch {
-    enfileirar({ acao: 'upsert', tabela: 'config', dados: r });
+  } catch (e) {
+    enfileirar({ acao: 'upsert', tabela: 'config', dados: r }, e);
   }
 }
 
