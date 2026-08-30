@@ -394,6 +394,8 @@ const EXIGENCIAS = [
     serve_para: 'a frase que a cliente lê ao fechar o agendamento com ela' },
   { o_que: 'Carimbo de alteração', tipo: 'coluna', tabela: 'agendamentos', coluna: 'atualizado_em',
     serve_para: 'o app baixar só o que mudou, em vez do banco inteiro a cada volta' },
+  { o_que: 'Cliente fixa', tipo: 'coluna', tabela: 'agendamentos', coluna: 'serie_id',
+    serve_para: 'repetir o horário toda semana, a cada 15 ou a cada 30 dias' },
   { o_que: 'Encaixe na agenda', tipo: 'coluna', tabela: 'agendamentos', coluna: 'encaixe',
     serve_para: 'marcar um horário dentro de outro — o corte enquanto a cor processa' },
   { o_que: 'WhatsApp de cada profissional', tipo: 'coluna', tabela: 'profissionais', coluna: 'whatsapp',

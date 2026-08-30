@@ -245,3 +245,10 @@ alter table public.agendamentos add constraint agendamentos_sem_choque
     profissional_id with =,
     tstzrange(inicio, fim) with &&
   ) where (status in ('confirmado', 'concluido') and not encaixe);
+
+-- ── Cliente fixa: o horário que se repete ──────────────────────────────────
+-- Toda semana, a cada quinze ou a cada trinta dias. Os horários da série são
+-- independentes — desmarcar um não derruba os outros —, mas carregam o mesmo
+-- código para o studio poder desmarcar dali para a frente de uma vez.
+alter table public.agendamentos add column if not exists serie_id uuid;
+create index if not exists idx_agendamentos_serie on public.agendamentos (serie_id);

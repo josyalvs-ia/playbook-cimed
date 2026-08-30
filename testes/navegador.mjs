@@ -1658,6 +1658,90 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(300);
 }
 
+// ── 35. Cliente fixa: o horário que se repete ──
+// Um horário que volta sozinho é o que segura a agenda de quem vem sempre.
+{
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const emDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
+
+  // Uma semana já ocupada no meio do caminho: a série tem de pular esse dia.
+  await p2.evaluate((quando) => {
+    const x = new Date(quando + 'T07:00:00');
+    globalThis.__DB.agendamentos.push({ id: 'ocupa-1', profissional_id: 'p2',
+      servico_id: 'manicure', servico_nome: 'Manicure', cliente_nome: 'Cliente Antes',
+      inicio: x.toISOString(), fim: new Date(x.getTime() + 3600000).toISOString(),
+      duracao_min: 60, valor: 45, status: 'confirmado', origem: 'studio',
+      atualizado_em: new Date().toISOString() });
+  }, emDias(14));
+  await p2.evaluate(async () => { const db = await import('./js/db.js'); await db.recarregar(); });
+
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [name=repetir]');
+  await p2.selectOption('.veu [name=profissional_id]', 'p2');
+  await p2.selectOption('.veu [name=servico_id]', 'manicure');
+  await p2.waitForTimeout(200);
+  await p2.fill('.veu [name=cliente_nome]', 'Cliente Fixa');
+  await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
+  await p2.fill('.veu [name=hora]', '07:00');
+
+  checagens.push(['cliente fixa: o "até quando" só aparece depois de escolher repetir',
+    await p2.locator('.veu #campo-ate').isHidden()]);
+
+  await p2.selectOption('.veu [name=repetir]', '7');
+  await p2.waitForTimeout(250);
+  checagens.push(['cliente fixa: escolher repetir revela até quando',
+    await p2.locator('.veu #campo-ate').isVisible()]);
+  const aviso = nb(await p2.textContent('.veu #quantos'));
+  checagens.push(['cliente fixa: diz quantos horários vai marcar antes de marcar',
+    /^1[0-9] horários, até /.test(aviso), aviso]);
+
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(900);
+
+  const serie = await p2.evaluate(() => globalThis.__DB.agendamentos
+    .filter((a) => a.cliente_nome === 'Cliente Fixa')
+    .sort((a, b) => a.inicio.localeCompare(b.inicio)));
+  checagens.push(['cliente fixa: marcou a série inteira', serie.length >= 12,
+    serie.length + ' horários']);
+  checagens.push(['cliente fixa: todos com o mesmo código de série',
+    new Set(serie.map((a) => a.serie_id)).size === 1 && !!serie[0].serie_id]);
+  checagens.push(['cliente fixa: sempre na mesma hora',
+    serie.every((a) => new Date(a.inicio).getHours() === 7)]);
+  checagens.push(['cliente fixa: de sete em sete dias',
+    (new Date(serie[1].inicio) - new Date(serie[0].inicio)) / 86400000 === 7]);
+  checagens.push(['cliente fixa: pula o dia que já tinha cliente',
+    !serie.some((a) => a.inicio.slice(0, 10) === emDias(14))]);
+  checagens.push(['cliente fixa: e conta quantos pulou',
+    /pulado/.test(nb(await p2.textContent('#toasts')))]);
+
+  // A ficha diz de quanto em quanto tempo, e quantos ainda faltam.
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  checagens.push(['cliente fixa: aparece com o selo de fixo',
+    (await p2.locator('.selo', { hasText: 'fixo' }).count()) >= 1]);
+
+  await p2.click(`[data-agend="${serie[0].id}"]`);
+  await p2.waitForSelector('.veu');
+  const ficha = nb(await p2.textContent('.veu'));
+  checagens.push(['cliente fixa: a ficha diz o intervalo', /toda semana/.test(ficha)]);
+  checagens.push(['cliente fixa: a ficha diz quantos faltam', /faltam \d+/.test(ficha)]);
+
+  // Desmarcar pergunta o alcance: só este, ou daqui para a frente.
+  // `.modal-pe` de propósito: a ficha tem um botão fantasma no corpo (mudar
+  // horário), e ele vem antes no HTML.
+  await p2.click('.veu .modal-pe .btn-fantasma');
+  await p2.waitForTimeout(400);
+  checagens.push(['cliente fixa: desmarcar pergunta o alcance',
+    /Só este/.test(nb(await p2.textContent('.veu')))]);
+  await p2.click('.veu .modal-pe .btn-perigo');   // este e os próximos
+  await p2.waitForTimeout(800);
+  const vivos = await p2.evaluate(() => globalThis.__DB.agendamentos
+    .filter((a) => a.cliente_nome === 'Cliente Fixa' && a.status === 'confirmado').length);
+  checagens.push(['cliente fixa: desmarca a série inteira de uma vez', vivos === 0]);
+}
+
 await browser.close();
 
 let falhas = 0;

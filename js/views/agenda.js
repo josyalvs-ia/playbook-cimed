@@ -109,6 +109,30 @@ function horasOcupadas(lista) {
   return ms / 3600000;
 }
 
+/**
+ * As datas de uma cliente fixa.
+ *
+ * O passo é em dias, não em "mês do calendário": foi assim que a Julia pediu
+ * (semana, quinze, trinta) e é assim que o intervalo entre um atendimento e
+ * outro fica sempre igual — que é o que importa para unha e para raiz.
+ */
+function datasDaSerie(inicio, passo, meses) {
+  if (!inicio || !passo) return [inicio].filter(Boolean);
+  const limite = new Date(inicio + 'T12:00:00');
+  limite.setMonth(limite.getMonth() + (meses || 3));
+  const datas = [];
+  for (let d = inicio; new Date(d + 'T12:00:00') <= limite && datas.length < 60;
+       d = somarDias(d, passo)) {
+    datas.push(d);
+  }
+  return datas;
+}
+
+/** Datas por extenso, sem virar um parágrafo quando são muitas. */
+const listar = (datas) => datas.length <= 3
+  ? datas.map(fmt.data).join(', ')
+  : `${datas.slice(0, 3).map(fmt.data).join(', ')} e mais ${datas.length - 3}`;
+
 /** Já tem alguém na cadeira nesse pedaço de tempo? */
 function choqueCom(profissional_id, inicio, dur, ignorar) {
   const fim = new Date(inicio.getTime() + dur * 60000);
@@ -415,6 +439,7 @@ function cartaoHorario(a) {
             <span class="selo ${selo[0]}">${selo[1]}</span>
             ${a.origem === 'site' ? '<span class="selo" title="a cliente marcou pelo site">site</span>' : ''}
             ${a.encaixe ? '<span class="selo" title="marcado dentro de outro horário, de propósito">encaixe</span>' : ''}
+            ${a.serie_id ? '<span class="selo" title="cliente fixa: este horário se repete">fixo</span>' : ''}
           </div>
           <div style="font-weight:600;margin-top:3px">${esc(a.cliente_nome)}</div>
           <div class="pequeno t2">${esc(a.servico_nome)} · ${fmt.horas(a.duracao_min / 60)}</div>
@@ -525,8 +550,24 @@ export function abrirAgendamento(id, dataPadrao) {
       selProf.onchange = () => { filtrarServicos(); mostrarDuracao({ trocouServico: true }); };
       selServico.onchange = () => mostrarDuracao({ trocouServico: true });
       campoDur.oninput = mostrarFim;
-      veu.querySelector('[name=data]').onchange = mostrarFim;
+      veu.querySelector('[name=data]').onchange = () => { mostrarFim(); mostrarRepeticao(); };
       veu.querySelector('[name=hora]').onchange = mostrarFim;
+
+      // Dizer quantas vezes e até quando: "repetir" sem número na tela é um
+      // salto no escuro — ela precisa saber que vai marcar 13 horários.
+      const selRep = veu.querySelector('[name=repetir]');
+      const selAte = veu.querySelector('[name=repetir_ate]');
+      const quantos = veu.querySelector('#quantos');
+      const mostrarRepeticao = () => {
+        veu.querySelector('#campo-ate').hidden = !selRep.value;
+        const datas = datasDaSerie(veu.querySelector('[name=data]').value,
+                                   Number(selRep.value), Number(selAte.value));
+        quantos.textContent = selRep.value && datas.length > 1
+          ? `${datas.length} horários, até ${fmt.data(datas[datas.length - 1])}` : '';
+      };
+      selRep.onchange = mostrarRepeticao;
+      selAte.onchange = mostrarRepeticao;
+      mostrarRepeticao();
 
       filtrarServicos();
       mostrarDuracao({ trocouServico: true });
@@ -571,6 +612,26 @@ function formNovo(servicos, profs, dataPadrao) {
                inputmode="numeric" placeholder="—"></label>
     </div>
     <p class="dica t3" id="termina"></p>
+
+    <!-- Cliente fixa. Um horário que volta sozinho é o que segura a agenda de
+         quem vem sempre — e é ela que sustenta o mês. -->
+    <div class="linha-campos">
+      <label class="campo"><span>Repetir</span>
+        <select name="repetir">
+          <option value="">Só desta vez</option>
+          <option value="7">Toda semana</option>
+          <option value="14">A cada 15 dias</option>
+          <option value="28">A cada 30 dias</option>
+        </select></label>
+      <label class="campo" id="campo-ate" hidden><span>Até</span>
+        <select name="repetir_ate">
+          <option value="3">daqui a 3 meses</option>
+          <option value="6">daqui a 6 meses</option>
+          <option value="12">daqui a 1 ano</option>
+        </select></label>
+    </div>
+    <p class="dica t3" id="quantos"></p>
+
     <label class="campo"><span>Observações</span>
       <input name="observacoes" placeholder="Ex.: quer francesinha"></label>`;
 }
@@ -593,11 +654,58 @@ function fichaAgendamento(a) {
       <tr><td class="t2">WhatsApp</td><td>${fmt.telefone(a.cliente_telefone)}</td></tr>
       <tr><td class="t2">Marcado</td><td>${a.origem === 'site' ? 'pela cliente, no site' : 'pelo studio'}${
         a.encaixe ? ', como encaixe' : ''}</td></tr>
+      ${a.serie_id ? `<tr><td class="t2">Cliente fixa</td><td>${esc(descreverSerie(a))}</td></tr>` : ''}
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
       : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('agenda')}Mudar dia, hora ou duração</button>`}`;
+}
+
+/** Os outros horários da mesma cliente fixa, do mais cedo para o mais tarde. */
+const daSerie = (a) => db.estado.agendamentos
+  .filter((x) => a.serie_id && x.serie_id === a.serie_id && x.status !== 'cancelado')
+  .sort((x, y) => x.inicio.localeCompare(y.inicio));
+
+/**
+ * "Toda semana", "a cada 15 dias" — deduzido do intervalo entre dois da série.
+ * Guardar o passo no banco seria uma coluna a mais para dizer o que os próprios
+ * horários já dizem.
+ */
+function descreverSerie(a) {
+  const irmas = daSerie(a);
+  const restam = irmas.filter((x) => x.inicio > a.inicio).length;
+  const cauda = restam ? ` · faltam ${restam}` : ' · este é o último';
+  if (irmas.length < 2) return 'sim' + cauda;
+  const dias = Math.round(
+    (new Date(irmas[1].inicio) - new Date(irmas[0].inicio)) / 86400000);
+  const nome = { 7: 'toda semana', 14: 'a cada 15 dias', 28: 'a cada 30 dias' }[dias]
+    || `a cada ${dias} dias`;
+  return nome + cauda;
+}
+
+/**
+ * Desmarcar um horário de cliente fixa: só este, ou daqui para a frente?
+ *
+ * Perguntar é o único caminho honesto — desmarcar a série inteira sem avisar
+ * apaga meses de agenda, e desmarcar só um deixa a equipe apagando de semana
+ * em semana. Os já atendidos ficam onde estão.
+ */
+function pedirAlcance(a) {
+  const proximos = daSerie(a).filter((x) => x.inicio >= a.inicio && x.status === 'confirmado');
+  return new Promise((resolve) => {
+    abrirModal({
+      titulo: 'Desmarcar cliente fixa',
+      corpo: `<p class="t2">${esc(a.cliente_nome)} tem ${proximos.length} horário(s)
+        marcado(s) daqui para a frente, ${esc(descreverSerie(a))}.</p>`,
+      acoes: [
+        { texto: 'Voltar', classe: 'btn-fantasma', onClick: (f) => { f(); resolve(null); } },
+        { texto: 'Só este', onClick: (f) => { f(); resolve([a]); } },
+        { texto: `Este e os próximos (${proximos.length})`, classe: 'btn-perigo',
+          onClick: (f) => { f(); resolve(proximos); } },
+      ],
+    });
+  });
 }
 
 function acoesDe(a) {
@@ -612,6 +720,14 @@ function acoesDe(a) {
         }
       } },
     { texto: 'Desmarcar', classe: 'btn-fantasma', onClick: async (fechar) => {
+        if (a.serie_id) {
+          const alvos = await pedirAlcance(a);
+          if (!alvos) return;
+          db.salvarLote('agendamentos', alvos.map((x) => ({ ...x, status: 'cancelado' })));
+          fechar();
+          avisar(alvos.length === 1 ? 'Horário liberado' : `${alvos.length} horários liberados`);
+          return;
+        }
         if (await confirmar('Desmarcar?', 'O horário volta a ficar livre para outra cliente.')) {
           await db.salvar('agendamentos', { ...a, status: 'cancelado' });
           fechar(); avisar('Horário liberado');
@@ -663,23 +779,45 @@ async function salvarNovo(fechar, veu, servicos) {
   // anterior — o horário existia, mas ela não via e marcava de novo.
   dia = d.data;
 
-  try {
-    await db.salvar('agendamentos', {
+  const datas = datasDaSerie(d.data, Number(d.repetir), Number(d.repetir_ate));
+  const serie_id = datas.length > 1 ? uid() : null;
+
+  const horarios = [];
+  const pulados = [];
+  for (const data of datas) {
+    const ini = new Date(`${data}T${d.hora}:00`);
+    // O primeiro já passou pela conversa do encaixe. Nos seguintes, dia
+    // ocupado é pulado e dito no fim: parar a série inteira por causa de uma
+    // semana obrigaria a remarcar tudo na mão.
+    if (data !== d.data && choqueCom(d.profissional_id, ini, dur)) {
+      pulados.push(data);
+      continue;
+    }
+    horarios.push({
       id: uid(),
       profissional_id: d.profissional_id,
       servico_id: s.id, servico_nome: s.nome,
       cliente_nome: d.cliente_nome,
       cliente_telefone: (d.cliente_telefone || '').replace(/\D/g, '') || null,
-      inicio: inicio.toISOString(),
-      fim: new Date(inicio.getTime() + dur * 60000).toISOString(),
+      inicio: ini.toISOString(),
+      fim: new Date(ini.getTime() + dur * 60000).toISOString(),
       duracao_min: dur,
       valor: Number(s.preco) || 0,
       status: 'confirmado', origem: 'studio',
-      encaixe,
+      encaixe: data === d.data ? encaixe : false,
+      serie_id,
       observacoes: d.observacoes || null,
     });
+  }
+
+  try {
+    // As duas gravam local primeiro e sobem depois — a tela não espera a rede.
+    if (horarios.length === 1) await db.salvar('agendamentos', horarios[0]);
+    else db.salvarLote('agendamentos', horarios);
     fechar();
-    avisar('Horário marcado');
+    avisar(horarios.length === 1 ? 'Horário marcado'
+      : `${horarios.length} horários marcados`
+        + (pulados.length ? ` · ${pulados.length} pulado(s), já tinha cliente: ${listar(pulados)}` : ''));
   } catch (e) {
     avisar(e.message || 'Não foi possível marcar', 'erro');
   }

@@ -384,6 +384,13 @@ create index if not exists idx_agendamentos_prof on agendamentos (profissional_i
 -- o erro de digitação, e as duas coisas não são a mesma.
 alter table agendamentos add column if not exists encaixe boolean not null default false;
 
+-- Cliente fixa: o horário que se repete toda semana, a cada quinze ou a cada
+-- trinta dias. Os horários da série são independentes — desmarcar um não
+-- derruba os outros —, mas carregam o mesmo código para o studio poder
+-- desmarcar dali para a frente de uma vez.
+alter table agendamentos add column if not exists serie_id uuid;
+create index if not exists idx_agendamentos_serie on agendamentos (serie_id);
+
 -- A trava contra dois agendamentos no mesmo horário — que agora deixa passar
 -- o que foi marcado como encaixe de propósito. Recriada sempre: um banco feito
 -- antes da coluna existir tem a trava antiga, e ela recusaria todo encaixe.
