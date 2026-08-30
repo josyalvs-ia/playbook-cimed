@@ -325,6 +325,58 @@ tbody tr { transition: background .18s ease; }
 }
 .titulo-marca .ico { width: 16px; height: 16px; }
 
+/* ── Agenda: semana, mês e lista ───────────────────────────────────────────*/
+/* A visão do dia responde "o que faço agora"; a do mês responde "como está
+   minha semana que vem" — e é essa que faz alguém abrir a agenda no domingo. */
+.semana { display: grid; gap: 10px; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.semana-dia {
+  display: flex; flex-direction: column; gap: 5px; min-width: 0;
+  background: var(--superficie); border: 1px solid var(--linha);
+  border-radius: var(--r); padding: 10px 8px;
+}
+.semana-dia.hoje { border-color: var(--creme); }
+.semana-topo {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--linha); width: 100%;
+}
+.semana-topo .num { font-size: 21px; line-height: 1.1; }
+.semana-dia.hoje .semana-topo .num { color: var(--creme); }
+.semana-item {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  padding: 7px 8px; border-radius: 9px; background: var(--elevado);
+  font-size: 12px; min-width: 0;
+}
+.semana-item:hover { background: var(--creme); color: var(--verde); }
+.semana-item:hover .t3 { color: rgba(46, 51, 34, .6); }
+
+.mes { display: grid; gap: 6px; }
+.mes-cabeca, .mes-linha { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.mes-cabeca { text-align: center; margin-bottom: 2px; }
+.mes-dia {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  min-height: 62px; padding: 8px 4px; border-radius: 12px;
+  background: var(--superficie); border: 1px solid var(--linha);
+  transition: background .2s ease, border-color .2s ease;
+}
+.mes-dia:hover { background: var(--elevado); border-color: var(--linha-forte); }
+.mes-dia .n { font-family: var(--display); font-size: 16px; font-weight: 700; line-height: 1; }
+.mes-dia.fora { opacity: .32; }
+.mes-dia.hoje { border-color: var(--creme); }
+.mes-dia.hoje .n { color: var(--creme); }
+/* Uma bolinha por horário: dá para ver o dia cheio sem abrir nada. */
+.pontos { display: flex; align-items: center; justify-content: center; gap: 3px; flex-wrap: wrap; }
+.ponto { width: 6px; height: 6px; border-radius: 50%; background: var(--creme); opacity: .75; }
+.ponto.ok { background: var(--ok); }
+.ponto.erro { background: var(--erro); }
+.mes-dia .mais { font-size: 9.5px; font-style: normal; color: var(--texto-3); }
+
+.lista-dia + .lista-dia { margin-top: 8px; }
+.lista-cabeca {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
+  padding: 11px 2px 7px; border-radius: var(--r-sm);
+}
+.lista-cabeca:hover { background: var(--elevado); }
+
 /* ── Endereços do studio ───────────────────────────────────────────────────*/
 .enderecos { display: grid; gap: 8px; }
 .endereco {
@@ -764,6 +816,24 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
   /* O texto do botão principal sai; sobra o "+", que já diz o que faz. */
   .esconde-mobile { display: none; }
   .agenda-colunas { grid-template-columns: minmax(0, 1fr); }
+
+  /* Sete colunas não cabem num celular: a semana vira uma pilha de dias, e o
+     mês encolhe mantendo a grade — é a grade que dá a leitura de relance. */
+  .semana { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .semana-dia { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .semana-topo {
+    flex-direction: row; align-items: center; gap: 8px; width: auto;
+    min-height: 40px; padding: 0 12px 0 0;
+    border-bottom: none; border-right: 1px solid var(--linha);
+  }
+  .semana-topo .num { font-size: 18px; }
+  .semana-item { width: auto; flex: 1 1 130px; }
+
+  .mes-cabeca, .mes-linha { gap: 4px; }
+  .mes-dia { min-height: 50px; padding: 6px 2px; gap: 4px; border-radius: 10px; }
+  .mes-dia .n { font-size: 14px; }
+  .ponto { width: 5px; height: 5px; }
+  .mes-cabeca .rotulo { font-size: 9px; letter-spacing: .06em; }
 
   /* Dedo, não ponteiro: nada de alvo abaixo de ~40px de altura. */
   .btn-sm { padding: 9px 13px; min-height: 40px; }

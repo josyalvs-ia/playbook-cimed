@@ -10,6 +10,15 @@ import { abrirComanda, fazEsseServico } from './comandas.js';
 
 let dia = hoje();
 
+/**
+ * Como a agenda está sendo olhada.
+ *
+ * O dia responde "o que faço agora"; o mês responde "como está minha semana
+ * que vem" — e é essa segunda pergunta que faz alguém abrir a agenda no
+ * domingo à noite. A lista serve para quem quer só o próximo compromisso.
+ */
+let visao = 'dia';   // dia | semana | mes | lista
+
 /** Chamado pelo sino: abre a agenda já no dia da novidade. */
 export function irParaDia(d) {
   dia = d;
@@ -35,9 +44,32 @@ function quemVejo() {
 
 /** Agendamentos de um dia, já ordenados. O banco guarda em UTC. */
 function doDia(data) {
+  return doPeriodo(data, data);
+}
+
+/** Tudo o que está de pé entre duas datas, do primeiro ao último horário. */
+function doPeriodo(de, ate) {
+  const eu = quemVejo();
   return db.estado.agendamentos
-    .filter((a) => a.status !== 'cancelado' && localData(a.inicio) === data)
+    .filter((a) => a.status !== 'cancelado'
+      && localData(a.inicio) >= de && localData(a.inicio) <= ate
+      && (!eu || a.profissional_id === eu))
     .sort((a, b) => a.inicio.localeCompare(b.inicio));
+}
+
+/** Domingo da semana de uma data — é por ele que a grade do mês se alinha. */
+function domingoDa(data) {
+  const d = new Date(data + 'T12:00:00');
+  d.setDate(d.getDate() - d.getDay());
+  return iso(d);
+}
+const iso = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const primeiroDoMes = (data) => data.slice(0, 8) + '01';
+function ultimoDoMes(data) {
+  const [a, m] = data.split('-').map(Number);
+  return iso(new Date(a, m, 0));
 }
 
 const localData = (iso) => {
@@ -57,37 +89,46 @@ export function render(raiz) {
   const profs = atendentes();
   const eu = quemVejo();
   const visiveis = eu ? profs.filter((p) => p.id === eu) : profs;
+  const podeAlternar = profs.length > 1 && db.eu?.atende !== false;
 
-  // Os números do topo falam do que está na tela: mostrar o faturamento do
-  // studio inteiro ao lado de uma agenda só sua seria contraditório.
-  const lista = doDia(dia).filter((a) => !eu || a.profissional_id === eu);
+  const { de, ate } = janela();
+  const lista = doPeriodo(de, ate);
   const total = lista.reduce((s, a) => s + Number(a.valor || 0), 0);
   const horas = lista.reduce((s, a) => s + Number(a.duracao_min || 0), 0) / 60;
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
-    localData(b.inicio) <= dia && localData(b.fim) >= dia);
+    localData(b.inicio) <= ate && localData(b.fim) >= de);
 
   raiz.innerHTML = `
     <div class="flex envolve mb" style="gap:8px">
-      <button class="btn-icone" id="anterior" title="Dia anterior">${ico('voltar')}</button>
-      <input type="date" id="dia" value="${dia}" style="width:auto">
-      <button class="btn-icone" id="proximo" title="Próximo dia" style="transform:rotate(180deg)">${ico('voltar')}</button>
-      <button class="btn btn-sm ${dia === hoje() ? 'btn-primario' : ''}" id="hoje">Hoje</button>
+      <div class="pilulas">
+        ${[['dia', 'Dia'], ['semana', 'Semana'], ['mes', 'Mês'], ['lista', 'Lista']].map(([v, t]) =>
+          `<button class="pilula ${visao === v ? 'ativa' : ''}" data-visao="${v}">${t}</button>`).join('')}
+      </div>
       <span class="crescer"></span>
-      ${profs.length > 1 && db.eu?.atende !== false ? `
+      ${podeAlternar ? `
         <div class="pilulas">
           <button class="pilula ${eu ? 'ativa' : ''}" data-ver="eu">Só eu</button>
           <button class="pilula ${eu ? '' : 'ativa'}" data-ver="todas">Studio</button>
         </div>` : ''}
+    </div>
+
+    <div class="flex envolve mb" style="gap:8px">
+      ${visao === 'lista' ? '' : `
+        <button class="btn-icone" id="anterior" title="Anterior">${ico('voltar')}</button>
+        <input type="date" id="dia" value="${dia}" style="width:auto">
+        <button class="btn-icone" id="proximo" title="Próximo" style="transform:rotate(180deg)">${ico('voltar')}</button>
+        <button class="btn btn-sm ${dia === hoje() ? 'btn-primario' : ''}" id="hoje">Hoje</button>`}
+      <span class="crescer"></span>
       <button class="btn btn-sm" id="bloquear">${ico('relogio')}Folga</button>
       <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Encaixar</button>
     </div>
 
     <div class="flex mb" style="gap:10px">
-      ${estrela()}<span class="eyebrow">${diaPorExtenso(dia)}</span>
+      ${estrela()}<span class="eyebrow">${tituloDoPeriodo()}</span>
     </div>
 
     <div class="grade c3 mb">
-      <div class="kpi destaque"><div class="rotulo">Agendado no dia</div>
+      <div class="kpi destaque"><div class="rotulo">Agendado ${visao === 'dia' ? 'no dia' : 'no período'}</div>
         <div class="valor">${fmt.brlCurto(total)}</div>
         <div class="nota">${lista.length} horário${lista.length === 1 ? '' : 's'}</div></div>
       <div class="kpi"><div class="rotulo">Cadeira ocupada</div>
@@ -103,19 +144,26 @@ export function render(raiz) {
         <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button></div>`).join('')}
     </div>` : ''}
 
-    <div class="grade agenda-colunas" style="--colunas:${Math.max(1, visiveis.length)}">
-      ${visiveis.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
-        || vazio('Nenhuma profissional cadastrada para atender.')}
-    </div>`;
+    ${({ dia: () => corpoDia(visiveis, lista),
+        semana: () => corpoSemana(de),
+        mes: () => corpoMes(),
+        lista: () => corpoLista() })[visao]()}`;
 
-  raiz.querySelectorAll('[data-ver]').forEach((b) => b.onclick = () => {
-    sóEu = b.dataset.ver === 'eu';
-    render(raiz);
+  raiz.querySelectorAll('[data-visao]').forEach((b) => b.onclick = () => {
+    visao = b.dataset.visao; render(raiz);
   });
-  raiz.querySelector('#dia').onchange = (e) => { dia = e.target.value; render(raiz); };
-  raiz.querySelector('#anterior').onclick = () => { dia = somarDias(dia, -1); render(raiz); };
-  raiz.querySelector('#proximo').onclick = () => { dia = somarDias(dia, 1); render(raiz); };
-  raiz.querySelector('#hoje').onclick = () => { dia = hoje(); render(raiz); };
+  raiz.querySelectorAll('[data-ver]').forEach((b) => b.onclick = () => {
+    sóEu = b.dataset.ver === 'eu'; render(raiz);
+  });
+  // Tocar num dia da grade do mês ou da semana leva para aquele dia.
+  raiz.querySelectorAll('[data-ir-dia]').forEach((b) => b.onclick = () => {
+    dia = b.dataset.irDia; visao = 'dia'; render(raiz);
+  });
+
+  raiz.querySelector('#dia')?.addEventListener('change', (e) => { dia = e.target.value; render(raiz); });
+  raiz.querySelector('#anterior')?.addEventListener('click', () => { dia = andar(-1); render(raiz); });
+  raiz.querySelector('#proximo')?.addEventListener('click', () => { dia = andar(1); render(raiz); });
+  raiz.querySelector('#hoje')?.addEventListener('click', () => { dia = hoje(); render(raiz); });
   raiz.querySelector('#novo').onclick = () => abrirAgendamento(null, dia);
   raiz.querySelector('#bloquear').onclick = () => abrirBloqueio(dia);
   raiz.querySelectorAll('[data-agend]').forEach((el) =>
@@ -126,6 +174,142 @@ export function render(raiz) {
       avisar('Agenda liberada');
     }
   });
+}
+
+/** O pedaço de tempo que a visão de agora abrange. */
+function janela() {
+  if (visao === 'semana') { const de = domingoDa(dia); return { de, ate: somarDias(de, 6) }; }
+  if (visao === 'mes')    return { de: primeiroDoMes(dia), ate: ultimoDoMes(dia) };
+  if (visao === 'lista')  return { de: hoje(), ate: somarDias(hoje(), 60) };
+  return { de: dia, ate: dia };
+}
+
+/** As setas andam no passo da visão: um dia, uma semana, um mês. */
+function andar(n) {
+  if (visao === 'semana') return somarDias(dia, 7 * n);
+  if (visao === 'mes') {
+    const [a, m] = dia.split('-').map(Number);
+    const d = new Date(a, m - 1 + n, 1);
+    // Dia 31 pulando para um mês de 30 não pode virar o mês seguinte.
+    const ultimo = new Date(a, m + n, 0).getDate();
+    d.setDate(Math.min(Number(dia.slice(8)), ultimo));
+    return iso(d);
+  }
+  return somarDias(dia, n);
+}
+
+function tituloDoPeriodo() {
+  if (visao === 'lista') return 'Próximos horários';
+  if (visao === 'mes') {
+    const t = new Date(dia + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  if (visao === 'semana') {
+    const de = domingoDa(dia);
+    const curto = (d) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    return `${curto(de)} a ${curto(somarDias(de, 6))}`;
+  }
+  return diaPorExtenso(dia);
+}
+
+// ─── As quatro visões ──────────────────────────────────────────────────────
+
+function corpoDia(visiveis, lista) {
+  return `
+    <div class="grade agenda-colunas" style="--colunas:${Math.max(1, visiveis.length)}">
+      ${visiveis.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
+        || vazio('Nenhuma profissional cadastrada para atender.')}
+    </div>`;
+}
+
+/** A semana em sete blocos, um por dia. Dia vazio aparece do mesmo jeito:
+    é o buraco na semana que interessa ver. */
+function corpoSemana(domingo) {
+  const dias = Array.from({ length: 7 }, (_, i) => somarDias(domingo, i));
+  return `<div class="semana">
+    ${dias.map((d) => {
+      const itens = doDia(d);
+      const nome = new Date(d + 'T12:00:00')
+        .toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+      return `<div class="semana-dia ${d === hoje() ? 'hoje' : ''}">
+        <button class="semana-topo" data-ir-dia="${d}">
+          <span class="rotulo">${esc(nome)}</span>
+          <span class="num display">${d.slice(8)}</span>
+          ${itens.length ? `<span class="selo">${itens.length}</span>` : ''}
+        </button>
+        ${itens.length ? itens.map((a) => `
+          <button class="semana-item" data-agend="${a.id}">
+            <span class="num" style="font-weight:600">${localHora(a.inicio)}</span>
+            <span class="truncar">${esc(a.cliente_nome)}</span>
+            <span class="pequeno t3 truncar">${esc(a.servico_nome)}</span>
+          </button>`).join('')
+          : '<span class="pequeno t3 centro" style="padding:10px 0">livre</span>'}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/** O mês inteiro numa grade, com uma bolinha por horário — é a visão que
+    responde "como está minha semana que vem" de um relance. */
+function corpoMes() {
+  const inicio = domingoDa(primeiroDoMes(dia));
+  const fimMes = ultimoDoMes(dia);
+  const semanas = [];
+  for (let d = inicio; d <= fimMes || semanas.length * 7 < 1; ) {
+    const semana = Array.from({ length: 7 }, (_, i) => somarDias(d, i));
+    semanas.push(semana);
+    d = somarDias(d, 7);
+    if (d > fimMes) break;
+  }
+  const mesAtual = dia.slice(0, 7);
+  const cor = { concluido: 'ok', faltou: 'erro' };
+
+  return `<div class="mes">
+    <div class="mes-cabeca">
+      ${['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+        .map((d) => `<span class="rotulo">${d}</span>`).join('')}
+    </div>
+    ${semanas.map((semana) => `<div class="mes-linha">
+      ${semana.map((d) => {
+        const itens = doDia(d);
+        const foraDoMes = d.slice(0, 7) !== mesAtual;
+        return `<button class="mes-dia ${foraDoMes ? 'fora' : ''} ${d === hoje() ? 'hoje' : ''}"
+                        data-ir-dia="${d}" title="${itens.length} horário(s)">
+          <span class="n">${d.slice(8)}</span>
+          <span class="pontos">
+            ${itens.slice(0, 4).map((a) =>
+              `<i class="ponto ${cor[a.status] || ''}"></i>`).join('')}
+            ${itens.length > 4 ? `<i class="mais">+${itens.length - 4}</i>` : ''}
+          </span>
+        </button>`;
+      }).join('')}
+    </div>`).join('')}
+  </div>`;
+}
+
+/** O que vem pela frente, em ordem, agrupado por dia. */
+function corpoLista() {
+  const proximos = doPeriodo(hoje(), somarDias(hoje(), 60))
+    .filter((a) => new Date(a.inicio) >= new Date(Date.now() - 3600e3));
+  if (!proximos.length) return vazio('Nenhum horário marcado daqui para a frente.');
+
+  const porDia = new Map();
+  for (const a of proximos) {
+    const d = localData(a.inicio);
+    if (!porDia.has(d)) porDia.set(d, []);
+    porDia.get(d).push(a);
+  }
+
+  return `<div class="cartao">
+    ${[...porDia.entries()].map(([d, itens]) => `
+      <div class="lista-dia">
+        <button class="lista-cabeca" data-ir-dia="${d}">
+          <span class="rotulo">${esc(diaPorExtenso(d))}</span>
+          <span class="pequeno t3">${itens.length} horário${itens.length === 1 ? '' : 's'}</span>
+        </button>
+        ${itens.map(cartaoHorario).join('')}
+      </div>`).join('')}
+  </div>`;
 }
 
 function coluna(prof, itens) {

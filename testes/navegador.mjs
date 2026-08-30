@@ -1191,7 +1191,94 @@ await p2.waitForTimeout(700);
     lida.semNada === RECADO_PADRAO]);
 }
 
-// ── 29. Link de "esqueci a senha" ──
+// ── 29. As quatro visões da agenda ──
+// O dia responde "o que faço agora"; o mês responde "como está minha semana
+// que vem" — e é essa segunda pergunta que faz alguém abrir a agenda no
+// domingo à noite.
+{
+  // Espalha horários por três dias do mês, com a Julia e com a Laura.
+  await p2.evaluate(async () => {
+    const t = globalThis.__DB.agendamentos;
+    const d = (dias, hora) => {
+      const x = new Date(); x.setDate(x.getDate() + dias); x.setHours(hora, 0, 0, 0);
+      return x.toISOString();
+    };
+    for (const [i, [dias, hora, prof]] of [[1, 9, 'p1'], [1, 11, 'p1'], [2, 14, 'p2'], [9, 10, 'p1']].entries()) {
+      t.push({ id: 'v-' + i, profissional_id: prof, servico_id: 'manicure',
+               servico_nome: 'Serviço ' + i, cliente_nome: 'Cliente ' + i,
+               inicio: d(dias, hora), duracao_min: 60, valor: 80,
+               status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    }
+    const db = await import('./js/db.js'); await db.recarregar();
+  });
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  await p2.click('[data-ver="todas"]');
+  await p2.waitForTimeout(400);
+
+  checagens.push(['visões: existem as quatro',
+    await p2.locator('[data-visao]').count() === 4]);
+
+  // ── Semana ──
+  await p2.click('[data-visao="semana"]');
+  await p2.waitForTimeout(500);
+  checagens.push(['semana: mostra os sete dias',
+    await p2.locator('.semana-dia').count() === 7]);
+  const semana = nb(await p2.textContent('.semana'));
+  checagens.push(['semana: traz os horários da semana', semana.includes('Cliente 0')]);
+  checagens.push(['semana: dia vazio aparece como livre', /livre/.test(semana)]);
+
+  // ── Mês ──
+  await p2.click('[data-visao="mes"]');
+  await p2.waitForTimeout(500);
+  const diasNoMes = await p2.locator('.mes-dia').count();
+  checagens.push(['mês: a grade cobre semanas inteiras',
+    diasNoMes >= 28 && diasNoMes % 7 === 0, diasNoMes + ' quadradinhos']);
+  checagens.push(['mês: dia com horário ganha bolinha',
+    await p2.locator('.mes-dia .ponto').count() >= 4]);
+  checagens.push(['mês: hoje fica marcado',
+    await p2.locator('.mes-dia.hoje').count() === 1]);
+  checagens.push(['mês: dias do mês vizinho ficam apagados',
+    await p2.locator('.mes-dia.fora').count() > 0]);
+  await p2.screenshot({ path: '/tmp/shot-agenda-mes.png' });
+
+  // Tocar num dia leva para aquele dia.
+  const alvo = await p2.locator('.mes-dia:not(.fora)').nth(15).getAttribute('data-ir-dia');
+  await p2.locator('.mes-dia:not(.fora)').nth(15).click();
+  await p2.waitForTimeout(600);
+  checagens.push(['mês: tocar num dia abre aquele dia',
+    await p2.inputValue('#dia') === alvo && await p2.locator('.agenda-colunas').count() === 1]);
+
+  // ── Lista ──
+  await p2.click('[data-visao="lista"]');
+  await p2.waitForTimeout(500);
+  const lista = nb(await p2.textContent('#conteudo'));
+  checagens.push(['lista: agrupa por dia', await p2.locator('.lista-dia').count() >= 2]);
+  checagens.push(['lista: diz "Amanhã" em vez de só a data', /Amanhã/.test(lista)]);
+  checagens.push(['lista: não tem seta de dia, porque não é de um dia só',
+    await p2.locator('#anterior').count() === 0]);
+
+  // ── E o filtro "só eu" vale em todas ──
+  await p2.click('[data-ver="eu"]');
+  await p2.waitForTimeout(500);
+  const soMinha = nb(await p2.textContent('#conteudo'));
+  checagens.push(['visões: "só eu" também filtra a lista',
+    soMinha.includes('Cliente 0') && !soMinha.includes('Cliente 2')]);
+
+  await p2.click('[data-visao="mes"]');
+  await p2.waitForTimeout(500);
+  const pontosMinhas = await p2.locator('.mes-dia .ponto').count();
+  await p2.click('[data-ver="todas"]');
+  await p2.waitForTimeout(500);
+  const pontosTodas = await p2.locator('.mes-dia .ponto').count();
+  checagens.push(['visões: "só eu" também filtra o mês',
+    pontosMinhas < pontosTodas, `${pontosMinhas} contra ${pontosTodas} bolinhas`]);
+
+  await p2.click('[data-visao="dia"]');
+  await p2.waitForTimeout(400);
+}
+
+// ── 30. Link de "esqueci a senha" ──
 // Quem volta pelo link do e-mail chega logada, com um endereço cheio de
 // código, e antes ficava dentro do sistema sem saber que faltava escolher a
 // senha nova — no dia seguinte estaria trancada de novo.
