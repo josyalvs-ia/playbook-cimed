@@ -86,6 +86,27 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
 
   /** Este serviço se marca sozinha pelo site? */
   const marcaSozinha = (s) => s?.agenda_online !== false;
+
+  /**
+   * Quem atende este serviço.
+   *
+   * Serviço de cabelo que se combina por mensagem tem de cair no WhatsApp de
+   * quem faz cabelo — mandar a cliente para o número errado é fazê-la contar a
+   * história duas vezes. Quem faz as duas coisas serve para qualquer serviço,
+   * mas só entra se não houver alguém da área.
+   */
+  function quemFaz(s) {
+    const tipo = s?.profissional || 'unhas';
+    return equipe.find((p) => p.funcao === tipo)
+        || equipe.find((p) => p.funcao === 'ambos')
+        || null;
+  }
+
+  const primeiroNome = (p) => String(p?.apelido || p?.nome || '').split(' ')[0];
+
+  /** O WhatsApp para falar sobre este serviço: o de quem faz, ou o do studio. */
+  const zapDe = (s) =>
+    String(quemFaz(s)?.whatsapp || studio.whatsapp || '').replace(/\D/g, '');
   let familia = null;                 // destaque escolhido no passo 1
   let livres = [];
 
@@ -178,7 +199,8 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
   // e no lugar dos horários abre este recado com o botão do WhatsApp.
   function passoRecado() {
     const s = escolha.servico;
-    const zap = String(studio.whatsapp || '').replace(/\D/g, '');
+    const dona = quemFaz(s);
+    const zap = zapDe(s);
     const texto = (s.recado_agenda || '').trim() || RECADO_AGENDA;
     const avaliacao = servicos.find((x) => marcaSozinha(x)
       && familiaDe(x.categoria) === familiaDe(s.categoria)
@@ -190,7 +212,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
         <strong>${esc(s.nome)}</strong>
         <span>${esc(precoTexto(s))}</span>
       </div>
-      <div class="ag-recado">
+      <div class="ag-combinar">
         ${icoDestaque(familiaDe(s.categoria), 'ico grande')}
         <p>${esc(texto)}</p>
         ${s.nota ? `<p class="pequeno t2">${esc(s.nota)}</p>` : ''}
@@ -198,7 +220,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
           <a class="btn btn-primario" id="ag-zap" target="_blank" rel="noopener"
              href="https://wa.me/55${zap}?text=${encodeURIComponent(
                'Oi! Queria fazer ' + s.nome + '. Podemos combinar?')}">
-            Falar no WhatsApp</a>` : ''}
+            Falar ${dona ? 'com ' + esc(primeiroNome(dona)) : ''} no WhatsApp</a>` : ''}
         ${avaliacao ? `
           <button class="btn btn-fantasma" data-serv-av="${esc(avaliacao.id)}">
             Marcar ${esc(avaliacao.nome.toLowerCase())}</button>` : ''}
@@ -271,8 +293,8 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     if (!livres.length) {
       alvo.innerHTML = `<div class="ag-vazio">
         <p>Nenhum horário livre neste dia.</p>
-        <p class="pequeno">Escolha outro dia acima${studio.whatsapp
-          ? ` ou <a href="https://wa.me/55${String(studio.whatsapp).replace(/\D/g, '')}" target="_blank" rel="noopener">fale com a gente</a>` : ''}.</p>
+        <p class="pequeno">Escolha outro dia acima${zapDe(escolha.servico)
+          ? ` ou <a href="https://wa.me/55${zapDe(escolha.servico)}" target="_blank" rel="noopener">fale com a gente</a>` : ''}.</p>
       </div>`;
       return;
     }

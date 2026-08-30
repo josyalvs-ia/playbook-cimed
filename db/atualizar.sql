@@ -78,11 +78,16 @@ end $$;
 -- studio. A frase do studio mora em `config`, junto do resto.
 alter table public.profissionais add column if not exists recado text;
 
--- A view precisa ser recriada para passar a entregar a coluna nova.
+-- ── O WhatsApp de cada uma ─────────────────────────────────────────────────
+-- Serviço de cabelo que se combina por mensagem vai para o zap de quem faz
+-- cabelo; unha, para o de quem faz unha. Vazio, vale o número do studio.
+alter table public.profissionais add column if not exists whatsapp text;
+
+-- A view precisa ser recriada para passar a entregar as colunas novas.
 drop view if exists public.equipe_publica;
 create view public.equipe_publica
 with (security_invoker = off) as
-  select id, nome, apelido, funcao, foto, bio, recado
+  select id, nome, apelido, funcao, foto, bio, recado, whatsapp
   from public.profissionais
   where ativo and atende;
 

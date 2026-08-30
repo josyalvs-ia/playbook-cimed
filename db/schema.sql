@@ -31,6 +31,10 @@ alter table profissionais add column if not exists foto text;
 alter table profissionais add column if not exists bio  text;
 -- A frase que fecha o agendamento. Vazia, vale a do studio (em `config`).
 alter table profissionais add column if not exists recado text;
+-- O WhatsApp de cada uma. Serviço de cabelo que se combina por mensagem vai
+-- para o zap de quem faz cabelo; unha, para o de quem faz unha. Vazio, vale o
+-- número do studio.
+alter table profissionais add column if not exists whatsapp text;
 
 -- ── Clientes ───────────────────────────────────────────────────────────────
 create table if not exists clientes (
@@ -239,7 +243,7 @@ create policy "vitrine_config" on config
 -- a linha carrega a comissão. A view entrega só as colunas de vitrine.
 create or replace view public.equipe_publica
 with (security_invoker = off) as
-  select id, nome, apelido, funcao, foto, bio, recado
+  select id, nome, apelido, funcao, foto, bio, recado, whatsapp
   from public.profissionais
   where ativo and atende;
 

@@ -394,6 +394,8 @@ const EXIGENCIAS = [
     serve_para: 'a frase que a cliente lê ao fechar o agendamento com ela' },
   { o_que: 'Carimbo de alteração', tipo: 'coluna', tabela: 'agendamentos', coluna: 'atualizado_em',
     serve_para: 'o app baixar só o que mudou, em vez do banco inteiro a cada volta' },
+  { o_que: 'WhatsApp de cada profissional', tipo: 'coluna', tabela: 'profissionais', coluna: 'whatsapp',
+    serve_para: 'mandar a cliente para o zap de quem faz aquele serviço' },
   { o_que: 'Serviço que só a equipe agenda', tipo: 'coluna', tabela: 'servicos', coluna: 'agenda_online',
     serve_para: 'o serviço aparecer no site com um recado, em vez de horários' },
   { o_que: 'Equipe visível para a cliente', tipo: 'view', nome: 'equipe_publica',

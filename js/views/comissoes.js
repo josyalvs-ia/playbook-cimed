@@ -193,6 +193,11 @@ export function abrirProfissional(id) {
                placeholder="${esc(frasePadrao())}">
         <span class="dica t3">Quem marcar com você lê esta. Em branco, vale a do
           studio: "${esc(frasePadrao())}"</span></label>
+      <label class="campo"><span>Seu WhatsApp</span>
+        <input name="whatsapp" type="tel" value="${esc(p.whatsapp || '')}"
+               placeholder="(11) 99999-9999">
+        <span class="dica t3">Serviço que não se marca sozinha pelo site manda a
+          cliente para este número. Em branco, vale o do studio.</span></label>
       <div class="linha-campos">
         <label class="campo"><span>Função</span>
           <select name="funcao">
@@ -245,6 +250,7 @@ export function abrirProfissional(id) {
         await db.salvar('profissionais', {
           ...p, nome: d.nome, funcao: d.funcao, bio: d.bio || null,
           recado: d.recado || null, foto,
+          whatsapp: (d.whatsapp || '').replace(/\D/g, '') || null,
           comissao_pct: (Number(d.pct) || 0) / 100,
           ativo: !!d.ativo, atende: !!d.atende,
         });

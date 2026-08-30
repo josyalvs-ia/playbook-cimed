@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://josyalvs-ia.github.io/playbook-cimed/vitrine.html">
-<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-30.4">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-30.5">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,10 +26,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-08-30.4">
+<link rel="stylesheet" href="css/app.css?v=2026-08-30.5">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-08-30.4"></script>
+<script src="config.js?v=2026-08-30.5"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -230,15 +230,18 @@
   .ag-vazio { text-align: center; padding: 34px 16px; color: var(--texto-3); }
 
   /* O recado de quem se combina no WhatsApp. Ocupa o lugar dos horários, com
-     o mesmo peso: não é um erro, é o caminho daquele serviço. */
-  .ag-recado { text-align: center; padding: 26px 18px 30px;
-               background: var(--superficie); border: 1px solid var(--linha);
-               border-radius: var(--r); }
-  .ag-recado .ico.grande { width: 42px; height: 42px; color: var(--creme);
-                           margin-bottom: 12px; }
-  .ag-recado p { max-width: 340px; margin: 0 auto 8px; line-height: 1.55; }
-  .ag-recado .btn { margin-top: 16px; width: 100%; max-width: 320px; }
-  .ag-recado .btn + .btn { margin-top: 9px; }
+     o mesmo peso: não é um erro, é o caminho daquele serviço.
+     Nome próprio: `.ag-recado` já é a frase de assinatura do fim, que vive
+     numa linha só — e este texto é um parágrafo que precisa quebrar. */
+  .ag-combinar { text-align: center; padding: 26px 18px 30px;
+                 background: var(--superficie); border: 1px solid var(--linha);
+                 border-radius: var(--r); }
+  .ag-combinar .ico.grande { width: 42px; height: 42px; color: var(--creme);
+                             margin-bottom: 12px; }
+  .ag-combinar p { max-width: 380px; margin: 0 auto 10px; line-height: 1.55;
+                   overflow-wrap: anywhere; }
+  .ag-combinar .btn { margin-top: 16px; width: 100%; max-width: 320px; }
+  .ag-combinar .btn + .btn { margin-top: 9px; }
 
   /* Quem vai atender, com o rosto — logo antes de a cliente deixar os dados. */
   .ag-com {

@@ -19,7 +19,18 @@ if (!memoria.profissionais) memoria.profissionais = [
   { id: 'p1', user_id: 'u1', nome: 'Laura', funcao: 'cabelo', comissao_pct: 0.5, ativo: true, atende: true },
   { id: 'p2', user_id: 'u2', nome: 'Julia', funcao: 'unhas',  comissao_pct: 0.5, ativo: true, atende: true },
 ];
-function tabela(nome){ return memoria[nome] || (memoria[nome] = []); }
+function tabela(nome){
+  // A view da equipe não é uma tabela: é o recorte público de profissionais —
+  // sem comissão, e só quem está ativa e atende. Sem isto aqui, a vitrine do
+  // teste ficava sem equipe e o zap de cada uma nunca era exercitado.
+  if (nome === 'equipe_publica') {
+    return (memoria.profissionais || [])
+      .filter((p) => p.ativo !== false && p.atende !== false)
+      .map(({ id, nome, apelido, funcao, foto, bio, recado, whatsapp }) =>
+        ({ id, nome, apelido, funcao, foto, bio, recado, whatsapp }));
+  }
+  return memoria[nome] || (memoria[nome] = []);
+}
 function query(nome){
   const q = {
     // O app agora pede só o que mudou desde a última conferida.
@@ -1371,7 +1382,12 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   // Um banco com os dois casos: um serviço que se marca sozinha e um que não.
   await pw.addInitScript(() => {
     sessionStorage.setItem('__db', JSON.stringify({
-      profissionais: [{ id: 'p1', nome: 'Laura', funcao: 'cabelo', ativo: true, atende: true }],
+      profissionais: [
+        { id: 'p1', nome: 'Laura Pavão', funcao: 'cabelo', ativo: true, atende: true,
+          whatsapp: '11911112222' },
+        { id: 'p2', nome: 'Julia', funcao: 'unhas', ativo: true, atende: true,
+          whatsapp: '11933334444' },
+      ],
       config: [{ chave: 'studio', valor: { nome: 'Alento', whatsapp: '11999990000' } }],
       servicos: [
         { id: 'manicure', categoria: 'maos', nome: 'Manicure', tipo: 'servico',
@@ -1379,7 +1395,14 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
         { id: 'cab-mechas', categoria: 'cab-cor', nome: 'Mechas loiras ou iluminadas',
           tipo: 'servico', preco: 600, preco_tipo: 'a_partir', tempo: 4.5, ativo: true,
           profissional: 'cabelo', ordem: 2, agenda_online: false,
-          recado_agenda: 'Precisamos ver seu cabelo antes de marcar.' },
+          nota: 'Técnica usada em cabelos naturais ou sem coloração para clarear até 3 tons.'
+              + ' ATENÇÃO este agendamento é exclusivamente para avaliação e não para o serviço.',
+          recado_agenda: 'Precisamos ver seu cabelo antes de marcar, porque o mesmo serviço'
+              + ' leva quatro horas num cabelo e sete noutro. Chama a gente no WhatsApp que'
+              + ' a gente combina tudo com calma.' },
+        { id: 'along-fibra', categoria: 'alongamento', nome: 'Alongamento em fibra',
+          tipo: 'servico', preco: 180, tempo: 2.5, ativo: true,
+          profissional: 'unhas', ordem: 3, agenda_online: false },
       ],
     }));
   });
@@ -1396,19 +1419,39 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     nb(await pw.textContent('[data-serv="cab-mechas"]')).includes('600')]);
 
   await pw.click('[data-serv="cab-mechas"]');
-  await pw.waitForSelector('.ag-recado', { timeout: 4000 });
+  await pw.waitForSelector('.ag-combinar', { timeout: 4000 });
   checagens.push(['só WhatsApp: não oferece horário nenhum',
     await pw.locator('.ag-dia').count() === 0 && await pw.locator('.ag-hora').count() === 0]);
   checagens.push(['só WhatsApp: mostra o recado que elas escreveram',
-    nb(await pw.textContent('.ag-recado')).includes('ver seu cabelo antes')]);
+    nb(await pw.textContent('.ag-combinar')).includes('ver seu cabelo antes')]);
   const zap = await pw.getAttribute('#ag-zap', 'href');
-  checagens.push(['só WhatsApp: botão leva ao WhatsApp do studio',
-    zap.startsWith('https://wa.me/5511999990000')]);
+  checagens.push(['só WhatsApp: cabelo vai para o zap de quem faz cabelo',
+    zap.startsWith('https://wa.me/5511911112222')]);
+  checagens.push(['só WhatsApp: o botão diz com quem ela vai falar',
+    nb(await pw.textContent('#ag-zap')).includes('Laura')]);
+  // O texto é um parágrafo, não a frase de assinatura: tem de quebrar linha.
+  checagens.push(['só WhatsApp: o recado quebra linha em vez de vazar',
+    await pw.evaluate(() => {
+      const p = document.querySelector('.ag-combinar p');
+      return getComputedStyle(p).whiteSpace !== 'nowrap'
+        && p.getBoundingClientRect().right <= innerWidth + 1;
+    })]);
   checagens.push(['só WhatsApp: a mensagem já diz o serviço',
     decodeURIComponent(zap).includes('Mechas loiras')]);
   checagens.push(['só WhatsApp: o passo muda de nome',
     nb(await pw.textContent('.ag-passo.atual')).includes('Como marcar')]);
   await pw.screenshot({ path: '/tmp/shot-so-whatsapp.png' });
+
+  // Unha vai para o zap da outra: mandar a cliente para o número errado é
+  // fazê-la contar a história duas vezes.
+  await pw.click('#voltar');
+  await pw.waitForTimeout(300);
+  await pw.click('[data-serv="along-fibra"]');
+  await pw.waitForSelector('.ag-combinar');
+  checagens.push(['só WhatsApp: unha vai para o zap de quem faz unha',
+    (await pw.getAttribute('#ag-zap', 'href')).startsWith('https://wa.me/5511933334444')]);
+  checagens.push(['só WhatsApp: sem recado próprio, vale a frase padrão',
+    nb(await pw.textContent('.ag-combinar')).includes('marcado pelo WhatsApp')]);
 
   // Voltar e escolher um que se marca sozinha: o caminho normal segue igual.
   await pw.click('#voltar');
@@ -1416,7 +1459,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await pw.click('[data-serv="manicure"]');
   await pw.waitForTimeout(600);
   checagens.push(['só WhatsApp: os outros serviços seguem marcando normal',
-    await pw.locator('.ag-dia').count() > 20 && await pw.locator('.ag-recado').count() === 0]);
+    await pw.locator('.ag-dia').count() > 20 && await pw.locator('.ag-combinar').count() === 0]);
   await ctxW.close();
 }
 
