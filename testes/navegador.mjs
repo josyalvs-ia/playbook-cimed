@@ -66,6 +66,9 @@ function query(nome){
     eq(){ return this; }, in(){ return this; }, single(){ return this; },
     gt(col, v){ this._gt = [col, v]; return this; },
     upsert(r){ const arr = Array.isArray(r)?r:[r];
+      // Ordem de chegada ao servidor: é o que revela alguém furando a fila.
+      globalThis.__ORDEM = globalThis.__ORDEM || [];
+      globalThis.__ORDEM.push(nome);
       // O teste pode mandar o banco recusar, para exercitar o caminho do erro.
       const recusa = globalThis.__RECUSAR;
       if (recusa && recusa.tabela === nome) {
@@ -1950,6 +1953,41 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
         .filter((a) => a.cliente_nome === 'Cliente Editar').length)) === 1]);
   checagens.push(['editar: o fim acompanha a duração',
     (new Date(depois.fim) - new Date(depois.inicio)) / 60000 === 90]);
+}
+
+// ── 39. Ninguém fura a fila ──
+// A Laura cadastrou clientes que ficaram presas no aparelho e, na comanda
+// seguinte, o servidor recusava: a comanda cita a cliente, e a cliente ainda
+// não existia lá. Quem chega depois tem de subir depois.
+{
+  await p2.evaluate(() => {
+    globalThis.__ORDEM = [];
+    localStorage.setItem('alento.fila.v1', JSON.stringify([{ acao: 'upsert',
+      tabela: 'clientes', ts: Date.now(),
+      dados: { id: 'na-fila-1', nome: 'Cliente Da Fila', ativo: true } }]));
+  });
+
+  // Uma gravação nova, com coisa esperando na fila: não pode ir na frente.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('comandas', { id: 'com-fila-1', data: new Date().toISOString().slice(0, 10),
+      cliente_id: 'na-fila-1', cliente_nome: 'Cliente Da Fila', profissional_id: 'p1',
+      status: 'aberta', total: 100, desconto: 0 });
+  });
+  await p2.waitForTimeout(600);
+
+  const ordem = await p2.evaluate(() => globalThis.__ORDEM);
+  checagens.push(['fila: a cliente sobe antes da comanda que cita ela',
+    ordem.indexOf('clientes') >= 0 && ordem.indexOf('clientes') < ordem.indexOf('comandas'),
+    ordem.join(' → ')]);
+  checagens.push(['fila: esvaziou sozinha',
+    (await p2.evaluate(() =>
+      JSON.parse(localStorage.getItem('alento.fila.v1') || '[]').length)) === 0]);
+  checagens.push(['fila: e as duas chegaram ao servidor',
+    await p2.evaluate(() => !!globalThis.__DB.clientes.find((c) => c.id === 'na-fila-1')
+      && !!globalThis.__DB.comandas.find((c) => c.id === 'com-fila-1'))]);
+  checagens.push(['fila: sem assustar com aviso de erro',
+    !/recus|não consegui/i.test(nb(await p2.textContent('#toasts')))]);
 }
 
 await browser.close();

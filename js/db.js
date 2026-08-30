@@ -137,6 +137,13 @@ function explicar(erro, tabela) {
                   + 'e toque em "Recarregar do servidor".',
     };
   }
+  // Uma comanda cita a cliente; um item cita a comanda. Se o que ela cita ainda
+  // não subiu, o servidor recusa — e a pessoa só via "o servidor recusou".
+  if (erro?.code === '23503' || /foreign key|violates foreign key/i.test(msg)) {
+    return { curto: 'Este lançamento depende de um cadastro que ainda não subiu.',
+             comoResolver: 'Toque em "Tentar de novo": a fila sobe na ordem em que foi '
+                         + 'criada e isto se resolve sozinho.' };
+  }
   if (erro?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
     return { curto: 'O banco recusou a gravação nesta conta.',
              comoResolver: 'Confira em Comissões → Equipe se esta pessoa está com acesso liberado.' };
@@ -162,7 +169,7 @@ const limpo = (r) => (r && typeof r === 'object' && !Array.isArray(r))
   ? Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v === '' ? null : v]))
   : r;
 
-function enfileirar(op, erro) {
+function enfileirar(op, erro, { silencioso = false } = {}) {
   const f = lerFila();
   f.push({ ...op, ts: Date.now() });
   gravarFila(f);
@@ -170,7 +177,7 @@ function enfileirar(op, erro) {
   // Falta de rede é normal e a fila resolve sozinha. Recusa do servidor não é:
   // ali a fila nunca vai esvaziar, e é preciso dizer isso na hora.
   const offline = !navigator.onLine || /failed to fetch|networkerror|offline/i.test(String(erro?.message || ''));
-  if (!offline) {
+  if (!offline && !silencioso) {
     ultimoErro = { ...explicar(erro, op.tabela), tabela: op.tabela, quando: new Date().toISOString() };
     console.error('Alento — o servidor recusou:', op.tabela, erro);
     avisar(ultimoErro.curto + ' Guardei no aparelho por enquanto.', 'erro');
@@ -335,6 +342,14 @@ export async function salvar(tabela, registro) {
 }
 
 async function subirDepois(tabela, r) {
+  // Ninguém fura a fila. Uma comanda que sobe antes da cliente que ela cita é
+  // recusada pelo servidor — a cliente ainda não existe lá. Enquanto houver
+  // coisa esperando, o novo entra atrás e sobe na ordem em que foi criado.
+  if (cliente && navigator.onLine && lerFila().length) {
+    enfileirar({ acao: 'upsert', tabela, dados: r }, null, { silencioso: true });
+    drenarFila();
+    return;
+  }
   try {
     if (!cliente || !navigator.onLine) throw new Error('offline');
     const { data, error } = await cliente.from(tabela).upsert(limpo(r)).select().single();
@@ -359,6 +374,13 @@ export async function salvarLote(tabela, registros) {
   registros.forEach((r) => mapa.set(r.id, { ...mapa.get(r.id), ...r }));
   estado[tabela] = [...mapa.values()];
   ordenar(); salvarCache(); notificar();
+
+  if (cliente && navigator.onLine && lerFila().length) {
+    registros.forEach((r) =>
+      enfileirar({ acao: 'upsert', tabela, dados: r }, null, { silencioso: true }));
+    drenarFila();
+    return;
+  }
 
   for (let i = 0; i < registros.length; i += 200) {
     const parte = registros.slice(i, i + 200);
