@@ -128,6 +128,19 @@ function datasDaSerie(inicio, passo, meses) {
   return datas;
 }
 
+/**
+ * De quantos em quantos dias a cliente volta.
+ *
+ * As opções cobrem o que elas usam todo dia; "outro" existe porque cliente de
+ * unha volta a cada 18, 21, 25 dias — o intervalo é da unha dela, não do
+ * calendário.
+ */
+const passoDe = (escolha, dias) => {
+  if (!escolha) return 0;
+  const n = escolha === 'outro' ? Math.round(Number(dias)) : Number(escolha);
+  return Number.isFinite(n) && n >= 1 && n <= 120 ? n : 0;
+};
+
 /** O relógio de um instante, no formato que o campo de hora entende. */
 const relogio = (ms) => {
   const d = new Date(ms);
@@ -563,9 +576,14 @@ export function abrirAgendamento(id, dataPadrao) {
           }
         }
         const quandoFim = ultimoFim;
-        // O botão de tirar só faz sentido com mais de uma linha.
+        // O botão de tirar só faz sentido com mais de uma linha, e o número
+        // só quando há mais de um serviço para diferenciar.
         const linhas = lista.querySelectorAll('.linha-servico');
-        linhas.forEach((l) => { l.querySelector('[data-remover]').hidden = linhas.length < 2; });
+        linhas.forEach((l, i) => {
+          l.querySelector('[data-remover]').hidden = linhas.length < 2;
+          l.querySelector('[data-numero]').textContent =
+            linhas.length > 1 ? `Serviço ${i + 1}` : 'Serviço';
+        });
 
         veu.querySelector('#termina').textContent = completos && quandoFim
           ? `Termina às ${localHora(quandoFim)} · ${fmt.horas(total / 60)} de atendimento`
@@ -615,15 +633,18 @@ export function abrirAgendamento(id, dataPadrao) {
       const selRep = veu.querySelector('[name=repetir]');
       const selAte = veu.querySelector('[name=repetir_ate]');
       const quantos = veu.querySelector('#quantos');
+      const selDias = veu.querySelector('[name=repetir_dias]');
       const mostrarRepeticao = () => {
         veu.querySelector('#campo-ate').hidden = !selRep.value;
+        veu.querySelector('#campo-dias').hidden = selRep.value !== 'outro';
         const datas = datasDaSerie(veu.querySelector('[name=data]').value,
-                                   Number(selRep.value), Number(selAte.value));
+                                   passoDe(selRep.value, selDias.value), Number(selAte.value));
         quantos.textContent = selRep.value && datas.length > 1
           ? `${datas.length} idas ao studio, até ${fmt.data(datas[datas.length - 1])}` : '';
       };
       selRep.onchange = mostrarRepeticao;
       selAte.onchange = mostrarRepeticao;
+      selDias.oninput = mostrarRepeticao;
       mostrarRepeticao();
 
       novaLinha();
@@ -661,8 +682,13 @@ function formNovo(servicos, profs, dataPadrao) {
           <option value="">Só desta vez</option>
           <option value="7">Toda semana</option>
           <option value="14">A cada 15 dias</option>
+          <option value="21">A cada 3 semanas</option>
           <option value="28">A cada 30 dias</option>
+          <option value="outro">Outro intervalo…</option>
         </select></label>
+      <label class="campo" id="campo-dias" hidden><span>A cada quantos dias</span>
+        <input type="number" name="repetir_dias" min="1" max="120" step="1"
+               inputmode="numeric" value="21"></label>
       <label class="campo" id="campo-ate" hidden><span>Até</span>
         <select name="repetir_ate">
           <option value="3">daqui a 3 meses</option>
@@ -679,24 +705,32 @@ function formNovo(servicos, profs, dataPadrao) {
 /** Uma linha de serviço: quem atende, o quê, e por quanto tempo. */
 function linhaServico(profs) {
   return `
-    <div class="linha-campos linha-servico" style="margin-bottom:10px">
-      <label class="campo"><span>Profissional</span>
-        <select data-prof>
-          <option value="">Escolha quem vai atender…</option>
-          ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
-        </select></label>
-      <label class="campo"><span>Serviço</span>
-        <select data-serv disabled>
-          <option value="">Escolha a profissional primeiro</option>
-        </select>
-        <span class="dica t3" data-tabela></span></label>
-      <label class="campo" style="max-width:130px"><span>Hora</span>
-        <input type="time" data-hora step="900"></label>
-      <label class="campo" style="max-width:130px"><span>Duração (min)</span>
-        <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
-        <span class="dica t3" data-quando></span></label>
-      <button type="button" class="btn-icone" data-remover title="Tirar este serviço"
-        style="align-self:end;margin-bottom:6px">${ico('lixo')}</button>
+    <div class="linha-servico">
+      <!-- Cabeçalho da linha: o número e o botão de tirar. Solto na grade, o
+           ícone de lixeira caía num canto qualquer do celular, sem dizer de
+           qual serviço era. -->
+      <div class="linha-servico-topo">
+        <span class="rotulo" data-numero>Serviço</span>
+        <button type="button" class="btn-icone" data-remover
+          title="Tirar este serviço">${ico('lixo')}</button>
+      </div>
+      <div class="linha-campos">
+        <label class="campo"><span>Profissional</span>
+          <select data-prof>
+            <option value="">Escolha quem vai atender…</option>
+            ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+          </select></label>
+        <label class="campo"><span>Serviço</span>
+          <select data-serv disabled>
+            <option value="">Escolha a profissional primeiro</option>
+          </select>
+          <span class="dica t3" data-tabela></span></label>
+        <label class="campo"><span>Hora</span>
+          <input type="time" data-hora step="900"></label>
+        <label class="campo"><span>Duração (min)</span>
+          <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
+          <span class="dica t3" data-quando></span></label>
+      </div>
     </div>`;
 }
 
@@ -888,7 +922,7 @@ async function salvarNovo(fechar, veu, servicos) {
   const encaixe = choque ? await pedirEncaixe(choque, choque.profissional_id) : false;
   if (choque && !encaixe) return;
 
-  const datas = datasDaSerie(d.data, Number(d.repetir), Number(d.repetir_ate));
+  const datas = datasDaSerie(d.data, passoDe(d.repetir, d.repetir_dias), Number(d.repetir_ate));
   const serie_id = datas.length > 1 ? uid() : null;
 
   const horarios = [];

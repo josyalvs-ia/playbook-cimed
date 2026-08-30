@@ -1747,6 +1747,24 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   const vivos = await p2.evaluate(() => globalThis.__DB.agendamentos
     .filter((a) => a.cliente_nome === 'Cliente Fixa' && a.status === 'confirmado').length);
   checagens.push(['cliente fixa: desmarca a série inteira de uma vez', vivos === 0]);
+
+  // Cliente de unha volta a cada 18, 21, 25 dias — o intervalo é da unha dela.
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [name=repetir]');
+  await p2.selectOption('.veu [name=repetir]', 'outro');
+  await p2.waitForTimeout(250);
+  checagens.push(['cliente fixa: "outro intervalo" revela o campo de dias',
+    await p2.locator('.veu #campo-dias').isVisible()]);
+  await p2.fill('.veu [name=repetir_dias]', '20');
+  await p2.selectOption('.veu [name=repetir_ate]', '3');
+  await p2.waitForTimeout(300);
+  const livre = nb(await p2.textContent('.veu #quantos'));
+  checagens.push(['cliente fixa: calcula com o intervalo escolhido por ela',
+    /^[4-6] idas ao studio/.test(livre), livre]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
 }
 
 // ── 36. Vários serviços na mesma ida ──

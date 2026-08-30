@@ -103,7 +103,8 @@ export function abrirCliente(id) {
         <label class="campo"><span>WhatsApp</span>
           <input name="telefone" type="tel" placeholder="(11) 99999-9999" value="${esc(c.telefone || '')}"></label>
         <label class="campo"><span>Aniversário</span>
-          <input name="nascimento" type="date" value="${c.nascimento || ''}"></label>
+          <input name="nascimento" type="date" value="${c.nascimento || ''}">
+          <span class="dica t3">Opcional. Com a data, ela aparece no painel no dia.</span></label>
       </div>
       <div class="linha-campos">
         <label class="campo"><span>Como conheceu</span>

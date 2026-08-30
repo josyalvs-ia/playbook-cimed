@@ -1,6 +1,6 @@
 // Service worker: guarda a casca do app para ele abrir mesmo sem internet.
 // Os dados vêm do Supabase (ou do cache local do próprio app), nunca daqui.
-const CACHE = 'alento-2026-08-30.13';
+const CACHE = 'alento-2026-08-30.14';
 const CASCA = [
   './', './index.html', './vitrine.html', './config.js',
   './css/app.css', './manifest.webmanifest',
