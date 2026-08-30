@@ -252,3 +252,10 @@ alter table public.agendamentos add constraint agendamentos_sem_choque
 -- código para o studio poder desmarcar dali para a frente de uma vez.
 alter table public.agendamentos add column if not exists serie_id uuid;
 create index if not exists idx_agendamentos_serie on public.agendamentos (serie_id);
+
+-- ── Vários serviços na mesma ida ───────────────────────────────────────────
+-- Manicure e depois o corte, às vezes com as duas profissionais. Cada serviço
+-- continua sendo um horário — é o que permite ocupar as duas agendas —, e o
+-- código da visita é o que junta os três de volta na hora de fechar a comanda.
+alter table public.agendamentos add column if not exists grupo_id uuid;
+create index if not exists idx_agendamentos_grupo on public.agendamentos (grupo_id);

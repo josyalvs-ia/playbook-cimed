@@ -353,6 +353,10 @@ export function lerForm(raiz) {
   raiz.querySelectorAll('[name]').forEach((c) => {
     if (c.type === 'checkbox') dados[c.name] = c.checked;
     else if (c.type === 'number') dados[c.name] = c.value === '' ? null : Number(c.value);
+    // Data em branco é AUSÊNCIA de data, não texto vazio. Mandar "" para uma
+    // coluna `date` o servidor recusa inteiro — era o que impedia de salvar
+    // uma cliente sem aniversário: "invalid input syntax for type date".
+    else if (c.type === 'date' || c.type === 'time') dados[c.name] = c.value || null;
     else dados[c.name] = c.value.trim?.() ?? c.value;
   });
   return dados;

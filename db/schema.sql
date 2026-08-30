@@ -391,6 +391,13 @@ alter table agendamentos add column if not exists encaixe boolean not null defau
 alter table agendamentos add column if not exists serie_id uuid;
 create index if not exists idx_agendamentos_serie on agendamentos (serie_id);
 
+-- Uma ida ao studio pode ter mais de um serviço: manicure e depois o corte,
+-- às vezes com as duas profissionais. Cada serviço é um horário — é o que
+-- permite ocupar as duas agendas —, e o código da visita é o que junta os
+-- três de volta na hora de fechar a comanda.
+alter table agendamentos add column if not exists grupo_id uuid;
+create index if not exists idx_agendamentos_grupo on agendamentos (grupo_id);
+
 -- A trava contra dois agendamentos no mesmo horário — que agora deixa passar
 -- o que foi marcado como encaixe de propósito. Recriada sempre: um banco feito
 -- antes da coluna existir tem a trava antiga, e ela recusaria todo encaixe.

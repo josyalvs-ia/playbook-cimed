@@ -393,17 +393,17 @@ await p2.waitForTimeout(900);
   await p2.waitForSelector('.veu');
   // Nada pode vir escolhido: a equipe precisa dizer quem atende.
   checagens.push(['agenda: profissional começa em branco',
-    (await p2.inputValue('.veu [name=profissional_id]')) === '']);
+    (await p2.inputValue('.veu [data-prof]')) === '']);
   checagens.push(['agenda: serviço bloqueado até escolher a profissional',
-    await p2.locator('.veu [name=servico_id]').isDisabled()]);
+    await p2.locator('.veu [data-serv]').isDisabled()]);
   await p2.fill('[name=cliente_nome]', 'Cliente da Agenda');
   await p2.click('text=Marcar');
   await p2.waitForTimeout(300);
   checagens.push(['agenda: recusa sem escolher a profissional',
     nb(await p2.textContent('#toasts')).includes('quem vai atender')]);
-  await p2.selectOption('.veu [name=profissional_id]', 'p2');
+  await p2.selectOption('.veu [data-prof]', 'p2');
   await p2.waitForTimeout(250);
-  await p2.selectOption('.veu [name=servico_id]', 'manicure');
+  await p2.selectOption('.veu [data-serv]', 'manicure');
   await p2.fill('[name=hora]', '10:00');
   await p2.click('text=Marcar');
   await p2.waitForTimeout(900);
@@ -583,19 +583,19 @@ await p2.evaluate(() => { location.hash = '#/agenda'; });
 await p2.waitForTimeout(800);
 {
   await p2.click('#novo');
-  await p2.waitForSelector('.veu [name=profissional_id]');
+  await p2.waitForSelector('.veu [data-prof]');
 
   // Confere pelo dado, não pelo nome: cada opção da lista tem que pertencer a
   // quem está selecionada. Adivinhar pelo texto do serviço é frágil.
   const tiposOferecidos = async () => p2.evaluate(() => {
     const servicos = globalThis.__DB?.servicos || [];
-    return [...document.querySelectorAll('.veu [name=servico_id] option')]
+    return [...document.querySelectorAll('.veu [data-serv] option')]
       .map((o) => servicos.find((s) => s.id === o.value)?.profissional)
       .filter(Boolean);
   });
-  const nomes = async () => p2.$$eval('.veu [name=servico_id] option', (os) => os.map((o) => o.textContent.trim()));
+  const nomes = async () => p2.$$eval('.veu [data-serv] option', (os) => os.map((o) => o.textContent.trim()));
 
-  await p2.selectOption('.veu [name=profissional_id]', 'p1');   // Laura, cabelo
+  await p2.selectOption('.veu [data-prof]', 'p1');   // Laura, cabelo
   await p2.waitForTimeout(250);
   const tiposLaura = await tiposOferecidos();
   const daLaura = await nomes();
@@ -603,7 +603,7 @@ await p2.waitForTimeout(800);
     tiposLaura.length > 0 && tiposLaura.every((t) => t === 'cabelo' || t === 'ambos')]);
   checagens.push(['agenda: Laura não vê manicure', !daLaura.some((n) => /^Manicure$/.test(n))]);
 
-  await p2.selectOption('.veu [name=profissional_id]', 'p2');   // Julia, unhas
+  await p2.selectOption('.veu [data-prof]', 'p2');   // Julia, unhas
   await p2.waitForTimeout(250);
   const tiposJulia = await tiposOferecidos();
   const daJulia = await nomes();
@@ -612,7 +612,7 @@ await p2.waitForTimeout(800);
   checagens.push(['agenda: Julia não vê escova', !daJulia.some((n) => /Escova/i.test(n))]);
   checagens.push(['agenda: as listas são diferentes', daLaura.join() !== daJulia.join()]);
   checagens.push(['agenda: as duas profissionais continuam na lista',
-    (await p2.$$eval('.veu [name=profissional_id] option',
+    (await p2.$$eval('.veu [data-prof] option',
       (o) => o.filter((x) => x.value).length)) === 2]);
 
   await p2.screenshot({ path: '/tmp/shot-filtro-agenda.png' });
@@ -1528,20 +1528,20 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.click('[data-visao="dia"]');
   await p2.waitForTimeout(300);
   await p2.click('#novo');
-  await p2.waitForSelector('.veu [name=servico_id]');
-  await p2.selectOption('.veu [name=profissional_id]', 'p2');
-  await p2.selectOption('.veu [name=servico_id]', 'gel-sem-manicure');
+  await p2.waitForSelector('.veu [data-serv]');
+  await p2.selectOption('.veu [data-prof]', 'p2');
+  await p2.selectOption('.veu [data-serv]', 'gel-sem-manicure');
   await p2.waitForTimeout(250);
 
-  const daTabela = await p2.inputValue('.veu [name=duracao_min]');
+  const daTabela = await p2.inputValue('.veu [data-dur]');
   checagens.push(['duração: já vem preenchida com o tempo da tabela',
     Number(daTabela) > 0, daTabela + ' min']);
   checagens.push(['duração: a tela lembra qual é o tempo da tabela',
-    nb(await p2.textContent('.veu #duracao')).includes('Tabela')]);
+    nb(await p2.textContent('.veu [data-tabela]')).includes('Tabela')]);
 
   await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
   await p2.fill('.veu [name=hora]', '06:00');
-  await p2.fill('.veu [name=duracao_min]', '100');
+  await p2.fill('.veu [data-dur]', '100');
   await p2.waitForTimeout(200);
   checagens.push(['duração: mostra a hora em que termina',
     nb(await p2.textContent('.veu #termina')).includes('07:40')]);
@@ -1592,14 +1592,14 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
 
   const marcar = async (hora, dur, nome) => {
     await p2.click('#novo');
-    await p2.waitForSelector('.veu [name=servico_id]');
-    await p2.selectOption('.veu [name=profissional_id]', 'p1');
-    await p2.selectOption('.veu [name=servico_id]', 'cab-corte-final');
+    await p2.waitForSelector('.veu [data-serv]');
+    await p2.selectOption('.veu [data-prof]', 'p1');
+    await p2.selectOption('.veu [data-serv]', 'cab-corte-final');
     await p2.waitForTimeout(200);
     await p2.fill('.veu [name=cliente_nome]', nome);
     await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
     await p2.fill('.veu [name=hora]', hora);
-    await p2.fill('.veu [name=duracao_min]', String(dur));
+    await p2.fill('.veu [data-dur]', String(dur));
     await p2.click('.veu .btn-primario');
     await p2.waitForTimeout(600);
   };
@@ -1679,8 +1679,8 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(700);
   await p2.click('#novo');
   await p2.waitForSelector('.veu [name=repetir]');
-  await p2.selectOption('.veu [name=profissional_id]', 'p2');
-  await p2.selectOption('.veu [name=servico_id]', 'manicure');
+  await p2.selectOption('.veu [data-prof]', 'p2');
+  await p2.selectOption('.veu [data-serv]', 'manicure');
   await p2.waitForTimeout(200);
   await p2.fill('.veu [name=cliente_nome]', 'Cliente Fixa');
   await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
@@ -1695,7 +1695,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     await p2.locator('.veu #campo-ate').isVisible()]);
   const aviso = nb(await p2.textContent('.veu #quantos'));
   checagens.push(['cliente fixa: diz quantos horários vai marcar antes de marcar',
-    /^1[0-9] horários, até /.test(aviso), aviso]);
+    /^1[0-9] idas ao studio, até /.test(aviso), aviso]);
 
   await p2.click('.veu .btn-primario');
   await p2.waitForTimeout(900);
@@ -1740,6 +1740,84 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   const vivos = await p2.evaluate(() => globalThis.__DB.agendamentos
     .filter((a) => a.cliente_nome === 'Cliente Fixa' && a.status === 'confirmado').length);
   checagens.push(['cliente fixa: desmarca a série inteira de uma vez', vivos === 0]);
+}
+
+// ── 36. Vários serviços na mesma ida ──
+// Antes era preciso fechar, abrir de novo e redigitar nome e telefone para
+// cada procedimento. O segundo costuma ser com a outra profissional.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [data-prof]');
+  checagens.push(['mais de um serviço: começa com uma linha só',
+    await p2.locator('.veu .linha-servico').count() === 1]);
+  checagens.push(['mais de um serviço: com uma linha, não oferece tirar',
+    await p2.locator('.veu [data-remover]').first().isHidden()]);
+
+  await p2.fill('.veu [name=cliente_nome]', 'Cliente Dois');
+  await p2.fill('.veu [name=cliente_telefone]', '11988887777');
+  await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
+  await p2.fill('.veu [name=hora]', '16:00');
+  await p2.selectOption('.veu .linha-servico:nth-child(1) [data-prof]', 'p2');
+  await p2.selectOption('.veu .linha-servico:nth-child(1) [data-serv]', 'manicure');
+  await p2.waitForTimeout(200);
+
+  await p2.click('.veu #mais-servico');
+  await p2.waitForTimeout(200);
+  checagens.push(['mais de um serviço: o botão acrescenta uma linha',
+    await p2.locator('.veu .linha-servico').count() === 2]);
+  checagens.push(['mais de um serviço: com duas linhas, dá para tirar',
+    await p2.locator('.veu [data-remover]').first().isVisible()]);
+
+  // A segunda com a outra profissional: é o caso que a Julia descreveu.
+  await p2.selectOption('.veu .linha-servico:nth-child(2) [data-prof]', 'p1');
+  await p2.selectOption('.veu .linha-servico:nth-child(2) [data-serv]', 'cab-corte-final');
+  await p2.waitForTimeout(250);
+
+  const linha2 = nb(await p2.textContent('.veu .linha-servico:nth-child(2)'));
+  checagens.push(['mais de um serviço: o segundo começa quando o primeiro acaba',
+    linha2.includes('17:00')]);
+  const fim = nb(await p2.textContent('.veu #termina'));
+  checagens.push(['mais de um serviço: soma o tempo e o valor da ida',
+    /2 serviços/.test(fim) && /18:30/.test(fim), fim]);
+
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(800);
+
+  const ida = await p2.evaluate(() => globalThis.__DB.agendamentos
+    .filter((a) => a.cliente_nome === 'Cliente Dois')
+    .sort((a, b) => a.inicio.localeCompare(b.inicio)));
+  checagens.push(['mais de um serviço: marcou os dois de uma vez', ida.length === 2]);
+  checagens.push(['mais de um serviço: cada um na agenda de quem faz',
+    ida[0].profissional_id === 'p2' && ida[1].profissional_id === 'p1']);
+  checagens.push(['mais de um serviço: um começa quando o outro termina',
+    ida[0].fim === ida[1].inicio]);
+  checagens.push(['mais de um serviço: os dois com o mesmo código de ida',
+    !!ida[0].grupo_id && ida[0].grupo_id === ida[1].grupo_id]);
+  checagens.push(['mais de um serviço: o telefone foi digitado uma vez só',
+    ida.every((a) => a.cliente_telefone === '11988887777')]);
+
+  // A ficha mostra o outro serviço da mesma ida.
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click(`[data-agend="${ida[0].id}"]`);
+  await p2.waitForSelector('.veu');
+  checagens.push(['mais de um serviço: a ficha mostra o outro da mesma ida',
+    /Nesta mesma ida/.test(nb(await p2.textContent('.veu')))]);
+
+  // E "cliente chegou" abre UMA comanda com os dois serviços.
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(900);
+  const itens = await p2.evaluate(() =>
+    [...document.querySelectorAll('.veu tbody tr')].map((tr) => tr.textContent).join(' | '));
+  checagens.push(['mais de um serviço: vira uma comanda com os dois',
+    /Manicure/i.test(itens) && /Corte/i.test(itens), itens.slice(0, 90)]);
+  const concluidos = await p2.evaluate(() => globalThis.__DB.agendamentos
+    .filter((a) => a.cliente_nome === 'Cliente Dois' && a.status === 'concluido').length);
+  checagens.push(['mais de um serviço: os dois horários saem da agenda ativa', concluidos === 2]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]')?.click());
+  await p2.waitForTimeout(300);
 }
 
 await browser.close();

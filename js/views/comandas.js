@@ -181,9 +181,12 @@ export function abrirComanda(id, inicial) {
     ? db.estado.comanda_itens.filter((i) => i.comanda_id === id).map((i) => ({ ...i }))
     : [];
 
-  if (!existente && inicial?.servico_id) {
-    const s = db.estado.servicos.find((x) => x.id === inicial.servico_id);
-    if (s) {
+  // A agenda manda uma lista: uma ida ao studio pode ter tido manicure e corte,
+  // e os dois entram na mesma comanda.
+  if (!existente) {
+    for (const id of inicial?.servico_ids || [inicial?.servico_id].filter(Boolean)) {
+      const s = db.estado.servicos.find((x) => x.id === id);
+      if (!s) continue;
       itens.push({ id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
                    tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
                    custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,

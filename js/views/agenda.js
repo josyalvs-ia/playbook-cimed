@@ -440,6 +440,7 @@ function cartaoHorario(a) {
             ${a.origem === 'site' ? '<span class="selo" title="a cliente marcou pelo site">site</span>' : ''}
             ${a.encaixe ? '<span class="selo" title="marcado dentro de outro horário, de propósito">encaixe</span>' : ''}
             ${a.serie_id ? '<span class="selo" title="cliente fixa: este horário se repete">fixo</span>' : ''}
+            ${a.grupo_id ? '<span class="selo" title="a cliente tem mais de um serviço nesta ida">mesma ida</span>' : ''}
           </div>
           <div style="font-weight:600;margin-top:3px">${esc(a.cliente_nome)}</div>
           <div class="pequeno t2">${esc(a.servico_nome)} · ${fmt.horas(a.duracao_min / 60)}</div>
@@ -497,15 +498,16 @@ export function abrirAgendamento(id, dataPadrao) {
         setTimeout(() => abrirRemarcar(a), 80);
       });
 
-      const selServico = veu.querySelector('[name=servico_id]');
-      const selProf = veu.querySelector('[name=profissional_id]');
-      if (!selServico || !selProf) return;
+      const lista = veu.querySelector('#servicos-lista');
+      if (!lista) return;
 
       // A lista de profissionais nunca encolhe; a de serviços acompanha quem
       // foi escolhida. Se ela não fizer nenhum, mostra todos em vez de nada.
       // Nada vem escolhido de véspera: campo preenchido sozinho é convite a
       // marcar a pessoa errada sem perceber.
-      const filtrarServicos = () => {
+      const filtrarServicos = (linha) => {
+        const selProf = linha.querySelector('[data-prof]');
+        const selServico = linha.querySelector('[data-serv]');
         const p = profs.find((x) => x.id === selProf.value);
         if (!p) {
           selServico.innerHTML = '<option value="">Escolha a profissional primeiro</option>';
@@ -514,44 +516,75 @@ export function abrirAgendamento(id, dataPadrao) {
         }
         const antes = selServico.value;
         const dela = servicos.filter((x) => fazEsseServico(p, x));
-        const lista = dela.length ? dela : servicos;
+        const dela2 = dela.length ? dela : servicos;
         selServico.disabled = false;
         selServico.innerHTML = '<option value="">Escolha o serviço…</option>'
-          + lista.map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join('');
-        if (lista.some((x) => x.id === antes)) selServico.value = antes;
+          + dela2.map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join('');
+        if (dela2.some((x) => x.id === antes)) selServico.value = antes;
       };
 
-      const campoDur = veu.querySelector('[name=duracao_min]');
-      const termina = veu.querySelector('#termina');
+      /**
+       * Redesenha os tempos: cada serviço começa quando o anterior termina.
+       *
+       * É o que responde "a que horas ela sai daqui" com dois procedimentos na
+       * mesma ida — e o que resolvia o tempo quebrado com um só.
+       */
+      const recalcular = () => {
+        const base = new Date(`${veu.querySelector('[name=data]').value}T${veu.querySelector('[name=hora]').value}:00`);
+        let quando = base.getTime();
+        let total = 0, dinheiro = 0, completos = 0;
+        for (const linha of lista.querySelectorAll('.linha-servico')) {
+          const s = servicos.find((x) => x.id === linha.querySelector('[data-serv]').value);
+          const min = Number(linha.querySelector('[data-dur]').value);
+          linha.querySelector('[data-tabela]').textContent =
+            s ? `Tabela: ${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
+          linha.querySelector('[data-quando]').textContent =
+            s && min > 0 && !isNaN(quando) ? `${localHora(quando)} às ${localHora(quando + min * 60000)}` : '';
+          if (s && min > 0) { quando += min * 60000; total += min; dinheiro += Number(s.preco) || 0; completos++; }
+        }
+        // O botão de tirar só faz sentido com mais de uma linha.
+        const linhas = lista.querySelectorAll('.linha-servico');
+        linhas.forEach((l) => { l.querySelector('[data-remover]').hidden = linhas.length < 2; });
 
-      // Mostrar a hora de término é o que resolve o "tempo quebrado": ela
-      // escolhe 1h40 e vê na hora que o horário termina às 11:40.
-      const mostrarFim = () => {
-        const min = Number(campoDur.value);
-        const d = veu.querySelector('[name=data]').value;
-        const h = veu.querySelector('[name=hora]').value;
-        termina.textContent = min > 0 && d && h
-          ? `Termina às ${localHora(new Date(`${d}T${h}:00`).getTime() + min * 60000)}`
-          + ` · ${fmt.horas(min / 60)}`
+        veu.querySelector('#termina').textContent = completos && !isNaN(quando)
+          ? `Termina às ${localHora(quando)} · ${fmt.horas(total / 60)}`
+            + (completos > 1 ? ` · ${completos} serviços · ${fmt.brl(dinheiro)}` : '')
           : '';
       };
 
-      const mostrarDuracao = ({ trocouServico = false } = {}) => {
-        const s = servicos.find((x) => x.id === selServico.value);
-        veu.querySelector('#duracao').textContent =
-          s ? `Tabela: ${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
+      const ligar = (linha) => {
+        const selProf = linha.querySelector('[data-prof]');
+        const selServico = linha.querySelector('[data-serv]');
+        const campoDur = linha.querySelector('[data-dur]');
         // Trocar de serviço traz o tempo da tabela de volta; digitar depois
         // manda. O contrário — insistir no número antigo — é o que faz alguém
         // marcar quatro horas de mechas achando que marcou uma de manicure.
-        if (s && trocouServico) campoDur.value = minutosDe(s);
-        mostrarFim();
+        const doServico = () => {
+          const s = servicos.find((x) => x.id === selServico.value);
+          if (s) campoDur.value = minutosDe(s);
+          recalcular();
+        };
+        selProf.onchange = () => { filtrarServicos(linha); doServico(); };
+        selServico.onchange = doServico;
+        campoDur.oninput = recalcular;
+        linha.querySelector('[data-remover]').onclick = () => { linha.remove(); recalcular(); };
+        filtrarServicos(linha);
       };
 
-      selProf.onchange = () => { filtrarServicos(); mostrarDuracao({ trocouServico: true }); };
-      selServico.onchange = () => mostrarDuracao({ trocouServico: true });
-      campoDur.oninput = mostrarFim;
-      veu.querySelector('[name=data]').onchange = () => { mostrarFim(); mostrarRepeticao(); };
-      veu.querySelector('[name=hora]').onchange = mostrarFim;
+      const novaLinha = () => {
+        lista.insertAdjacentHTML('beforeend', linhaServico(profs));
+        const linha = lista.lastElementChild;
+        ligar(linha);
+        recalcular();
+        return linha;
+      };
+
+      veu.querySelector('#mais-servico').onclick = () => {
+        novaLinha().querySelector('[data-prof]').focus();
+      };
+
+      veu.querySelector('[name=data]').onchange = () => { recalcular(); mostrarRepeticao(); };
+      veu.querySelector('[name=hora]').onchange = recalcular;
 
       // Dizer quantas vezes e até quando: "repetir" sem número na tela é um
       // salto no escuro — ela precisa saber que vai marcar 13 horários.
@@ -563,14 +596,13 @@ export function abrirAgendamento(id, dataPadrao) {
         const datas = datasDaSerie(veu.querySelector('[name=data]').value,
                                    Number(selRep.value), Number(selAte.value));
         quantos.textContent = selRep.value && datas.length > 1
-          ? `${datas.length} horários, até ${fmt.data(datas[datas.length - 1])}` : '';
+          ? `${datas.length} idas ao studio, até ${fmt.data(datas[datas.length - 1])}` : '';
       };
       selRep.onchange = mostrarRepeticao;
       selAte.onchange = mostrarRepeticao;
       mostrarRepeticao();
 
-      filtrarServicos();
-      mostrarDuracao({ trocouServico: true });
+      novaLinha();
     },
   });
 }
@@ -584,38 +616,26 @@ function formNovo(servicos, profs, dataPadrao) {
       </datalist></label>
     <label class="campo"><span>WhatsApp</span>
       <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"></label>
-
-    <!-- A profissional vem primeiro: escolher quem atende é o que enxuga a
-         lista de serviços. O caminho contrário deixaria a lista de pessoas
-         curta demais para trocar de ideia. -->
-    <label class="campo"><span>Profissional</span>
-      <select name="profissional_id">
-        <option value="">Escolha quem vai atender…</option>
-        ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
-      </select></label>
-    <label class="campo"><span>Serviço</span>
-      <select name="servico_id" disabled>
-        <option value="">Escolha a profissional primeiro</option>
-      </select>
-      <span class="dica t3" id="duracao"></span></label>
     <div class="linha-campos">
       <label class="campo"><span>Dia</span>
         <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
       <label class="campo"><span>Hora</span>
         <input type="time" name="hora" value="09:00" step="900"></label>
-      <!-- O tempo da tabela é o ponto de partida, não a sentença. A mesma
-           esmaltação em gel leva 1h20 numa cliente e 1h40 noutra; quem está
-           marcando sabe disso e corrige aqui, sem mexer no preço de todo mundo.
-           Pelo site continua valendo o tempo da tabela. -->
-      <label class="campo"><span>Duração (min)</span>
-        <input type="number" name="duracao_min" min="15" max="600" step="5"
-               inputmode="numeric" placeholder="—"></label>
     </div>
-    <p class="dica t3" id="termina"></p>
+
+    <!-- Uma ida ao studio pode ter mais de um serviço: manicure e depois o
+         corte. Antes era preciso fechar, abrir de novo e redigitar nome e
+         telefone para cada um. Cada linha tem a sua profissional, porque o
+         segundo serviço costuma ser com a outra. -->
+    <div class="rotulo" style="margin:18px 0 8px">Serviços</div>
+    <div id="servicos-lista"></div>
+    <button type="button" class="btn btn-sm btn-fantasma" id="mais-servico"
+      style="margin-top:4px">${ico('mais')}Adicionar serviço</button>
+    <p class="dica t3" id="termina" style="margin-top:8px"></p>
 
     <!-- Cliente fixa. Um horário que volta sozinho é o que segura a agenda de
          quem vem sempre — e é ela que sustenta o mês. -->
-    <div class="linha-campos">
+    <div class="linha-campos" style="margin-top:16px">
       <label class="campo"><span>Repetir</span>
         <select name="repetir">
           <option value="">Só desta vez</option>
@@ -634,6 +654,28 @@ function formNovo(servicos, profs, dataPadrao) {
 
     <label class="campo"><span>Observações</span>
       <input name="observacoes" placeholder="Ex.: quer francesinha"></label>`;
+}
+
+/** Uma linha de serviço: quem atende, o quê, e por quanto tempo. */
+function linhaServico(profs) {
+  return `
+    <div class="linha-campos linha-servico" style="margin-bottom:10px">
+      <label class="campo"><span>Profissional</span>
+        <select data-prof>
+          <option value="">Escolha quem vai atender…</option>
+          ${profs.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+        </select></label>
+      <label class="campo"><span>Serviço</span>
+        <select data-serv disabled>
+          <option value="">Escolha a profissional primeiro</option>
+        </select>
+        <span class="dica t3" data-tabela></span></label>
+      <label class="campo" style="max-width:130px"><span>Duração (min)</span>
+        <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
+        <span class="dica t3" data-quando></span></label>
+      <button type="button" class="btn-icone" data-remover title="Tirar este serviço"
+        style="align-self:end;margin-bottom:6px">${ico('lixo')}</button>
+    </div>`;
 }
 
 function fichaAgendamento(a) {
@@ -655,12 +697,21 @@ function fichaAgendamento(a) {
       <tr><td class="t2">Marcado</td><td>${a.origem === 'site' ? 'pela cliente, no site' : 'pelo studio'}${
         a.encaixe ? ', como encaixe' : ''}</td></tr>
       ${a.serie_id ? `<tr><td class="t2">Cliente fixa</td><td>${esc(descreverSerie(a))}</td></tr>` : ''}
+      ${outrosDaIda(a).length ? `<tr><td class="t2">Nesta mesma ida</td><td>${
+        outrosDaIda(a).map((x) => `${esc(x.servico_nome)} às ${localHora(x.inicio)}`
+          + ` <span class="t3">com ${esc((nomeProf(x.profissional_id) || '').split(' ')[0])}</span>`)
+          .join('<br>')}</td></tr>` : ''}
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
       : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('agenda')}Mudar dia, hora ou duração</button>`}`;
 }
+
+/** Os outros serviços da mesma ida ao studio. */
+const outrosDaIda = (a) => db.estado.agendamentos
+  .filter((x) => a.grupo_id && x.grupo_id === a.grupo_id && x.id !== a.id && x.status !== 'cancelado')
+  .sort((x, y) => x.inicio.localeCompare(y.inicio));
 
 /** Os outros horários da mesma cliente fixa, do mais cedo para o mais tarde. */
 const daSerie = (a) => db.estado.agendamentos
@@ -750,34 +801,67 @@ async function virarComanda(a) {
           nome: a.cliente_nome, telefone: a.cliente_telefone || null, ativo: true,
         })).id;
   }
-  await db.salvar('agendamentos', { ...a, status: 'concluido', cliente_id: clienteId });
+  // Uma ida com manicure e corte vira UMA comanda com os dois serviços. Abrir
+  // duas obrigaria a cliente a pagar duas vezes pela mesma ida.
+  const daIda = a.grupo_id
+    ? db.estado.agendamentos.filter((x) => x.grupo_id === a.grupo_id && x.status === 'confirmado')
+        .sort((x, y) => x.inicio.localeCompare(y.inicio))
+    : [a];
+
+  db.salvarLote('agendamentos',
+    daIda.map((x) => ({ ...x, status: 'concluido', cliente_id: clienteId })));
+
   abrirComanda(null, {
     cliente_nome: a.cliente_nome,
     cliente_id: clienteId,
     profissional_id: a.profissional_id,
     data: localData(a.inicio),
-    servico_id: a.servico_id,
+    servico_ids: daIda.map((x) => x.servico_id).filter(Boolean),
   });
 }
 
 async function salvarNovo(fechar, veu, servicos) {
   const d = lerForm(veu);
   if (!d.cliente_nome) return avisar('Informe o nome da cliente', 'erro');
-  if (!d.profissional_id) return avisar('Escolha quem vai atender', 'erro');
-  const s = servicos.find((x) => x.id === d.servico_id);
-  if (!s) return avisar('Escolha o serviço', 'erro');
+  if (!d.data || !d.hora) return avisar('Informe o dia e a hora', 'erro');
 
-  const inicio = new Date(`${d.data}T${d.hora}:00`);
-  const dur = duracaoValida(d.duracao_min, s);
-
-  const choque = choqueCom(d.profissional_id, inicio, dur);
-  const encaixe = choque ? await pedirEncaixe(choque, d.profissional_id) : false;
-  if (choque && !encaixe) return;
+  // Uma ida ao studio, um ou mais serviços, cada um começando quando o
+  // anterior termina.
+  const pedidos = [];
+  const linhas = [...veu.querySelectorAll('.linha-servico')];
+  for (const linha of linhas) {
+    const prof = linha.querySelector('[data-prof]').value;
+    const s = servicos.find((x) => x.id === linha.querySelector('[data-serv]').value);
+    // Uma linha extra esquecida em branco não atrapalha; a única em branco é
+    // que precisa ser cobrada, e pela primeira coisa que falta.
+    if (!prof && !s && linhas.length > 1) continue;
+    if (!prof) return avisar('Escolha quem vai atender', 'erro');
+    if (!s) return avisar('Escolha o serviço', 'erro');
+    pedidos.push({ prof, s, dur: duracaoValida(linha.querySelector('[data-dur]').value, s) });
+  }
+  if (!pedidos.length) return avisar('Escolha o serviço', 'erro');
 
   // O dia muda ANTES de salvar. Salvar já redesenha a tela (a gravação é
   // otimista), e trocar o dia depois disso deixava a agenda parada no dia
   // anterior — o horário existia, mas ela não via e marcava de novo.
   dia = d.data;
+
+  /** Os horários de uma ida, encadeados a partir da hora escolhida. */
+  const idaDe = (data) => {
+    let quando = new Date(`${data}T${d.hora}:00`).getTime();
+    return pedidos.map(({ prof, s, dur }) => {
+      const ini = new Date(quando);
+      quando += dur * 60000;
+      return { prof, s, dur, ini };
+    });
+  };
+
+  // A primeira ida pergunta sobre choque; as seguintes pulam o dia inteiro se
+  // esbarrarem em alguém — quebrar a ida no meio deixaria a cliente com o
+  // corte marcado e a unha não.
+  const choque = idaDe(d.data).map((h) => choqueCom(h.prof, h.ini, h.dur)).find(Boolean);
+  const encaixe = choque ? await pedirEncaixe(choque, choque.profissional_id) : false;
+  if (choque && !encaixe) return;
 
   const datas = datasDaSerie(d.data, Number(d.repetir), Number(d.repetir_ate));
   const serie_id = datas.length > 1 ? uid() : null;
@@ -785,29 +869,29 @@ async function salvarNovo(fechar, veu, servicos) {
   const horarios = [];
   const pulados = [];
   for (const data of datas) {
-    const ini = new Date(`${data}T${d.hora}:00`);
-    // O primeiro já passou pela conversa do encaixe. Nos seguintes, dia
-    // ocupado é pulado e dito no fim: parar a série inteira por causa de uma
-    // semana obrigaria a remarcar tudo na mão.
-    if (data !== d.data && choqueCom(d.profissional_id, ini, dur)) {
+    const ida = idaDe(data);
+    if (data !== d.data && ida.some((h) => choqueCom(h.prof, h.ini, h.dur))) {
       pulados.push(data);
       continue;
     }
-    horarios.push({
-      id: uid(),
-      profissional_id: d.profissional_id,
-      servico_id: s.id, servico_nome: s.nome,
-      cliente_nome: d.cliente_nome,
-      cliente_telefone: (d.cliente_telefone || '').replace(/\D/g, '') || null,
-      inicio: ini.toISOString(),
-      fim: new Date(ini.getTime() + dur * 60000).toISOString(),
-      duracao_min: dur,
-      valor: Number(s.preco) || 0,
-      status: 'confirmado', origem: 'studio',
-      encaixe: data === d.data ? encaixe : false,
-      serie_id,
-      observacoes: d.observacoes || null,
-    });
+    const grupo_id = ida.length > 1 ? uid() : null;
+    for (const { prof, s, dur, ini } of ida) {
+      horarios.push({
+        id: uid(),
+        profissional_id: prof,
+        servico_id: s.id, servico_nome: s.nome,
+        cliente_nome: d.cliente_nome,
+        cliente_telefone: (d.cliente_telefone || '').replace(/\D/g, '') || null,
+        inicio: ini.toISOString(),
+        fim: new Date(ini.getTime() + dur * 60000).toISOString(),
+        duracao_min: dur,
+        valor: Number(s.preco) || 0,
+        status: 'confirmado', origem: 'studio',
+        encaixe: data === d.data && !!choque && !!choqueCom(prof, ini, dur),
+        serie_id, grupo_id,
+        observacoes: d.observacoes || null,
+      });
+    }
   }
 
   try {
@@ -817,7 +901,7 @@ async function salvarNovo(fechar, veu, servicos) {
     fechar();
     avisar(horarios.length === 1 ? 'Horário marcado'
       : `${horarios.length} horários marcados`
-        + (pulados.length ? ` · ${pulados.length} pulado(s), já tinha cliente: ${listar(pulados)}` : ''));
+        + (pulados.length ? ` · ${pulados.length} dia(s) pulado(s), já tinha cliente: ${listar(pulados)}` : ''));
   } catch (e) {
     avisar(e.message || 'Não foi possível marcar', 'erro');
   }

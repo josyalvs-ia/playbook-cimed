@@ -571,6 +571,14 @@ input[type=search]::-webkit-search-cancel-button { filter: invert(0.15); cursor:
 
 .linha-campos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
+/* Cada serviço da ida é um bloco. No celular os campos empilham, e sem uma
+   linha separando não dá para ver onde um serviço acaba e o outro começa. */
+.linha-servico { align-items: end; }
+.linha-servico + .linha-servico {
+  border-top: 1px solid var(--linha); padding-top: 12px; margin-top: 2px;
+}
+.linha-servico [data-remover] { justify-self: end; }
+
 .check { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; padding: 5px 0; }
 .check input { width: 17px; height: 17px; flex: none; accent-color: var(--campo); margin-top: 2px; }
 .check span { font-size: 14px; }

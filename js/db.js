@@ -149,6 +149,19 @@ function explicar(erro, tabela) {
            comoResolver: 'Se continuar, mostre esta mensagem para quem cuida do sistema.' };
 }
 
+/**
+ * Texto vazio vira ausência antes de subir.
+ *
+ * Um campo de data em branco chega aqui como "", e o Postgres recusa a linha
+ * inteira: "invalid input syntax for type date". A limpeza fica no caminho da
+ * subida — e não só no formulário — porque a fila guarda o que já falhou: sem
+ * isto, uma cliente cadastrada sem aniversário ficava presa no aparelho,
+ * tentando de novo para sempre.
+ */
+const limpo = (r) => (r && typeof r === 'object' && !Array.isArray(r))
+  ? Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v === '' ? null : v]))
+  : r;
+
 function enfileirar(op, erro) {
   const f = lerFila();
   f.push({ ...op, ts: Date.now() });
@@ -174,7 +187,7 @@ export async function drenarFila() {
   for (const op of f) {
     try {
       if (op.acao === 'upsert') {
-        const { error } = await cliente.from(op.tabela).upsert(op.dados);
+        const { error } = await cliente.from(op.tabela).upsert(limpo(op.dados));
         if (error) throw error;
       } else if (op.acao === 'remover') {
         const { error } = await cliente.from(op.tabela).delete().eq('id', op.id);
@@ -324,7 +337,7 @@ export async function salvar(tabela, registro) {
 async function subirDepois(tabela, r) {
   try {
     if (!cliente || !navigator.onLine) throw new Error('offline');
-    const { data, error } = await cliente.from(tabela).upsert(r).select().single();
+    const { data, error } = await cliente.from(tabela).upsert(limpo(r)).select().single();
     if (error) throw error;
     // O servidor devolve a linha com o que ele preencheu (carimbos, padrões).
     // Só vale sobrescrever se ninguém mexeu nela nesse meio-tempo.
@@ -351,7 +364,7 @@ export async function salvarLote(tabela, registros) {
     const parte = registros.slice(i, i + 200);
     try {
       if (!cliente || !navigator.onLine) throw new Error('offline');
-      const { error } = await cliente.from(tabela).upsert(parte);
+      const { error } = await cliente.from(tabela).upsert(parte.map(limpo));
       if (error) throw error;
     } catch (e) {
       parte.forEach((r) => enfileirar({ acao: 'upsert', tabela, dados: r }, e));
@@ -394,6 +407,8 @@ const EXIGENCIAS = [
     serve_para: 'a frase que a cliente lê ao fechar o agendamento com ela' },
   { o_que: 'Carimbo de alteração', tipo: 'coluna', tabela: 'agendamentos', coluna: 'atualizado_em',
     serve_para: 'o app baixar só o que mudou, em vez do banco inteiro a cada volta' },
+  { o_que: 'Vários serviços na mesma ida', tipo: 'coluna', tabela: 'agendamentos', coluna: 'grupo_id',
+    serve_para: 'marcar manicure e corte de uma vez, e fechar tudo numa comanda só' },
   { o_que: 'Cliente fixa', tipo: 'coluna', tabela: 'agendamentos', coluna: 'serie_id',
     serve_para: 'repetir o horário toda semana, a cada 15 ou a cada 30 dias' },
   { o_que: 'Encaixe na agenda', tipo: 'coluna', tabela: 'agendamentos', coluna: 'encaixe',
