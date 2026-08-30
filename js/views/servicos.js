@@ -1,7 +1,8 @@
 // TABELA DE PREÇOS — o catálogo oficial, editável. É o que a vitrine mostra
 // e o que a comanda oferece.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, chave, vazio, precoTexto } from '../ui.js';
+import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, chave, vazio, precoTexto,
+         RECADO_AGENDA } from '../ui.js';
 import { REGRAS } from '../data/servicos.js';
 import { precoTecnico } from '../pricing.js';
 import { premissas } from '../metricas.js';
@@ -50,6 +51,8 @@ export function render(raiz) {
           return `<tr>
             <td><strong>${esc(s.nome)}</strong>
               ${s.estimado ? '<span class="selo" title="custo e tempo estimados — confira">estimado</span>' : ''}
+              ${s.agenda_online === false
+                ? '<span class="selo" title="a cliente vê o serviço, mas é encaminhada ao WhatsApp">só pelo WhatsApp</span>' : ''}
               ${s.nota ? `<div class="pequeno t3">${esc(s.nota)}</div>` : ''}</td>
             <td class="n num"><strong>${esc(precoTexto(s))}</strong></td>
             <td class="n num t2">${fmt.brl(s.custo)}</td>
@@ -145,6 +148,20 @@ export function abrirServico(id) {
       </div>
       <label class="campo"><span>Observação</span>
         <input name="nota" value="${esc(s.nota || '')}" placeholder="aparece na tabela pública"></label>
+
+      <!-- Cor exige ver o cabelo antes: o mesmo "mechas" leva quatro horas num
+           cabelo e sete noutro. Desligado, o serviço continua à vista na
+           página — com preço e descrição —, mas em vez do horário abre um
+           recado e o WhatsApp do studio. -->
+      <label class="check"><input type="checkbox" name="agenda_online"
+        ${s.agenda_online === false ? '' : 'checked'}>
+        <span>A cliente pode marcar este serviço pelo site</span></label>
+      <label class="campo" id="campo-recado" ${s.agenda_online === false ? '' : 'hidden'}>
+        <span>Recado para a cliente</span>
+        <input name="recado_agenda" value="${esc(s.recado_agenda || '')}"
+          placeholder="${esc(RECADO_AGENDA)}">
+        <span class="dica t3">Aparece no lugar dos horários, com o botão do WhatsApp.
+          Em branco, vale a frase acima.</span></label>
       <div id="previa-preco"></div>`,
     acoes: [
       ...(id ? [{ texto: ico('lixo'), classe: 'btn-perigo', onClick: async (f) => {
@@ -159,6 +176,8 @@ export function abrirServico(id) {
             ...s, ...d,
             id: s.id || chave(d.nome).replace(/[^a-z0-9]+/g, '-').slice(0, 50),
             ativo: true, estimado: false,
+            agenda_online: !!d.agenda_online,
+            recado_agenda: (d.recado_agenda || '').trim() || null,
           });
           fechar(); avisar('Serviço salvo');
         } },
@@ -183,6 +202,14 @@ export function abrirServico(id) {
           </div>`;
       };
       veu.querySelectorAll('[name]').forEach((c) => { c.oninput = previa; c.onchange = previa; });
+
+      // O recado só faz sentido para quem não marca pelo site.
+      const marca = veu.querySelector('[name=agenda_online]');
+      const campo = veu.querySelector('#campo-recado');
+      const verRecado = () => { campo.hidden = marca.checked; };
+      marca.addEventListener('change', verRecado);
+      verRecado();
+
       previa();
     },
   });

@@ -64,9 +64,18 @@ create table if not exists servicos (
   ativo     boolean not null default true
 );
 
--- ── Materiais e insumos / estoque ──────────────────────────────────────────
--- Bancos criados antes desta coluna existir também ficam em dia:
+-- Bancos criados antes destas colunas existirem também ficam em dia:
 alter table servicos add column if not exists preco_tipo text not null default 'fixo';
+
+-- Nem todo serviço pode ser marcado pela cliente sozinha. Cor exige ver o
+-- cabelo antes: o mesmo "mechas" leva quatro horas num cabelo e sete noutro,
+-- e um horário errado atrasa o dia inteiro. Estes serviços continuam à vista
+-- na página — com preço e descrição —, mas em vez do horário abrem um recado
+-- e o WhatsApp do studio. Quem liga e desliga são elas, na tabela de preços.
+alter table servicos add column if not exists agenda_online boolean not null default true;
+alter table servicos add column if not exists recado_agenda text;
+
+-- ── Materiais e insumos / estoque ──────────────────────────────────────────
 
 create table if not exists materiais (
   id             text primary key,
@@ -416,7 +425,10 @@ declare
 begin
   select greatest(15, round(coalesce(s.tempo, 1) * 60)::int), coalesce(s.profissional, 'unhas')
     into v_dur, v_tipo
-    from servicos s where s.id = p_servico_id and s.ativo;
+    from servicos s
+   where s.id = p_servico_id and s.ativo and coalesce(s.agenda_online, true);
+  -- Serviço fora do agendamento online não tem horário nenhum para oferecer.
+  -- A trava é aqui e não só na tela: a função é pública.
   if v_dur is null then return; end if;
   if p_data < (now() at time zone v_tz)::date then return; end if;
 
@@ -495,8 +507,11 @@ begin
 
   select greatest(15, round(coalesce(s.tempo, 1) * 60)::int), s.nome, s.preco
     into v_dur, v_nome, v_preco
-    from servicos s where s.id = p_servico_id and s.ativo;
-  if v_dur is null then raise exception 'Serviço indisponível'; end if;
+    from servicos s
+   where s.id = p_servico_id and s.ativo and coalesce(s.agenda_online, true);
+  if v_dur is null then
+    raise exception 'Este serviço é marcado pelo WhatsApp. Fale com o studio.';
+  end if;
 
   -- O horário ainda existe? Pergunta à mesma função que a página consultou.
   if not exists (

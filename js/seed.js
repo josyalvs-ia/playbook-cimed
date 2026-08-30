@@ -17,12 +17,15 @@ export async function instalar({ forcar = false } = {}) {
       preco_tipo: s.preco_tipo || 'fixo',
       profissional: s.profissional || 'unhas',
       estimado: !!s.estimado, nota: s.nota || null, ordem: i, ativo: true,
+      // Cor exige ver o cabelo antes: estes serviços nascem fora do
+      // agendamento online, e elas ligam ou desligam depois na tabela.
+      agenda_online: s.agenda_online !== false,
     })),
     ...ADICIONAIS.map((a, i) => ({
       id: a.id, categoria: 'adicionais', nome: a.nome, tipo: 'adicional',
       preco: a.preco, custo: a.custo, tempo: a.tempo, unidade: a.unidade,
       preco_tipo: 'fixo', profissional: a.profissional || 'unhas',
-      estimado: false, ordem: 900 + i, ativo: true,
+      estimado: false, ordem: 900 + i, ativo: true, agenda_online: true,
     })),
   ].filter((s) => forcar || !jaTem.has(s.id));
 

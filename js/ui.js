@@ -225,6 +225,17 @@ export const fmt = {
  * Nem todo serviço tem valor fechado: coloração parte de um mínimo e
  * correção de cor só sai depois de ver o cabelo.
  */
+/**
+ * O recado padrão de quem não se marca sozinha pelo site.
+ *
+ * Cor exige ver o cabelo antes: o mesmo "mechas" leva quatro horas num cabelo
+ * e sete noutro. Cada serviço pode ter o seu recado; sem recado próprio, vale
+ * este. Mora aqui porque a tela da equipe e a página das clientes leem os dois
+ * o mesmo texto.
+ */
+export const RECADO_AGENDA =
+  'Este serviço é marcado pelo WhatsApp, depois de uma avaliação rápida. Chama a gente!';
+
 export function precoTexto(s, { curto = false } = {}) {
   if (s.preco_tipo === 'avaliacao') return 'sob avaliação';
   const v = curto ? fmt.brlCurto(s.preco) : fmt.brl(s.preco);

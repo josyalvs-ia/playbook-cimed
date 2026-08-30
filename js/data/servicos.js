@@ -99,13 +99,13 @@ export const SERVICOS = [
   { id: 'cab-raiz',           categoria: 'cab-cor', nome: 'Cobertura de brancos / retoque de coloração de raiz', preco: 240, custo: 55,  tempo: 2.0,  profissional: 'cabelo', estimado: true },
   { id: 'cab-raiz-trat',      categoria: 'cab-cor', nome: 'Cobertura de brancos / retoque de raiz com tratamento', preco: 310, custo: 80, tempo: 2.5, profissional: 'cabelo', estimado: true },
   { id: 'cab-cor-completa',   categoria: 'cab-cor', nome: 'Coloração completa',                                preco: 400, custo: 110, tempo: 3.0,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
-  { id: 'cab-morena',         categoria: 'cab-cor', nome: 'Morena iluminada sem descoloração',                 preco: 500, custo: 130, tempo: 3.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir',
+  { id: 'cab-morena',         categoria: 'cab-cor', nome: 'Morena iluminada sem descoloração',                 preco: 500, custo: 130, tempo: 3.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir', agenda_online: false,
     nota: 'Para cabelos naturais ou sem coloração.' },
-  { id: 'cab-mechas',         categoria: 'cab-cor', nome: 'Mechas loiras ou iluminadas',                       preco: 600, custo: 180, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir',
+  { id: 'cab-mechas',         categoria: 'cab-cor', nome: 'Mechas loiras ou iluminadas',                       preco: 600, custo: 180, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir', agenda_online: false,
     nota: 'Opção com descoloração, para cabelo já com coloração.' },
-  { id: 'cab-fantasia',       categoria: 'cab-cor', nome: 'Cores fantasia',                                    preco: 600, custo: 190, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
+  { id: 'cab-fantasia',       categoria: 'cab-cor', nome: 'Cores fantasia',                                    preco: 600, custo: 190, tempo: 4.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir', agenda_online: false },
   { id: 'cab-mecha-nuca',     categoria: 'cab-cor', nome: 'Mecha fantasia ou nuca',                            preco: 250, custo: 60,  tempo: 1.5,  profissional: 'cabelo', estimado: true, preco_tipo: 'a_partir' },
-  { id: 'cab-correcao',       categoria: 'cab-cor', nome: 'Correção de cor',                                   preco: 0,   custo: 200, tempo: 4.0,  profissional: 'cabelo', estimado: true, preco_tipo: 'avaliacao' },
+  { id: 'cab-correcao',       categoria: 'cab-cor', nome: 'Correção de cor',                                   preco: 0,   custo: 200, tempo: 4.0,  profissional: 'cabelo', estimado: true, preco_tipo: 'avaliacao', agenda_online: false },
 
   // ── CABELOS — TERAPIA CAPILAR ──────────────────────────────────────────────
   { id: 'cab-avaliacao-terapia', categoria: 'cab-terapia', nome: 'Avaliação de terapia capilar com lavagem terapêutica', preco: 220, custo: 40, tempo: 1.5, profissional: 'cabelo', estimado: true },

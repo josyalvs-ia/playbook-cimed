@@ -89,6 +89,10 @@ export function createClient(){
     },
     rpc: async (nome, args) => {
       if (nome === 'horarios_livres') {
+        // Como no banco de verdade: serviço fora do agendamento online não
+        // tem horário nenhum a oferecer, nem para quem chamar a função direto.
+        const s = (memoria.servicos || []).find((x) => x.id === args.p_servico_id);
+        if (s && s.agenda_online === false) return { data: [], error: null };
         const base = new Date(args.p_data + 'T09:00:00');
         // Horário cancelado volta a ficar livre, como no banco de verdade.
         const tomados = (memoria.agendamentos || [])
@@ -102,6 +106,10 @@ export function createClient(){
         return { data: out, error: null };
       }
       if (nome === 'criar_agendamento') {
+        const s = (memoria.servicos || []).find((x) => x.id === args.p_servico_id);
+        if (s && s.agenda_online === false) {
+          return { data: null, error: { message: 'Este serviço é marcado pelo WhatsApp. Fale com o studio.' } };
+        }
         const t = memoria.agendamentos || (memoria.agendamentos = []);
         if (t.some(a => a.inicio === args.p_inicio)) {
           return { data: null, error: { message: 'Esse horário acabou de ser preenchido. Escolha outro, por favor.' } };
@@ -1348,6 +1356,168 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   if (ruins.length) console.log('   campos ilegíveis:', ruins.slice(0, 4).join(' | '));
 }
 
+
+// ── 31. Serviço que só se marca pelo WhatsApp ──
+// Cor exige ver o cabelo antes. Sumir da lista seria pior: a cliente
+// procuraria o preço e não acharia. Então o serviço fica à vista e, no lugar
+// dos horários, abre um recado com o botão do WhatsApp.
+{
+  const ctxW = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxW.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pw = await ctxW.newPage();
+  pw.on('pageerror', (e) => erros.push('[whats] ' + e.message));
+
+  // Um banco com os dois casos: um serviço que se marca sozinha e um que não.
+  await pw.addInitScript(() => {
+    sessionStorage.setItem('__db', JSON.stringify({
+      profissionais: [{ id: 'p1', nome: 'Laura', funcao: 'cabelo', ativo: true, atende: true }],
+      config: [{ chave: 'studio', valor: { nome: 'Alento', whatsapp: '11999990000' } }],
+      servicos: [
+        { id: 'manicure', categoria: 'maos', nome: 'Manicure', tipo: 'servico',
+          preco: 45, tempo: 1, ativo: true, profissional: 'unhas', ordem: 1 },
+        { id: 'cab-mechas', categoria: 'cab-cor', nome: 'Mechas loiras ou iluminadas',
+          tipo: 'servico', preco: 600, preco_tipo: 'a_partir', tempo: 4.5, ativo: true,
+          profissional: 'cabelo', ordem: 2, agenda_online: false,
+          recado_agenda: 'Precisamos ver seu cabelo antes de marcar.' },
+      ],
+    }));
+  });
+  await pw.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pw.waitForTimeout(600);
+  await pw.click('#btn-agendar');
+  await pw.waitForSelector('.ag-tela', { timeout: 6000 });
+
+  checagens.push(['só WhatsApp: o serviço continua na lista',
+    await pw.locator('[data-serv="cab-mechas"]').count() === 1]);
+  checagens.push(['só WhatsApp: a lista já avisa que é combinado',
+    nb(await pw.textContent('[data-serv="cab-mechas"]')).includes('combinado no WhatsApp')]);
+  checagens.push(['só WhatsApp: o preço continua à vista',
+    nb(await pw.textContent('[data-serv="cab-mechas"]')).includes('600')]);
+
+  await pw.click('[data-serv="cab-mechas"]');
+  await pw.waitForSelector('.ag-recado', { timeout: 4000 });
+  checagens.push(['só WhatsApp: não oferece horário nenhum',
+    await pw.locator('.ag-dia').count() === 0 && await pw.locator('.ag-hora').count() === 0]);
+  checagens.push(['só WhatsApp: mostra o recado que elas escreveram',
+    nb(await pw.textContent('.ag-recado')).includes('ver seu cabelo antes')]);
+  const zap = await pw.getAttribute('#ag-zap', 'href');
+  checagens.push(['só WhatsApp: botão leva ao WhatsApp do studio',
+    zap.startsWith('https://wa.me/5511999990000')]);
+  checagens.push(['só WhatsApp: a mensagem já diz o serviço',
+    decodeURIComponent(zap).includes('Mechas loiras')]);
+  checagens.push(['só WhatsApp: o passo muda de nome',
+    nb(await pw.textContent('.ag-passo.atual')).includes('Como marcar')]);
+  await pw.screenshot({ path: '/tmp/shot-so-whatsapp.png' });
+
+  // Voltar e escolher um que se marca sozinha: o caminho normal segue igual.
+  await pw.click('#voltar');
+  await pw.waitForTimeout(300);
+  await pw.click('[data-serv="manicure"]');
+  await pw.waitForTimeout(600);
+  checagens.push(['só WhatsApp: os outros serviços seguem marcando normal',
+    await pw.locator('.ag-dia').count() > 20 && await pw.locator('.ag-recado').count() === 0]);
+  await ctxW.close();
+}
+
+// ── 32. O liga/desliga fica com elas, na tabela de preços ──
+{
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(700);
+  await p2.click('[data-quem=""]');           // o filtro anterior ainda estava de pé
+  await p2.waitForTimeout(300);
+  checagens.push(['tabela de preços: mechas já vem marcado como só WhatsApp',
+    nb(await p2.textContent('#conteudo')).includes('só pelo WhatsApp')]);
+
+  await p2.click('[data-serv="manicure"]');
+  await p2.waitForSelector('.veu [name=agenda_online]');
+  checagens.push(['tabela de preços: a marcação existe no cadastro do serviço',
+    await p2.isChecked('.veu [name=agenda_online]')]);
+  checagens.push(['tabela de preços: o recado fica escondido enquanto marca pelo site',
+    await p2.locator('.veu #campo-recado').isHidden()]);
+
+  await p2.uncheck('.veu [name=agenda_online]');
+  await p2.waitForTimeout(200);
+  checagens.push(['tabela de preços: desmarcar revela o campo do recado',
+    await p2.locator('.veu #campo-recado').isVisible()]);
+  await p2.fill('.veu [name=recado_agenda]', 'Chama a gente no zap.');
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(600);
+  const salvo = await p2.evaluate(() =>
+    globalThis.__DB.servicos.find((x) => x.id === 'manicure'));
+  checagens.push(['tabela de preços: a escolha delas fica salva',
+    salvo.agenda_online === false && salvo.recado_agenda === 'Chama a gente no zap.']);
+
+  // devolve como estava, para não atrapalhar as checagens seguintes
+  await p2.click('[data-serv="manicure"]');
+  await p2.waitForSelector('.veu [name=agenda_online]');
+  await p2.check('.veu [name=agenda_online]');
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(500);
+}
+
+// ── 33. A duração do horário pode ser ajustada na hora de marcar ──
+// O tempo da tabela é média: a mesma esmaltação em gel leva 1h20 numa cliente
+// e 1h40 noutra. Sem isto, o jeito de corrigir era desmarcar e marcar de novo.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('[data-visao="dia"]');
+  await p2.waitForTimeout(300);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [name=servico_id]');
+  await p2.selectOption('.veu [name=profissional_id]', 'p2');
+  await p2.selectOption('.veu [name=servico_id]', 'gel-sem-manicure');
+  await p2.waitForTimeout(250);
+
+  const daTabela = await p2.inputValue('.veu [name=duracao_min]');
+  checagens.push(['duração: já vem preenchida com o tempo da tabela',
+    Number(daTabela) > 0, daTabela + ' min']);
+  checagens.push(['duração: a tela lembra qual é o tempo da tabela',
+    nb(await p2.textContent('.veu #duracao')).includes('Tabela')]);
+
+  await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
+  await p2.fill('.veu [name=hora]', '06:00');
+  await p2.fill('.veu [name=duracao_min]', '100');
+  await p2.waitForTimeout(200);
+  checagens.push(['duração: mostra a hora em que termina',
+    nb(await p2.textContent('.veu #termina')).includes('07:40')]);
+
+  await p2.fill('.veu [name=cliente_nome]', 'Cliente Tempo');
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(700);
+  const marcado = await p2.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.cliente_nome === 'Cliente Tempo'));
+  checagens.push(['duração: o horário é salvo com o tempo ajustado',
+    marcado?.duracao_min === 100]);
+
+  // E dá para corrigir depois, sem desmarcar e marcar de novo.
+  // Marcar para outro dia tem de levar a agenda até ele: a tela continuava no
+  // dia anterior, e o horário recém-marcado sumia de vista.
+  checagens.push(['duração: a agenda vai para o dia do horário marcado',
+    await p2.inputValue('#dia') === new Date().toISOString().slice(0, 10)]);
+
+  await p2.click(`[data-agend="${marcado.id}"]`);
+  await p2.waitForSelector('.veu #mudar');
+  await p2.click('.veu #mudar');
+  await p2.waitForSelector('.veu [name=duracao_min]');
+  checagens.push(['remarcar: abre com a duração de agora',
+    await p2.inputValue('.veu [name=duracao_min]') === '100']);
+  await p2.fill('.veu [name=duracao_min]', '80');
+  await p2.fill('.veu [name=hora]', '20:00');
+  await p2.waitForTimeout(200);
+  checagens.push(['remarcar: recalcula a hora de término',
+    nb(await p2.textContent('.veu #termina')).includes('21:20')]);
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(700);
+  const mudado = await p2.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.cliente_nome === 'Cliente Tempo'));
+  checagens.push(['remarcar: salva sem criar outro horário',
+    mudado.duracao_min === 80 && new Date(mudado.inicio).getHours() === 20]);
+  checagens.push(['remarcar: continua sendo o mesmo horário, não um novo',
+    (await p2.evaluate(() => globalThis.__DB.agendamentos
+      .filter((a) => a.cliente_nome === 'Cliente Tempo').length)) === 1]);
+}
 
 await browser.close();
 

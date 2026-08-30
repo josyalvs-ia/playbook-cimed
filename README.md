@@ -48,9 +48,11 @@ fechado na agenda. Não depende do Trinks.
 > [`db/atualizar.sql`](db/atualizar.sql) do mesmo jeito. É o que acrescenta a
 > foto e a apresentação de cada profissional, a conferência que tira do celular
 > da cliente o horário já cancelado, e o carimbo de alteração que faz o app
-> baixar só o que mudou em vez do banco inteiro a cada volta. Quem está criando
-> o banco agora não precisa — já vem no `schema.sql`. Rodar duas vezes não faz
-> mal.
+> baixar só o que mudou em vez do banco inteiro a cada volta. É também o que
+> marca quais serviços não se marcam sozinhos pelo site — cor exige ver o
+> cabelo antes. Quem está criando o banco agora não precisa — já vem no
+> `schema.sql`. Rodar duas vezes não faz mal: a escolha de quais serviços
+> abrem no site é delas, e uma segunda rodada não desfaz.
 
 ### 3. Pegar a URL e a chave pública
 

@@ -87,3 +87,142 @@ with (security_invoker = off) as
   where ativo and atende;
 
 grant select on public.equipe_publica to anon, authenticated;
+
+-- ── Serviços que não se marcam sozinha ─────────────────────────────────────
+-- Cor exige ver o cabelo antes: o mesmo "mechas" leva quatro horas num cabelo
+-- e sete noutro, e um horário errado atrasa o dia inteiro. Estes serviços
+-- continuam à vista na página — com preço e descrição —, mas em vez do
+-- horário abrem um recado e o WhatsApp do studio.
+--
+-- A marcação inicial só acontece quando a coluna nasce. Rodar este arquivo de
+-- novo não desfaz o que elas escolherem depois na tabela de preços.
+do $$
+declare nasceu boolean;
+begin
+  nasceu := not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'servicos'
+       and column_name = 'agenda_online');
+
+  alter table public.servicos add column if not exists agenda_online boolean not null default true;
+  alter table public.servicos add column if not exists recado_agenda text;
+
+  if nasceu then
+    update public.servicos set agenda_online = false
+     where id in ('cab-mechas', 'cab-morena', 'cab-correcao', 'cab-fantasia');
+  end if;
+end $$;
+
+-- A trava de verdade é aqui: as duas funções são públicas, e recusar só na
+-- tela deixaria o horário aberto para quem chamasse a função direto.
+create or replace function public.horarios_livres(p_servico_id text, p_data date)
+returns table (quando timestamptz, prof_id uuid, prof_nome text)
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_dur      int;
+  v_tipo     text;
+  v_passo    int := 15;    -- de quanto em quanto tempo um atendimento pode começar
+  v_antecede int := 120;   -- minutos mínimos entre agora e o atendimento
+  v_tz       text := public.fuso();
+begin
+  select greatest(15, round(coalesce(s.tempo, 1) * 60)::int), coalesce(s.profissional, 'unhas')
+    into v_dur, v_tipo
+    from servicos s
+   where s.id = p_servico_id and s.ativo and coalesce(s.agenda_online, true);
+  if v_dur is null then return; end if;
+  if p_data < (now() at time zone v_tz)::date then return; end if;
+
+  return query
+  with gente as (
+    select p.id, p.nome
+    from profissionais p
+    where p.ativo and p.atende
+      and (v_tipo = 'ambos' or p.funcao = 'ambos' or p.funcao = v_tipo)
+  ),
+  candidatos as (
+    select g.id, g.nome, h.pausa_inicio, h.pausa_fim,
+           t::time as hora,
+           (t at time zone v_tz) as ini
+    from gente g
+    join horarios h on h.profissional_id = g.id and h.ativo
+                   and h.dia_semana = extract(dow from p_data)::int
+    cross join lateral generate_series(
+      (p_data + h.abre)::timestamp,
+      (p_data + h.fecha)::timestamp - make_interval(mins => v_dur),
+      make_interval(mins => v_passo)
+    ) as t
+  )
+  select c.ini, c.id, split_part(c.nome, ' ', 1)
+  from candidatos c
+  where c.ini > now() + make_interval(mins => v_antecede)
+    and not (c.pausa_inicio is not null and c.pausa_fim is not null
+             and (c.hora, c.hora + make_interval(mins => v_dur))
+                 overlaps (c.pausa_inicio, c.pausa_fim))
+    and not exists (
+      select 1 from agendamentos a
+      where a.profissional_id = c.id
+        and a.status in ('confirmado', 'concluido')
+        and tstzrange(a.inicio, a.fim) && tstzrange(c.ini, c.ini + make_interval(mins => v_dur))
+    )
+    and not exists (
+      select 1 from bloqueios b
+      where (b.profissional_id is null or b.profissional_id = c.id)
+        and tstzrange(b.inicio, b.fim) && tstzrange(c.ini, c.ini + make_interval(mins => v_dur))
+    )
+  order by c.ini, c.nome;
+end $$;
+
+create or replace function public.criar_agendamento(
+  p_servico_id text, p_profissional_id uuid, p_inicio timestamptz,
+  p_nome text, p_telefone text, p_observacoes text default null
+) returns table (novo_id uuid, codigo uuid, quando timestamptz, prof_nome text, servico text)
+language plpgsql security definer set search_path = public as $$
+declare
+  v_dur   int;
+  v_nome  text;
+  v_preco numeric;
+  v_prof  text;
+  v_id    uuid;
+  v_token uuid;
+  v_tel   text := regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g');
+begin
+  if length(trim(coalesce(p_nome, ''))) < 2 then
+    raise exception 'Informe seu nome';
+  end if;
+  if length(v_tel) not between 10 and 13 then
+    raise exception 'Informe um WhatsApp válido com DDD';
+  end if;
+
+  if (select count(*) from agendamentos a
+      where a.cliente_telefone = v_tel and a.status = 'confirmado' and a.inicio > now()) >= 3 then
+    raise exception 'Você já tem 3 horários marcados. Fale com o studio para marcar mais.';
+  end if;
+
+  select greatest(15, round(coalesce(s.tempo, 1) * 60)::int), s.nome, s.preco
+    into v_dur, v_nome, v_preco
+    from servicos s
+   where s.id = p_servico_id and s.ativo and coalesce(s.agenda_online, true);
+  if v_dur is null then
+    raise exception 'Este serviço é marcado pelo WhatsApp. Fale com o studio.';
+  end if;
+
+  if not exists (
+    select 1 from public.horarios_livres(p_servico_id, (p_inicio at time zone public.fuso())::date) h
+    where h.quando = p_inicio and h.prof_id = p_profissional_id
+  ) then
+    raise exception 'Esse horário acabou de ser preenchido. Escolha outro, por favor.';
+  end if;
+
+  select split_part(p.nome, ' ', 1) into v_prof from profissionais p where p.id = p_profissional_id;
+
+  insert into agendamentos (profissional_id, servico_id, servico_nome, cliente_nome,
+                            cliente_telefone, inicio, duracao_min, valor, origem, observacoes)
+  values (p_profissional_id, p_servico_id, v_nome, trim(p_nome), v_tel, p_inicio, v_dur,
+          coalesce(v_preco, 0), 'site', nullif(trim(coalesce(p_observacoes, '')), ''))
+  returning agendamentos.id, agendamentos.token into v_id, v_token;
+
+  return query select v_id, v_token, p_inicio, v_prof, v_nome;
+exception
+  when exclusion_violation then
+    raise exception 'Esse horário acabou de ser preenchido. Escolha outro, por favor.';
+end $$;

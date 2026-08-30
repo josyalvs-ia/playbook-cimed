@@ -5,7 +5,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, lerForm, vazio, chave, uid, linkMapa, retrato } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
+         chave, uid, linkMapa, retrato } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
 
 let dia = hoje();
@@ -78,6 +79,21 @@ const localData = (iso) => {
 };
 const localHora = (iso) =>
   new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+/** O tempo de tabela do serviço, em minutos. */
+const minutosDe = (s) => Math.max(15, Math.round((Number(s?.tempo) || 1) * 60));
+
+/**
+ * A duração que vale para este horário.
+ *
+ * O tempo da tabela é o ponto de partida; quem está marcando pode esticar ou
+ * encurtar. Campo vazio ou fora do razoável volta para o da tabela — meia
+ * hora digitada errada vira duas clientes no mesmo horário.
+ */
+function duracaoValida(valor, s) {
+  const n = Math.round(Number(valor));
+  return Number.isFinite(n) && n >= 15 && n <= 600 ? n : minutosDe(s);
+}
 
 function somarDias(data, n) {
   const d = new Date(data + 'T12:00:00');
@@ -392,6 +408,11 @@ export function abrirAgendamento(id, dataPadrao) {
       { texto: 'Marcar', classe: 'btn-primario', onClick: (fechar, veu) => salvarNovo(fechar, veu, servicos) },
     ],
     aoAbrir: (veu) => {
+      veu.querySelector('#mudar')?.addEventListener('click', () => {
+        fecharModal();
+        setTimeout(() => abrirRemarcar(a), 80);
+      });
+
       const selServico = veu.querySelector('[name=servico_id]');
       const selProf = veu.querySelector('[name=profissional_id]');
       if (!selServico || !selProf) return;
@@ -416,17 +437,40 @@ export function abrirAgendamento(id, dataPadrao) {
         if (lista.some((x) => x.id === antes)) selServico.value = antes;
       };
 
-      const mostrarDuracao = () => {
-        const s = servicos.find((x) => x.id === selServico.value);
-        veu.querySelector('#duracao').textContent =
-          s ? `${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
+      const campoDur = veu.querySelector('[name=duracao_min]');
+      const termina = veu.querySelector('#termina');
+
+      // Mostrar a hora de término é o que resolve o "tempo quebrado": ela
+      // escolhe 1h40 e vê na hora que o horário termina às 11:40.
+      const mostrarFim = () => {
+        const min = Number(campoDur.value);
+        const d = veu.querySelector('[name=data]').value;
+        const h = veu.querySelector('[name=hora]').value;
+        termina.textContent = min > 0 && d && h
+          ? `Termina às ${localHora(new Date(`${d}T${h}:00`).getTime() + min * 60000)}`
+          + ` · ${fmt.horas(min / 60)}`
+          : '';
       };
 
-      selProf.onchange = () => { filtrarServicos(); mostrarDuracao(); };
-      selServico.onchange = mostrarDuracao;
+      const mostrarDuracao = ({ trocouServico = false } = {}) => {
+        const s = servicos.find((x) => x.id === selServico.value);
+        veu.querySelector('#duracao').textContent =
+          s ? `Tabela: ${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
+        // Trocar de serviço traz o tempo da tabela de volta; digitar depois
+        // manda. O contrário — insistir no número antigo — é o que faz alguém
+        // marcar quatro horas de mechas achando que marcou uma de manicure.
+        if (s && trocouServico) campoDur.value = minutosDe(s);
+        mostrarFim();
+      };
+
+      selProf.onchange = () => { filtrarServicos(); mostrarDuracao({ trocouServico: true }); };
+      selServico.onchange = () => mostrarDuracao({ trocouServico: true });
+      campoDur.oninput = mostrarFim;
+      veu.querySelector('[name=data]').onchange = mostrarFim;
+      veu.querySelector('[name=hora]').onchange = mostrarFim;
 
       filtrarServicos();
-      mostrarDuracao();
+      mostrarDuracao({ trocouServico: true });
     },
   });
 }
@@ -459,7 +503,15 @@ function formNovo(servicos, profs, dataPadrao) {
         <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
       <label class="campo"><span>Hora</span>
         <input type="time" name="hora" value="09:00" step="900"></label>
+      <!-- O tempo da tabela é o ponto de partida, não a sentença. A mesma
+           esmaltação em gel leva 1h20 numa cliente e 1h40 noutra; quem está
+           marcando sabe disso e corrige aqui, sem mexer no preço de todo mundo.
+           Pelo site continua valendo o tempo da tabela. -->
+      <label class="campo"><span>Duração (min)</span>
+        <input type="number" name="duracao_min" min="15" max="600" step="5"
+               inputmode="numeric" placeholder="—"></label>
     </div>
+    <p class="dica t3" id="termina"></p>
     <label class="campo"><span>Observações</span>
       <input name="observacoes" placeholder="Ex.: quer francesinha"></label>`;
 }
@@ -471,7 +523,8 @@ function fichaAgendamento(a) {
         <div class="valor">${localHora(a.inicio)}</div>
         <div class="nota">${fmt.data(localData(a.inicio))}</div></div>
       <div class="kpi"><div class="rotulo">Duração</div>
-        <div class="valor">${fmt.horas(a.duracao_min / 60)}</div></div>
+        <div class="valor">${fmt.horas(a.duracao_min / 60)}</div>
+        <div class="nota">até ${localHora(new Date(a.inicio).getTime() + a.duracao_min * 60000)}</div></div>
       <div class="kpi"><div class="rotulo">Valor</div>
         <div class="valor">${fmt.brlCurto(a.valor)}</div></div>
     </div>
@@ -483,7 +536,8 @@ function fichaAgendamento(a) {
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
     ${a.status === 'concluido'
-      ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>` : ''}`;
+      ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
+      : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('agenda')}Mudar dia, hora ou duração</button>`}`;
 }
 
 function acoesDe(a) {
@@ -538,7 +592,7 @@ async function salvarNovo(fechar, veu, servicos) {
   if (!s) return avisar('Escolha o serviço', 'erro');
 
   const inicio = new Date(`${d.data}T${d.hora}:00`);
-  const dur = Math.max(15, Math.round((Number(s.tempo) || 1) * 60));
+  const dur = duracaoValida(d.duracao_min, s);
 
   // Choque é recusado pelo banco, mas avisar antes evita a viagem perdida.
   const choque = db.estado.agendamentos.find((x) =>
@@ -549,6 +603,11 @@ async function salvarNovo(fechar, veu, servicos) {
   if (choque) {
     return avisar(`${nomeProf(d.profissional_id)} já tem ${choque.cliente_nome} às ${localHora(choque.inicio)}`, 'erro');
   }
+
+  // O dia muda ANTES de salvar. Salvar já redesenha a tela (a gravação é
+  // otimista), e trocar o dia depois disso deixava a agenda parada no dia
+  // anterior — o horário existia, mas ela não via e marcava de novo.
+  dia = d.data;
 
   try {
     await db.salvar('agendamentos', {
@@ -564,12 +623,82 @@ async function salvarNovo(fechar, veu, servicos) {
       status: 'confirmado', origem: 'studio',
       observacoes: d.observacoes || null,
     });
-    dia = d.data;
     fechar();
     avisar('Horário marcado');
   } catch (e) {
     avisar(e.message || 'Não foi possível marcar', 'erro');
   }
+}
+
+/**
+ * Mudar dia, hora ou duração de um horário já marcado.
+ *
+ * O tempo da tabela é média: a mesma esmaltação em gel leva 1h20 numa cliente
+ * e 1h40 noutra. Sem isto, o jeito de corrigir era desmarcar e marcar de novo
+ * — e a cliente recebia dois avisos por um atendimento que não mudou.
+ */
+export function abrirRemarcar(a) {
+  const fim = (ini, min) => localHora(new Date(ini).getTime() + min * 60000);
+
+  abrirModal({
+    titulo: `Mudar ${a.cliente_nome}`,
+    corpo: `
+      <p class="t2 pequeno mb">${esc(a.servico_nome)} · ${esc(nomeProf(a.profissional_id) || '')}</p>
+      <div class="linha-campos">
+        <label class="campo"><span>Dia</span>
+          <input type="date" name="data" value="${localData(a.inicio)}"></label>
+        <label class="campo"><span>Hora</span>
+          <input type="time" name="hora" value="${localHora(a.inicio)}" step="900"></label>
+        <label class="campo"><span>Duração (min)</span>
+          <input type="number" name="duracao_min" min="15" max="600" step="5"
+                 inputmode="numeric" value="${a.duracao_min}"></label>
+      </div>
+      <p class="dica t3" id="termina">Termina às ${fim(a.inicio, a.duracao_min)}</p>`,
+    acoes: [
+      { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => f() },
+      { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
+          const d = lerForm(veu);
+          if (!d.data || !d.hora) return avisar('Informe o dia e a hora', 'erro');
+          const inicio = new Date(`${d.data}T${d.hora}:00`);
+          const dur = duracaoValida(d.duracao_min, { tempo: a.duracao_min / 60 });
+
+          const choque = db.estado.agendamentos.find((x) =>
+            x.id !== a.id
+            && x.profissional_id === a.profissional_id
+            && ['confirmado', 'concluido'].includes(x.status)
+            && new Date(x.inicio) < new Date(inicio.getTime() + dur * 60000)
+            && new Date(x.fim || x.inicio) > inicio);
+          if (choque) {
+            return avisar(`Bate com ${choque.cliente_nome} às ${localHora(choque.inicio)}`, 'erro');
+          }
+
+          dia = d.data;
+          try {
+            await db.salvar('agendamentos', {
+              ...a,
+              inicio: inicio.toISOString(),
+              fim: new Date(inicio.getTime() + dur * 60000).toISOString(),
+              duracao_min: dur,
+            });
+            fechar();
+            avisar('Horário atualizado');
+          } catch (e) {
+            avisar(e.message || 'Não foi possível mudar', 'erro');
+          }
+        } },
+    ],
+    aoAbrir: (veu) => {
+      const ver = () => {
+        const d = lerForm(veu);
+        const min = Number(d.duracao_min);
+        veu.querySelector('#termina').textContent = min > 0 && d.data && d.hora
+          ? `Termina às ${fim(`${d.data}T${d.hora}:00`, min)} · ${fmt.horas(min / 60)}`
+          : '';
+      };
+      veu.querySelectorAll('[name]').forEach((c) => { c.oninput = ver; c.onchange = ver; });
+      ver();
+    },
+  });
 }
 
 // ─── Folga e férias ────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { esc, fmt, avisar, precoTexto, linkMapa, retrato, destaque, icoDestaque,
-         familiaDe } from './ui.js';
+         familiaDe, RECADO_AGENDA } from './ui.js';
 
 const DIAS_A_FRENTE = 45;
 const GUARDADOS = 'alento.meus-horarios';
@@ -83,6 +83,9 @@ export async function conferirMeusHorarios(sb) {
 export async function iniciarAgendamento({ sb, servicos, categorias, studio, equipe = [], raiz }) {
   let etapa = 1;
   let escolha = { servico: null, dia: null, horario: null };
+
+  /** Este serviço se marca sozinha pelo site? */
+  const marcaSozinha = (s) => s?.agenda_online !== false;
   let familia = null;                 // destaque escolhido no passo 1
   let livres = [];
 
@@ -92,7 +95,8 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
   function pintar() {
     raiz.innerHTML = `
       <div class="ag-passos">
-        ${['Serviço', 'Dia e hora', 'Seus dados'].map((t, i) => `
+        ${['Serviço', marcaSozinha(escolha.servico) ? 'Dia e hora' : 'Como marcar', 'Seus dados']
+          .map((t, i) => `
           <button class="ag-passo ${etapa === i + 1 ? 'atual' : etapa > i + 1 ? 'feito' : ''}"
                   ${etapa > i + 1 ? `data-voltar-para="${i + 1}"` : 'disabled'}>
             <b>${etapa > i + 1 ? '✓' : i + 1}</b>${t}</button>`).join('')}
@@ -104,6 +108,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     raiz.querySelectorAll('[data-voltar-para]').forEach((b) => b.onclick = () => {
       etapa = Number(b.dataset.voltarPara); pintar();
     });
+    if (etapa === 2 && !marcaSozinha(escolha.servico)) return passoRecado();
     ({ 1: passoServico, 2: passoHorario, 3: passoDados }[etapa])();
   }
 
@@ -142,7 +147,9 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
             <button class="ag-opcao" data-serv="${esc(s.id)}">
               <span class="crescer">
                 <strong>${esc(s.nome)}</strong>
-                <span class="ag-dur">${fmt.horas(s.tempo)}</span>
+                <span class="ag-dur">${marcaSozinha(s)
+                  ? fmt.horas(s.tempo)
+                  : 'combinado no WhatsApp'}</span>
               </span>
               <span class="ag-preco">${esc(precoTexto(s))}</span>
             </button>`).join('')}
@@ -161,6 +168,47 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
       escolha.servico = servicos.find((s) => s.id === b.dataset.serv);
       escolha.dia = null; escolha.horario = null;
       etapa = 2; pintar();
+    });
+  }
+
+  // ── 2b. Serviço que se combina no WhatsApp ───────────────────────────────
+  // Cor exige ver o cabelo antes: o mesmo "mechas" leva quatro horas num
+  // cabelo e sete noutro. Some da lista seria pior — a cliente procuraria o
+  // preço e não acharia. Então o serviço fica à vista, com preço e descrição,
+  // e no lugar dos horários abre este recado com o botão do WhatsApp.
+  function passoRecado() {
+    const s = escolha.servico;
+    const zap = String(studio.whatsapp || '').replace(/\D/g, '');
+    const texto = (s.recado_agenda || '').trim() || RECADO_AGENDA;
+    const avaliacao = servicos.find((x) => marcaSozinha(x)
+      && familiaDe(x.categoria) === familiaDe(s.categoria)
+      && /avalia/i.test(x.nome));
+
+    document.getElementById('ag-corpo').innerHTML = `
+      <button class="ag-voltar" id="voltar">&larr; Trocar serviço</button>
+      <div class="ag-escolhido">
+        <strong>${esc(s.nome)}</strong>
+        <span>${esc(precoTexto(s))}</span>
+      </div>
+      <div class="ag-recado">
+        ${icoDestaque(familiaDe(s.categoria), 'ico grande')}
+        <p>${esc(texto)}</p>
+        ${s.nota ? `<p class="pequeno t2">${esc(s.nota)}</p>` : ''}
+        ${zap ? `
+          <a class="btn btn-primario" id="ag-zap" target="_blank" rel="noopener"
+             href="https://wa.me/55${zap}?text=${encodeURIComponent(
+               'Oi! Queria fazer ' + s.nome + '. Podemos combinar?')}">
+            Falar no WhatsApp</a>` : ''}
+        ${avaliacao ? `
+          <button class="btn btn-fantasma" data-serv-av="${esc(avaliacao.id)}">
+            Marcar ${esc(avaliacao.nome.toLowerCase())}</button>` : ''}
+      </div>`;
+
+    raiz.querySelector('#voltar').onclick = () => { etapa = 1; pintar(); };
+    raiz.querySelector('[data-serv-av]')?.addEventListener('click', (e) => {
+      escolha.servico = servicos.find((x) => x.id === e.currentTarget.dataset.servAv);
+      escolha.dia = null; escolha.horario = null;
+      pintar();
     });
   }
 
