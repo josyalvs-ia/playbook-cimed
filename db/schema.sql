@@ -29,6 +29,8 @@ alter table profissionais add column if not exists atende boolean not null defau
 -- na linha e não exige configurar armazenamento de arquivos no Supabase.
 alter table profissionais add column if not exists foto text;
 alter table profissionais add column if not exists bio  text;
+-- A frase que fecha o agendamento. Vazia, vale a do studio (em `config`).
+alter table profissionais add column if not exists recado text;
 
 -- ── Clientes ───────────────────────────────────────────────────────────────
 create table if not exists clientes (
@@ -228,7 +230,7 @@ create policy "vitrine_config" on config
 -- a linha carrega a comissão. A view entrega só as colunas de vitrine.
 create or replace view public.equipe_publica
 with (security_invoker = off) as
-  select id, nome, apelido, funcao, foto, bio
+  select id, nome, apelido, funcao, foto, bio, recado
   from public.profissionais
   where ativo and atende;
 

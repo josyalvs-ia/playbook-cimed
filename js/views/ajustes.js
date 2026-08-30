@@ -3,6 +3,7 @@ import * as db from '../db.js';
 import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, retrato } from '../ui.js';
 import { abrirEquipe } from './comissoes.js';
 import { abrirBloqueio } from './agenda.js';
+import { RECADO_PADRAO } from '../agendar.js';
 
 /** Onde o site está publicado. Serve para a equipe achar os endereços sem
     ter de decorar nada — e sem cair no github.com, que é outro lugar. */
@@ -22,6 +23,12 @@ export function render(raiz) {
           <label class="campo"><span>WhatsApp</span><input name="whatsapp" value="${esc(s.whatsapp || '')}" placeholder="(11) 99999-9999"></label>
         </div>
         <label class="campo"><span>Endereço</span><input name="endereco" value="${esc(s.endereco || '')}" placeholder="Rua, número — Cidade/UF"></label>
+        <label class="campo"><span>Frase que fecha o agendamento</span>
+          <input name="recado" value="${esc(s.recado || '')}"
+                 placeholder="${esc(RECADO_PADRAO)}" maxlength="120">
+          <span class="dica t3">É o que a cliente lê depois de marcar. Em branco, vale
+            "${esc(RECADO_PADRAO)}". Cada profissional pode ter a sua própria, em
+            Comissões &rarr; Equipe.</span></label>
         <label class="campo"><span>Link do Trinks (reserva)</span>
           <input name="trinks" value="${esc(s.trinks || '')}" placeholder="https://www.trinks.com/...">
           <span class="dica t3">O agendamento agora acontece no próprio site. Este link só é

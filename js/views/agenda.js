@@ -20,6 +20,19 @@ export function irParaDia(d) {
 const atendentes = () =>
   db.estado.profissionais.filter((p) => p.atende !== false && p.ativo !== false);
 
+/**
+ * De quem é a agenda que estou vendo.
+ *
+ * `null` = o studio inteiro. Quem atende abre vendo a própria: ver a coluna
+ * da outra o dia todo é ruído — e num celular, come metade da tela. Quem só
+ * administra abre vendo todas, porque é disso que ela precisa.
+ */
+let sóEu = null;
+function quemVejo() {
+  if (sóEu === null) sóEu = db.eu?.atende !== false && !!db.eu?.id;
+  return sóEu ? db.eu.id : null;
+}
+
 /** Agendamentos de um dia, já ordenados. O banco guarda em UTC. */
 function doDia(data) {
   return db.estado.agendamentos
@@ -41,8 +54,13 @@ function somarDias(data, n) {
 }
 
 export function render(raiz) {
-  const lista = doDia(dia);
   const profs = atendentes();
+  const eu = quemVejo();
+  const visiveis = eu ? profs.filter((p) => p.id === eu) : profs;
+
+  // Os números do topo falam do que está na tela: mostrar o faturamento do
+  // studio inteiro ao lado de uma agenda só sua seria contraditório.
+  const lista = doDia(dia).filter((a) => !eu || a.profissional_id === eu);
   const total = lista.reduce((s, a) => s + Number(a.valor || 0), 0);
   const horas = lista.reduce((s, a) => s + Number(a.duracao_min || 0), 0) / 60;
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
@@ -55,6 +73,11 @@ export function render(raiz) {
       <button class="btn-icone" id="proximo" title="Próximo dia" style="transform:rotate(180deg)">${ico('voltar')}</button>
       <button class="btn btn-sm ${dia === hoje() ? 'btn-primario' : ''}" id="hoje">Hoje</button>
       <span class="crescer"></span>
+      ${profs.length > 1 && db.eu?.atende !== false ? `
+        <div class="pilulas">
+          <button class="pilula ${eu ? 'ativa' : ''}" data-ver="eu">Só eu</button>
+          <button class="pilula ${eu ? '' : 'ativa'}" data-ver="todas">Studio</button>
+        </div>` : ''}
       <button class="btn btn-sm" id="bloquear">${ico('relogio')}Folga</button>
       <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Encaixar</button>
     </div>
@@ -80,11 +103,15 @@ export function render(raiz) {
         <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button></div>`).join('')}
     </div>` : ''}
 
-    <div class="grade agenda-colunas" style="--colunas:${Math.max(1, profs.length)}">
-      ${profs.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
+    <div class="grade agenda-colunas" style="--colunas:${Math.max(1, visiveis.length)}">
+      ${visiveis.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
         || vazio('Nenhuma profissional cadastrada para atender.')}
     </div>`;
 
+  raiz.querySelectorAll('[data-ver]').forEach((b) => b.onclick = () => {
+    sóEu = b.dataset.ver === 'eu';
+    render(raiz);
+  });
   raiz.querySelector('#dia').onchange = (e) => { dia = e.target.value; render(raiz); };
   raiz.querySelector('#anterior').onclick = () => { dia = somarDias(dia, -1); render(raiz); };
   raiz.querySelector('#proximo').onclick = () => { dia = somarDias(dia, 1); render(raiz); };

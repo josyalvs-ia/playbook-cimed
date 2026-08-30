@@ -391,8 +391,23 @@ await p2.waitForTimeout(900);
   const ag = await p2.evaluate(() => globalThis.__DB?.agendamentos || []);
   checagens.push(['agenda: horário gravado', ag.length === 1 && ag[0].cliente_nome === 'Cliente da Agenda']);
   checagens.push(['agenda: duração veio do serviço escolhido', ag[0]?.duracao_min === 60]);
+  // A agenda abre na de quem está logada — a Laura. O horário foi marcado com
+  // a Julia, então não deve estar aqui.
+  checagens.push(['agenda: abre mostrando só a coluna de quem está logada',
+    await p2.locator('.agenda-colunas > .cartao').count() === 1]);
+  checagens.push(['agenda: e a coluna é a da própria pessoa',
+    nb(await p2.textContent('.agenda-colunas')).includes('Laura')]);
+  checagens.push(['agenda: horário da outra não polui a minha',
+    !nb(await p2.textContent('.agenda-colunas')).includes('Cliente da Agenda')]);
+
+  await p2.click('[data-ver="todas"]');
+  await p2.waitForTimeout(500);
   const t2 = nb(await p2.textContent('#conteudo'));
+  checagens.push(['agenda: "Studio" mostra as duas colunas',
+    await p2.locator('.agenda-colunas > .cartao').count() === 2]);
   checagens.push(['agenda: aparece na coluna', t2.includes('Cliente da Agenda')]);
+  await p2.click('[data-ver="eu"]');
+  await p2.waitForTimeout(400);
   await p2.screenshot({ path: '/tmp/shot-agenda.png' });
 }
 
@@ -1117,7 +1132,66 @@ await p2.waitForTimeout(700);
   checagens.push(['salvar: e sobe para o servidor logo depois', r.noBanco]);
 }
 
-// ── 28. Link de "esqueci a senha" ──
+// ── 28. A frase que fecha o agendamento ──
+// Existe a do studio, e cada profissional pode ter a sua. Quem marca com a
+// Julia lê a da Julia; sem frase própria, lê a do studio.
+{
+  const { RECADO_PADRAO, escolhida } = await p2.evaluate(async () => {
+    const m = await import('./js/agendar.js');
+    return { RECADO_PADRAO: m.RECADO_PADRAO, escolhida: null };
+  });
+  checagens.push(['frase: existe uma padrão, do manual da marca',
+    /acolhe e renova/.test(RECADO_PADRAO), RECADO_PADRAO]);
+
+  // O studio escolhe a sua.
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(800);
+  await p2.fill('input[name=recado]', 'Te esperamos de braços abertos.');
+  await p2.click('#salvar-studio');
+  await p2.waitForTimeout(700);
+  checagens.push(['frase: a do studio fica guardada',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.cfg('studio')?.recado === 'Te esperamos de braços abertos.';
+    })]);
+
+  // E a Julia escolhe a dela.
+  await p2.evaluate(() => { location.hash = '#/comissoes'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#equipe');
+  await p2.waitForSelector('[data-prof]');
+  await p2.click('[data-prof="p2"]');
+  await p2.waitForSelector('input[name=recado]');
+  checagens.push(['frase: o campo dela mostra a do studio como padrão',
+    (await p2.getAttribute('input[name=recado]', 'placeholder')) === 'Te esperamos de braços abertos.']);
+  await p2.fill('input[name=recado]', 'Suas unhas te esperam!');
+  await p2.click('text=Salvar');
+  await p2.waitForTimeout(800);
+  checagens.push(['frase: a dela fica guardada no cadastro',
+    await p2.evaluate(() => (globalThis.__DB.profissionais.find((x) => x.id === 'p2') || {}).recado === 'Suas unhas te esperam!')]);
+
+  // E é a dela que a cliente lê ao marcar com ela.
+  const lida = await p2.evaluate(async () => {
+    const m = await import('./js/agendar.js');
+    // A escolha da frase é a mesma regra que a tela usa: dela, do studio, ou a padrão.
+    const regra = (prof, studio) =>
+      (prof?.recado || '').trim() || (studio?.recado || '').trim() || m.RECADO_PADRAO;
+    const studio = { recado: 'Te esperamos de braços abertos.' };
+    return {
+      comJulia: regra({ recado: 'Suas unhas te esperam!' }, studio),
+      comLaura: regra({ recado: null }, studio),
+      semNada:  regra(null, null),
+    };
+  });
+  checagens.push(['frase: quem marca com a Julia lê a da Julia',
+    lida.comJulia === 'Suas unhas te esperam!']);
+  checagens.push(['frase: sem frase própria, vale a do studio',
+    lida.comLaura === 'Te esperamos de braços abertos.']);
+  checagens.push(['frase: sem nenhuma das duas, vale a do manual',
+    lida.semNada === RECADO_PADRAO]);
+}
+
+// ── 29. Link de "esqueci a senha" ──
 // Quem volta pelo link do e-mail chega logada, com um endereço cheio de
 // código, e antes ficava dentro do sistema sem saber que faltava escolher a
 // senha nova — no dia seguinte estaria trancada de novo.

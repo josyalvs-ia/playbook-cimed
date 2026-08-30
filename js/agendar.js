@@ -12,8 +12,16 @@ import { esc, fmt, avisar, precoTexto, linkMapa, retrato, destaque, icoDestaque,
 const DIAS_A_FRENTE = 45;
 const GUARDADOS = 'alento.meus-horarios';
 
-/** A frase que fecha o agendamento. Escolhida pelo studio, do manual da marca. */
-const RECADO = 'Beleza que acolhe e renova. Te esperamos.';
+/**
+ * A frase que fecha o agendamento.
+ *
+ * Vale a da profissional que vai atender; sem ela, a do studio; sem nenhuma
+ * das duas, esta — que é a do manual da marca e foi escolhida pelo studio.
+ */
+export const RECADO_PADRAO = 'Beleza que acolhe e renova. Te esperamos.';
+
+const recadoDe = (prof, studio) =>
+  (prof?.recado || '').trim() || (studio?.recado || '').trim() || RECADO_PADRAO;
 
 /** Horários que esta pessoa marcou, guardados no navegador dela. */
 export function meusHorarios() {
@@ -301,7 +309,9 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
       if (/preenchido/i.test(error.message)) { etapa = 2; pintar(); }
       return;
     }
-    mostrarPronto(data[0], nome);
+    // A função do banco devolve o primeiro nome de quem atende, não o id — e é
+    // pelo id que se acha a frase dela.
+    mostrarPronto({ ...data[0], prof_id: escolha.horario.prof_id }, nome);
   }
 
   function mostrarPronto(r, nome) {
@@ -318,7 +328,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
         <img class="ag-marca" src="assets/marca.svg" alt="Alento — Studio de Beleza">
         <div class="ag-selo">✓</div>
         <h2>Horário marcado!</h2>
-        <p class="ag-recado">${esc(RECADO)}</p>
+        <p class="ag-recado">${esc(recadoDe(quemE(r.prof_id), studio))}</p>
         <p class="t2">${esc(nome.split(' ')[0])}, te esperamos <strong>${dataLonga(r.quando)}
           às ${hora(r.quando)}</strong>, com ${esc(r.prof_nome)}.</p>
         <div class="ag-resumo mt">

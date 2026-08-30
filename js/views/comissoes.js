@@ -4,6 +4,7 @@ import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, confirmar, lerFor
          retrato, fotoReduzida } from '../ui.js';
 import * as M from '../metricas.js';
 import { baixarCSV } from './precificacao.js';
+import { RECADO_PADRAO } from '../agendar.js';
 
 let mes = mesAtual();
 
@@ -154,6 +155,11 @@ export function abrirEquipe() {
   });
 }
 
+/** A frase que vale hoje quando a profissional não tem a sua: a do studio,
+    ou a do manual da marca se o studio também não escolheu. */
+const frasePadrao = () =>
+  (db.cfg('studio')?.recado || '').trim() || RECADO_PADRAO;
+
 export function abrirProfissional(id) {
   const p = id ? db.estado.profissionais.find((x) => x.id === id)
               : { funcao: 'unhas', comissao_pct: 0.5, ativo: true, atende: true };
@@ -182,6 +188,11 @@ export function abrirProfissional(id) {
                placeholder="Nails designer. Alongamento em gel e blindagem.">
         <span class="dica t3">Uma linha curta, que aparece embaixo do nome no site
           das clientes.</span></label>
+      <label class="campo"><span>Sua frase ao fechar o agendamento</span>
+        <input name="recado" value="${esc(p.recado || '')}" maxlength="120"
+               placeholder="${esc(frasePadrao())}">
+        <span class="dica t3">Quem marcar com você lê esta. Em branco, vale a do
+          studio: "${esc(frasePadrao())}"</span></label>
       <div class="linha-campos">
         <label class="campo"><span>Função</span>
           <select name="funcao">
@@ -232,7 +243,8 @@ export function abrirProfissional(id) {
         const d = lerForm(veu);
         if (!d.nome) return avisar('Informe o nome', 'erro');
         await db.salvar('profissionais', {
-          ...p, nome: d.nome, funcao: d.funcao, bio: d.bio || null, foto,
+          ...p, nome: d.nome, funcao: d.funcao, bio: d.bio || null,
+          recado: d.recado || null, foto,
           comissao_pct: (Number(d.pct) || 0) / 100,
           ativo: !!d.ativo, atende: !!d.atende,
         });

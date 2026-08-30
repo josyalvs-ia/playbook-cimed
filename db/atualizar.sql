@@ -19,13 +19,7 @@ alter table public.profissionais add column if not exists bio  text;
 -- Quem atende também aparece para a cliente: nome, foto e apresentação. Não
 -- pode ser uma policy em `profissionais` — a policy libera a LINHA inteira, e
 -- a linha carrega a comissão. A view entrega só as colunas de vitrine.
-create or replace view public.equipe_publica
-with (security_invoker = off) as
-  select id, nome, apelido, funcao, foto, bio
-  from public.profissionais
-  where ativo and atende;
-
-grant select on public.equipe_publica to anon, authenticated;
+-- (a view é criada mais abaixo, junto da frase de cada profissional)
 
 
 -- ── O horário que a cliente guardou ainda existe? ──────────────────────────
@@ -77,3 +71,19 @@ begin
        for each row execute function public.marcar_atualizacao()', t, t);
   end loop;
 end $$;
+
+-- ── A frase que fecha o agendamento ────────────────────────────────────────
+-- Existe uma frase do studio, que é a padrão, e cada profissional pode ter a
+-- sua. Quem marca com a Julia lê a da Julia; sem frase própria, lê a do
+-- studio. A frase do studio mora em `config`, junto do resto.
+alter table public.profissionais add column if not exists recado text;
+
+-- A view precisa ser recriada para passar a entregar a coluna nova.
+drop view if exists public.equipe_publica;
+create view public.equipe_publica
+with (security_invoker = off) as
+  select id, nome, apelido, funcao, foto, bio, recado
+  from public.profissionais
+  where ativo and atende;
+
+grant select on public.equipe_publica to anon, authenticated;
