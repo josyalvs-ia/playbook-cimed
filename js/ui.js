@@ -336,7 +336,9 @@ export function confirmar(titulo, texto, textoOk = 'Confirmar', perigo = true) {
   return new Promise((resolve) => {
     abrirModal({
       titulo,
-      corpo: `<p class="t2">${esc(texto)}</p>`,
+      // `pre-line`: uma pergunta com dois parágrafos se lê melhor que um bloco
+      // só — e quem escreve a pergunta decide onde quebra.
+      corpo: `<p class="t2" style="white-space:pre-line">${esc(texto)}</p>`,
       acoes: [
         { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => { f(); resolve(false); } },
         { texto: textoOk, classe: perigo ? 'btn-perigo' : 'btn-primario', onClick: (f) => { f(); resolve(true); } },

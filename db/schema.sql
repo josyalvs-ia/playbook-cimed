@@ -378,17 +378,21 @@ create trigger agendamento_fim before insert or update of inicio, duracao_min
 create index if not exists idx_agendamentos_inicio on agendamentos (inicio);
 create index if not exists idx_agendamentos_prof on agendamentos (profissional_id, inicio);
 
--- A trava contra dois agendamentos no mesmo horário.
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname = 'agendamentos_sem_choque') then
-    alter table agendamentos add constraint agendamentos_sem_choque
-      exclude using gist (
-        profissional_id with =,
-        tstzrange(inicio, fim) with &&
-      ) where (status in ('confirmado', 'concluido'));
-  end if;
-end $$;
+-- Encaixe: um horário que cabe dentro de outro de propósito. Enquanto a cor
+-- da cliente processa, dá para cortar o cabelo de outra — é assim que o dia
+-- rende. Sem esta coluna, a trava contra choque recusava o encaixe junto com
+-- o erro de digitação, e as duas coisas não são a mesma.
+alter table agendamentos add column if not exists encaixe boolean not null default false;
+
+-- A trava contra dois agendamentos no mesmo horário — que agora deixa passar
+-- o que foi marcado como encaixe de propósito. Recriada sempre: um banco feito
+-- antes da coluna existir tem a trava antiga, e ela recusaria todo encaixe.
+alter table agendamentos drop constraint if exists agendamentos_sem_choque;
+alter table agendamentos add constraint agendamentos_sem_choque
+  exclude using gist (
+    profissional_id with =,
+    tstzrange(inicio, fim) with &&
+  ) where (status in ('confirmado', 'concluido') and not encaixe);
 
 do $$
 declare t text;

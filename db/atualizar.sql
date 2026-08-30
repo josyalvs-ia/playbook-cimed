@@ -231,3 +231,17 @@ exception
   when exclusion_violation then
     raise exception 'Esse horário acabou de ser preenchido. Escolha outro, por favor.';
 end $$;
+
+-- ── Encaixe: um horário dentro de outro, de propósito ──────────────────────
+-- Enquanto a cor da cliente processa, dá para cortar o cabelo de outra — é
+-- assim que o dia rende. A trava contra choque recusava isso junto com o erro
+-- de digitação, e as duas coisas não são a mesma: agora quem marca decide,
+-- e o horário fica registrado como encaixe.
+alter table public.agendamentos add column if not exists encaixe boolean not null default false;
+
+alter table public.agendamentos drop constraint if exists agendamentos_sem_choque;
+alter table public.agendamentos add constraint agendamentos_sem_choque
+  exclude using gist (
+    profissional_id with =,
+    tstzrange(inicio, fim) with &&
+  ) where (status in ('confirmado', 'concluido') and not encaixe);

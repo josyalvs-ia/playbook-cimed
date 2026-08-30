@@ -1582,6 +1582,82 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       .filter((a) => a.cliente_nome === 'Cliente Tempo').length)) === 1]);
 }
 
+// ── 34. Encaixe: um horário dentro de outro, de propósito ──
+// Enquanto a cor da cliente processa, dá para cortar o cabelo de outra. A
+// trava contra choque recusava isso junto com o erro de digitação, e as duas
+// coisas não são a mesma.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+
+  const marcar = async (hora, dur, nome) => {
+    await p2.click('#novo');
+    await p2.waitForSelector('.veu [name=servico_id]');
+    await p2.selectOption('.veu [name=profissional_id]', 'p1');
+    await p2.selectOption('.veu [name=servico_id]', 'cab-corte-final');
+    await p2.waitForTimeout(200);
+    await p2.fill('.veu [name=cliente_nome]', nome);
+    await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
+    await p2.fill('.veu [name=hora]', hora);
+    await p2.fill('.veu [name=duracao_min]', String(dur));
+    await p2.click('.veu .btn-primario');
+    await p2.waitForTimeout(600);
+  };
+
+  // A coloração longa da Laura.
+  await marcar('05:00', 180, 'Cliente Cor');
+  const cor = await p2.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.cliente_nome === 'Cliente Cor'));
+  checagens.push(['encaixe: o horário longo entra normal', !!cor && !cor.encaixe]);
+
+  // O corte no meio da pausa: o sistema pergunta em vez de recusar.
+  await marcar('06:00', 40, 'Cliente Corte');
+  await p2.waitForTimeout(300);
+  const pergunta = nb(await p2.textContent('.veu'));
+  checagens.push(['encaixe: pergunta em vez de recusar',
+    /Encaixar mesmo assim/.test(pergunta)]);
+  checagens.push(['encaixe: diz quem já está na cadeira e até quando',
+    pergunta.includes('Cliente Cor') && pergunta.includes('05:00') && pergunta.includes('08:00')]);
+
+  // Desistir não pode deixar nada para trás.
+  await p2.click('.veu .btn-fantasma');
+  await p2.waitForTimeout(400);
+  checagens.push(['encaixe: cancelar não marca nada',
+    (await p2.evaluate(() => globalThis.__DB.agendamentos
+      .filter((a) => a.cliente_nome === 'Cliente Corte').length)) === 0]);
+
+  await marcar('06:00', 40, 'Cliente Corte');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(700);
+  const corte = await p2.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.cliente_nome === 'Cliente Corte'));
+  checagens.push(['encaixe: confirmando, o horário entra marcado como encaixe',
+    corte?.encaixe === true]);
+
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  const agenda = nb(await p2.textContent('#conteudo'));
+  checagens.push(['encaixe: os dois horários ficam na agenda',
+    agenda.includes('Cliente Cor') && agenda.includes('Cliente Corte')]);
+  checagens.push(['encaixe: aparece com o selo de encaixe',
+    (await p2.locator('.selo', { hasText: 'encaixe' }).count()) >= 1]);
+
+  // Três horas de cor com um corte dentro continuam sendo três horas de dia.
+  // Só a agenda da Laura, para o número não depender do dia da outra.
+  await p2.click('[data-ver="eu"]');
+  await p2.waitForTimeout(400);
+  const ocupada = await p2.evaluate(() => {
+    const kpis = [...document.querySelectorAll('#conteudo .kpi')];
+    const k = kpis.find((x) => /Cadeira ocupada/i.test(x.textContent));
+    return k ? k.querySelector('.valor').textContent : '';
+  });
+  checagens.push(['encaixe: não conta o tempo duas vezes', /^3h$|^3h0/.test(nb(ocupada).trim())]);
+  if (!/^3h$|^3h0/.test(nb(ocupada).trim())) console.log('   cadeira ocupada:', nb(ocupada).trim());
+  await p2.click('[data-ver="todas"]');
+  await p2.waitForTimeout(300);
+}
+
 await browser.close();
 
 let falhas = 0;

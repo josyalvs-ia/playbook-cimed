@@ -80,6 +80,64 @@ const localData = (iso) => {
 const localHora = (iso) =>
   new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+/**
+ * Quanto tempo de cadeira o período ocupa, em horas.
+ *
+ * Somar a duração de cada horário contaria o encaixe duas vezes: o corte feito
+ * enquanto a cor processa não é mais uma hora no dia dela. Então o que se soma
+ * é a união dos períodos de cada profissional.
+ */
+function horasOcupadas(lista) {
+  const porProf = new Map();
+  for (const a of lista) {
+    const ini = new Date(a.inicio).getTime();
+    const fim = a.fim ? new Date(a.fim).getTime() : ini + Number(a.duracao_min || 0) * 60000;
+    if (!(fim > ini)) continue;
+    if (!porProf.has(a.profissional_id)) porProf.set(a.profissional_id, []);
+    porProf.get(a.profissional_id).push([ini, fim]);
+  }
+  let ms = 0;
+  for (const faixas of porProf.values()) {
+    faixas.sort((x, y) => x[0] - y[0]);
+    let [de, ate] = faixas[0];
+    for (const [i, f] of faixas.slice(1)) {
+      if (i > ate) { ms += ate - de; de = i; ate = f; }
+      else ate = Math.max(ate, f);
+    }
+    ms += ate - de;
+  }
+  return ms / 3600000;
+}
+
+/** Já tem alguém na cadeira nesse pedaço de tempo? */
+function choqueCom(profissional_id, inicio, dur, ignorar) {
+  const fim = new Date(inicio.getTime() + dur * 60000);
+  return db.estado.agendamentos.find((x) =>
+    x.id !== ignorar
+    && x.profissional_id === profissional_id
+    && ['confirmado', 'concluido'].includes(x.status)
+    && new Date(x.inicio) < fim
+    && new Date(x.fim || x.inicio) > inicio);
+}
+
+/**
+ * Bateu com outro horário: pergunta em vez de recusar.
+ *
+ * Encaixe é trabalho, não engano: enquanto a cor processa dá para cortar o
+ * cabelo de outra cliente, e é assim que o dia rende. Mas continua sendo raro
+ * o suficiente para merecer uma pergunta — quem digitou a hora errada tem de
+ * ver o aviso antes de a agenda ficar com duas clientes no mesmo minuto.
+ */
+async function pedirEncaixe(choque, profissional_id) {
+  return confirmar('Encaixar mesmo assim?',
+    `${nomeProf(profissional_id)} já tem ${choque.cliente_nome} das `
+    + `${localHora(choque.inicio)} às ${localHora(choque.fim || choque.inicio)}`
+    + ` (${choque.servico_nome}).\n\n`
+    + 'Se for encaixe — um corte enquanto a cor processa, por exemplo — pode '
+    + 'seguir: os dois ficam na agenda, e este entra marcado como encaixe.',
+    'Encaixar', false);
+}
+
 /** O tempo de tabela do serviço, em minutos. */
 const minutosDe = (s) => Math.max(15, Math.round((Number(s?.tempo) || 1) * 60));
 
@@ -110,7 +168,7 @@ export function render(raiz) {
   const { de, ate } = janela();
   const lista = doPeriodo(de, ate);
   const total = lista.reduce((s, a) => s + Number(a.valor || 0), 0);
-  const horas = lista.reduce((s, a) => s + Number(a.duracao_min || 0), 0) / 60;
+  const horas = horasOcupadas(lista);
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
     localData(b.inicio) <= ate && localData(b.fim) >= de);
 
@@ -356,6 +414,7 @@ function cartaoHorario(a) {
             <strong class="num display" style="font-size:19px">${localHora(a.inicio)}</strong>
             <span class="selo ${selo[0]}">${selo[1]}</span>
             ${a.origem === 'site' ? '<span class="selo" title="a cliente marcou pelo site">site</span>' : ''}
+            ${a.encaixe ? '<span class="selo" title="marcado dentro de outro horário, de propósito">encaixe</span>' : ''}
           </div>
           <div style="font-weight:600;margin-top:3px">${esc(a.cliente_nome)}</div>
           <div class="pequeno t2">${esc(a.servico_nome)} · ${fmt.horas(a.duracao_min / 60)}</div>
@@ -532,7 +591,8 @@ function fichaAgendamento(a) {
       <tr><td class="t2">Serviço</td><td><strong>${esc(a.servico_nome)}</strong></td></tr>
       <tr><td class="t2">Profissional</td><td>${esc(nomeProf(a.profissional_id) || '—')}</td></tr>
       <tr><td class="t2">WhatsApp</td><td>${fmt.telefone(a.cliente_telefone)}</td></tr>
-      <tr><td class="t2">Marcado</td><td>${a.origem === 'site' ? 'pela cliente, no site' : 'pelo studio'}</td></tr>
+      <tr><td class="t2">Marcado</td><td>${a.origem === 'site' ? 'pela cliente, no site' : 'pelo studio'}${
+        a.encaixe ? ', como encaixe' : ''}</td></tr>
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
     ${a.status === 'concluido'
@@ -594,15 +654,9 @@ async function salvarNovo(fechar, veu, servicos) {
   const inicio = new Date(`${d.data}T${d.hora}:00`);
   const dur = duracaoValida(d.duracao_min, s);
 
-  // Choque é recusado pelo banco, mas avisar antes evita a viagem perdida.
-  const choque = db.estado.agendamentos.find((x) =>
-    x.profissional_id === d.profissional_id
-    && ['confirmado', 'concluido'].includes(x.status)
-    && new Date(x.inicio) < new Date(inicio.getTime() + dur * 60000)
-    && new Date(x.fim || x.inicio) > inicio);
-  if (choque) {
-    return avisar(`${nomeProf(d.profissional_id)} já tem ${choque.cliente_nome} às ${localHora(choque.inicio)}`, 'erro');
-  }
+  const choque = choqueCom(d.profissional_id, inicio, dur);
+  const encaixe = choque ? await pedirEncaixe(choque, d.profissional_id) : false;
+  if (choque && !encaixe) return;
 
   // O dia muda ANTES de salvar. Salvar já redesenha a tela (a gravação é
   // otimista), e trocar o dia depois disso deixava a agenda parada no dia
@@ -621,6 +675,7 @@ async function salvarNovo(fechar, veu, servicos) {
       duracao_min: dur,
       valor: Number(s.preco) || 0,
       status: 'confirmado', origem: 'studio',
+      encaixe,
       observacoes: d.observacoes || null,
     });
     fechar();
@@ -662,15 +717,9 @@ export function abrirRemarcar(a) {
           const inicio = new Date(`${d.data}T${d.hora}:00`);
           const dur = duracaoValida(d.duracao_min, { tempo: a.duracao_min / 60 });
 
-          const choque = db.estado.agendamentos.find((x) =>
-            x.id !== a.id
-            && x.profissional_id === a.profissional_id
-            && ['confirmado', 'concluido'].includes(x.status)
-            && new Date(x.inicio) < new Date(inicio.getTime() + dur * 60000)
-            && new Date(x.fim || x.inicio) > inicio);
-          if (choque) {
-            return avisar(`Bate com ${choque.cliente_nome} às ${localHora(choque.inicio)}`, 'erro');
-          }
+          const choque = choqueCom(a.profissional_id, inicio, dur, a.id);
+          const encaixe = choque ? await pedirEncaixe(choque, a.profissional_id) : false;
+          if (choque && !encaixe) return;
 
           dia = d.data;
           try {
@@ -679,6 +728,7 @@ export function abrirRemarcar(a) {
               inicio: inicio.toISOString(),
               fim: new Date(inicio.getTime() + dur * 60000).toISOString(),
               duracao_min: dur,
+              encaixe: encaixe || !!a.encaixe,
             });
             fechar();
             avisar('Horário atualizado');
