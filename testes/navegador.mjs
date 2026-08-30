@@ -1400,6 +1400,15 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
           recado_agenda: 'Precisamos ver seu cabelo antes de marcar, porque o mesmo serviço'
               + ' leva quatro horas num cabelo e sete noutro. Chama a gente no WhatsApp que'
               + ' a gente combina tudo com calma.' },
+        { id: 'cab-morena', categoria: 'cab-cor', nome: 'Morena iluminada sem descoloração',
+          tipo: 'servico', preco: 500, tempo: 3.5, ativo: true, profissional: 'cabelo',
+          ordem: 4, agenda_online: false },
+        { id: 'av-correcao', categoria: 'cab-cor', nome: 'Avaliação correção de cor',
+          tipo: 'servico', preco: 0, preco_tipo: 'avaliacao', tempo: 0.5, ativo: true,
+          profissional: 'cabelo', ordem: 5 },
+        { id: 'av-mechas', categoria: 'cab-cor', nome: 'Avaliação mechas loiras ou iluminadas',
+          tipo: 'servico', preco: 0, preco_tipo: 'avaliacao', tempo: 0.5, ativo: true,
+          profissional: 'cabelo', ordem: 6 },
         { id: 'along-fibra', categoria: 'alongamento', nome: 'Alongamento em fibra',
           tipo: 'servico', preco: 180, tempo: 2.5, ativo: true,
           profissional: 'unhas', ordem: 3, agenda_online: false },
@@ -1441,6 +1450,17 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['só WhatsApp: o passo muda de nome',
     nb(await pw.textContent('.ag-passo.atual')).includes('Como marcar')]);
   await pw.screenshot({ path: '/tmp/shot-so-whatsapp.png' });
+
+  // A avaliação oferecida tem de ser a do serviço escolhido: a Laura tem uma
+  // para cada procedimento de cor, e a primeira da família era a errada.
+  checagens.push(['só WhatsApp: oferece a avaliação DESTE serviço',
+    nb(await pw.textContent('[data-serv-av]')).includes('mechas')]);
+  await pw.click('#voltar');
+  await pw.waitForTimeout(300);
+  await pw.click('[data-serv="cab-morena"]');
+  await pw.waitForSelector('.ag-combinar');
+  checagens.push(['só WhatsApp: sem avaliação parecida, não oferece nenhuma',
+    await pw.locator('[data-serv-av]').count() === 0]);
 
   // Unha vai para o zap da outra: mandar a cliente para o número errado é
   // fazê-la contar a história duas vezes.

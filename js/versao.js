@@ -7,4 +7,4 @@
 // novo o navegador vai buscar.
 //
 // Trocado por testes/publicar.mjs a cada publicação.
-export const VERSAO = '2026-08-30.5';
+export const VERSAO = '2026-08-30.6';

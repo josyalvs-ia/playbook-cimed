@@ -107,6 +107,34 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
   /** O WhatsApp para falar sobre este serviço: o de quem faz, ou o do studio. */
   const zapDe = (s) =>
     String(quemFaz(s)?.whatsapp || studio.whatsapp || '').replace(/\D/g, '');
+
+  const semAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // Palavras que aparecem em serviço demais para dizer que dois são parentes.
+  const VAZIAS = new Set(['avaliacao', 'avaliacoes', 'cabelo', 'cabelos', 'unha', 'unhas',
+                          'servico', 'sessao', 'completa', 'completo']);
+  const palavrasDe = (nome) => new Set(
+    semAcento(nome).split(/[^a-z0-9]+/).filter((p) => p.length > 3 && !VAZIAS.has(p)));
+
+  /**
+   * A avaliação DESTE serviço — não uma avaliação qualquer.
+   *
+   * A Laura tem uma avaliação para cada procedimento de cor. Escolher a
+   * primeira da mesma família oferecia "avaliação correção de cor" a quem
+   * queria mechas: manda a cliente para o horário errado e ela descobre na
+   * cadeira. Por isso a escolha é por parentesco de nome, e na dúvida não
+   * oferece nada — botão nenhum é melhor que o botão errado.
+   */
+  function avaliacaoDe(s) {
+    const alvo = palavrasDe(s.nome);
+    if (!alvo.size) return null;
+    let melhor = null, nota = 0;
+    for (const x of servicos) {
+      if (x.id === s.id || !marcaSozinha(x) || !/avalia/i.test(x.nome)) continue;
+      const quantas = [...palavrasDe(x.nome)].filter((p) => alvo.has(p)).length;
+      if (quantas > nota) { melhor = x; nota = quantas; }
+    }
+    return nota ? melhor : null;
+  }
   let familia = null;                 // destaque escolhido no passo 1
   let livres = [];
 
@@ -202,9 +230,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     const dona = quemFaz(s);
     const zap = zapDe(s);
     const texto = (s.recado_agenda || '').trim() || RECADO_AGENDA;
-    const avaliacao = servicos.find((x) => marcaSozinha(x)
-      && familiaDe(x.categoria) === familiaDe(s.categoria)
-      && /avalia/i.test(x.nome));
+    const avaliacao = avaliacaoDe(s);
 
     document.getElementById('ag-corpo').innerHTML = `
       <button class="ag-voltar" id="voltar">&larr; Trocar serviço</button>
