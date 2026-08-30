@@ -1820,6 +1820,50 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(300);
 }
 
+// ── 37. Cliente sem aniversário ──
+// Data em branco chegava ao servidor como texto vazio, e vazio não é uma data:
+// o Postgres recusava a linha INTEIRA. A Laura cadastrava clientes e nada
+// ficava salvo — nem o telefone. O pior era a fila: o cadastro recusado ficava
+// preso no aparelho, tentando de novo para sempre com o mesmo valor errado.
+{
+  await p2.evaluate(() => { location.hash = '#/clientes'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu [name=nascimento]');
+  await p2.fill('.veu [name=nome]', 'Cliente Sem Aniversário');
+  await p2.fill('.veu [name=telefone]', '11955554444');
+  await p2.click('.veu .btn-primario');
+  await p2.waitForTimeout(700);
+
+  const salva = await p2.evaluate(() => globalThis.__DB.clientes
+    .find((c) => c.nome === 'Cliente Sem Aniversário'));
+  checagens.push(['sem aniversário: a cliente chega ao servidor', !!salva]);
+  checagens.push(['sem aniversário: a data vai como ausência, não texto vazio',
+    salva && salva.nascimento === null, JSON.stringify(salva?.nascimento)]);
+  checagens.push(['sem aniversário: o telefone foi junto',
+    salva?.telefone === '11955554444']);
+  checagens.push(['sem aniversário: nada ficou preso na fila do aparelho',
+    (await p2.evaluate(() =>
+      JSON.parse(localStorage.getItem('alento.fila.v1') || '[]').length)) === 0]);
+
+  // E o que já estava preso na fila com o valor errado tem de subir agora.
+  await p2.evaluate(() => {
+    localStorage.setItem('alento.fila.v1', JSON.stringify([{ acao: 'upsert',
+      tabela: 'clientes', ts: Date.now(),
+      dados: { id: 'presa-1', nome: 'Cliente Presa', telefone: '11944443333',
+               nascimento: '', ativo: true } }]));
+  });
+  await p2.evaluate(async () => { const db = await import('./js/db.js'); await db.drenarFila(); });
+  await p2.waitForTimeout(500);
+  const solta = await p2.evaluate(() => globalThis.__DB.clientes
+    .find((c) => c.nome === 'Cliente Presa'));
+  checagens.push(['sem aniversário: o cadastro que ficou preso sobe limpo',
+    !!solta && solta.nascimento === null]);
+  checagens.push(['sem aniversário: e sai da fila',
+    (await p2.evaluate(() =>
+      JSON.parse(localStorage.getItem('alento.fila.v1') || '[]').length)) === 0]);
+}
+
 await browser.close();
 
 let falhas = 0;
