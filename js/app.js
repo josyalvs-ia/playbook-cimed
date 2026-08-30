@@ -377,7 +377,7 @@ function molduraCentral(conteudo) {
       ${ceuEstrelado()}
       <div style="width:100%;max-width:420px;position:relative;z-index:1">
         <div class="centro assenta" style="margin-bottom:26px">
-          <img src="assets/marca.svg" alt="Alento — Studio de Beleza" style="width:min(300px,80%);margin:0 auto 4px">
+          <img src="assets/marca.webp" alt="Alento — Studio de Beleza" style="width:min(230px,64%);margin:0 auto 4px">
         </div>
         <div class="cartao assenta-2" style="padding:24px">${conteudo}</div>
       </div>

@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://josyalvs-ia.github.io/playbook-cimed/vitrine.html">
-<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-30.7">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-30.8">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,16 +26,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-08-30.7">
+<link rel="stylesheet" href="css/app.css?v=2026-08-30.8">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-08-30.7"></script>
+<script src="config.js?v=2026-08-30.8"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
   .capa { text-align: center; padding: 58px 0 40px; position: relative; }
   .capa .ceu { inset: -30px 0 0; }
-  .capa img { width: min(400px, 88%); margin: 0 auto 18px; }
+  /* O logo real é mais alto que largo (as estrelas sobem e descem), então
+     ele pede menos largura que o desenho antigo para ocupar o mesmo espaço. */
+  .capa img { width: min(300px, 74%); margin: 0 auto 14px; }
   .capa .frase {
     font-family: var(--display); font-size: clamp(26px, 5.4vw, 40px);
     font-weight: 700; line-height: 1.16; max-width: 15ch; margin: 0 auto 12px;
@@ -140,7 +142,7 @@
              overflow-y: auto; padding: 18px 18px 40px; }
   .ag-topo { display: flex; align-items: center; gap: 12px; max-width: 640px;
              margin: 0 auto 18px; }
-  .ag-topo img { height: 46px; }
+  .ag-topo img { height: 44px; }
   .ag-fechar { margin-left: auto; }
   .ag-conteudo { max-width: 640px; margin: 0 auto; }
 
@@ -267,7 +269,7 @@
                              display: inline-block; margin-top: 4px; }
 
   .ag-pronto { text-align: center; padding: 10px 0 24px; }
-  .ag-marca { width: min(340px, 78%); margin: 0 auto 22px; display: block; }
+  .ag-marca { width: min(250px, 62%); margin: 0 auto 20px; display: block; }
   .ag-selo { width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 16px;
              background: var(--creme); color: var(--verde);
              display: flex; align-items: center; justify-content: center;
@@ -326,7 +328,7 @@
     .ag-grupo-titulo, .ag-turno-titulo { font-size: 11.5px; }
     .meu-horario .rot { font-size: 11px; }
     .secao-titulo span { font-size: 11.5px; }
-    .ag-marca { width: min(300px, 86%); }
+    .ag-marca { width: min(220px, 68%); }
   }
 </style>
 </head>
@@ -419,7 +421,7 @@ document.getElementById('vitrine').innerHTML = `
 
   <header class="capa">
     ${ceuEstrelado()}
-    <img src="assets/marca.svg" alt="Alento — Studio de Beleza" class="assenta" style="position:relative;z-index:1">
+    <img src="assets/marca.webp" alt="Alento — Studio de Beleza" class="assenta" style="position:relative;z-index:1">
     <div class="frase assenta-2" style="position:relative;z-index:1">Realce sua melhor versão.</div>
     <p class="assenta-3" style="position:relative;z-index:1">Cuidado que transforma. Beleza que acolhe e renova.</p>
   </header>
@@ -617,7 +619,7 @@ document.getElementById('btn-agendar').onclick = async () => {
   tela.className = 'ag-tela';
   tela.innerHTML = `
     <div class="ag-topo">
-      <img src="assets/marca.svg" alt="Alento">
+      <img src="assets/marca-pequena.webp" alt="Alento">
       <button class="btn btn-sm ag-fechar" id="ag-sair">Fechar</button>
     </div>
     <div class="ag-conteudo" id="ag-raiz"></div>`;

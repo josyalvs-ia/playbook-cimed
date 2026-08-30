@@ -421,7 +421,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     document.querySelector('.ag-topo')?.setAttribute('hidden', '');
     raiz.innerHTML = `
       <div class="ag-pronto">
-        <img class="ag-marca" src="assets/marca.svg" alt="Alento — Studio de Beleza">
+        <img class="ag-marca" src="assets/marca.webp" alt="Alento — Studio de Beleza">
         <div class="ag-selo">✓</div>
         <h2>Horário marcado!</h2>
         <p class="ag-recado">${esc(recadoDe(quemE(r.prof_id), studio))}</p>
