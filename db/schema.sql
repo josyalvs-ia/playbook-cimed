@@ -553,6 +553,37 @@ grant execute on function public.cancelar_agendamento(uuid) to anon, authenticat
 revoke all on function public.situacao_agendamentos(uuid[]) from public;
 grant execute on function public.situacao_agendamentos(uuid[]) to anon, authenticated;
 
+-- ── Sincronização incremental ──────────────────────────────────────────────
+-- O app recarregava TUDO do servidor a cada 45 segundos. Depois de um ano de
+-- studio isso é mais de 1 MB baixado a cada volta, para descobrir que quase
+-- nada mudou — era o que fazia a agenda travar no celular.
+--
+-- Com um carimbo de "mexido pela última vez em", o app passa a pedir só o que
+-- mudou desde a última conferida. O gatilho existe porque `default now()` só
+-- vale na criação: mudar o status de um agendamento não mexeria na coluna.
+create or replace function public.marcar_atualizacao()
+returns trigger language plpgsql as $$
+begin
+  new.atualizado_em := now();
+  return new;
+end $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['profissionais','clientes','servicos','materiais','ficha_tecnica',
+                           'estoque_mov','comandas','comanda_itens','caixa','config',
+                           'horarios','bloqueios','agendamentos'] loop
+    execute format(
+      'alter table public.%I add column if not exists atualizado_em timestamptz not null default now()', t);
+    execute format('create index if not exists idx_%s_atualizado on public.%I (atualizado_em)', t, t);
+    execute format('drop trigger if exists %I_atualizado on public.%I', t, t);
+    execute format(
+      'create trigger %I_atualizado before update on public.%I
+       for each row execute function public.marcar_atualizacao()', t, t);
+  end loop;
+end $$;
+
 -- ── Tempo real ─────────────────────────────────────────────────────────────
 -- Tabela nova não entra sozinha na publicação do Realtime, e sem isso o app de
 -- uma não fica sabendo do que a outra fez. O app também confere sozinho de

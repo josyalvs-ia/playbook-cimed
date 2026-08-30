@@ -193,32 +193,107 @@ export async function drenarFila() {
   if (f.length !== restante.length) {
     avisar(`${f.length - restante.length} alteração(ões) sincronizada(s)`);
     if (!restante.length) ultimoErro = null;
-    await recarregar();
+    await sincronizar();
   }
   notificar();
 }
 
 // ─── Leitura ───────────────────────────────────────────────────────────────
+/**
+ * Carga completa. Usada na primeira abertura e quando se pede "recarregar".
+ * Depois disso, quem trabalha é `sincronizar()`.
+ */
 export async function recarregar() {
   if (!cliente) return;
   const resultados = await Promise.all(TABELAS.map((t) => cliente.from(t).select('*')));
+  let mudou = false;
   TABELAS.forEach((t, i) => {
     const { data, error } = resultados[i];
-    if (!error && data) estado[t] = data;
+    if (error || !data) return;
+    if (JSON.stringify(estado[t]) !== JSON.stringify(data)) mudou = true;
+    estado[t] = data;
   });
+  marcarSincronizado();
   ordenar();
   salvarCache();
-  notificar();
+  if (mudou) notificar();
+  return mudou;
 }
 
+// ─── Sincronização incremental ─────────────────────────────────────────────
+// Recarregar tudo a cada 45 segundos custava mais de 1 MB por volta depois de
+// um ano de studio, e reconstruía a tela junto — era isso que fazia a agenda
+// travar no celular. Agora o app pergunta apenas o que mexeram desde a última
+// vez, o que quase sempre é nada.
+
+const CHAVE_SINC = 'alento.sincronizado.v1';
+
+/** Guarda o instante do servidor, não o do aparelho: relógio de celular
+    atrasado alguns segundos faria o app perder alterações para sempre. */
+function marcarSincronizado(quando) {
+  try { localStorage.setItem(CHAVE_SINC, quando || new Date().toISOString()); } catch {}
+}
+const ultimaSincronizacao = () => {
+  try { return localStorage.getItem(CHAVE_SINC); } catch { return null; }
+};
+
+/**
+ * Pergunta ao servidor só o que mudou. Devolve quantas linhas chegaram.
+ *
+ * Apagar não deixa rastro numa consulta por data, então de tempos em tempos
+ * uma carga completa passa o pente fino — bem mais raro que a cada volta.
+ */
+export async function sincronizar() {
+  if (!cliente) return 0;
+  const desde = ultimaSincronizacao();
+  if (!desde) return (await recarregar()) ? 1 : 0;
+
+  // Uma folga de dois segundos cobre a diferença de relógio entre o aparelho
+  // e o servidor, e o intervalo entre gravar a linha e carimbar a hora.
+  const marco = new Date(Date.now() - 2000).toISOString();
+
+  let resultados;
+  try {
+    resultados = await Promise.all(
+      TABELAS.map((t) => cliente.from(t).select('*').gt('atualizado_em', desde)));
+  } catch {
+    return 0;
+  }
+
+  let chegaram = 0;
+  TABELAS.forEach((t, i) => {
+    const { data, error } = resultados[i];
+    // Banco sem a coluna do carimbo: volta ao jeito antigo, sem quebrar.
+    if (error) { semCarimbo = true; return; }
+    if (!data?.length) return;
+    const porId = new Map(estado[t].map((x) => [x.id ?? x.chave, x]));
+    for (const linha of data) porId.set(linha.id ?? linha.chave, linha);
+    estado[t] = [...porId.values()];
+    chegaram += data.length;
+  });
+
+  if (semCarimbo) { semCarimbo = false; return (await recarregar()) ? 1 : 0; }
+
+  marcarSincronizado(marco);
+  if (chegaram) { ordenar(); salvarCache(); notificar(); }
+  return chegaram;
+}
+
+let semCarimbo = false;
+
+/** Compara textos que podem não existir: uma linha sem o campo não pode
+    derrubar o app inteiro, e derrubava — um insumo cadastrado sem categoria
+    fazia a tela de entrada mostrar "não foi possível falar com o servidor". */
+const txt = (a, b) => String(a ?? '').localeCompare(String(b ?? ''), 'pt-BR');
+
 function ordenar() {
-  estado.servicos.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0) || a.nome.localeCompare(b.nome, 'pt-BR'));
-  estado.clientes.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  estado.materiais.sort((a, b) => a.categoria.localeCompare(b.categoria, 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'));
-  estado.comandas.sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
-  estado.caixa.sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criado_em || '').localeCompare(a.criado_em || ''));
-  estado.estoque_mov.sort((a, b) => (b.criado_em || '').localeCompare(a.criado_em || ''));
-  estado.agendamentos.sort((a, b) => (a.inicio || '').localeCompare(b.inicio || ''));
+  estado.servicos.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0) || txt(a.nome, b.nome));
+  estado.clientes.sort((a, b) => txt(a.nome, b.nome));
+  estado.materiais.sort((a, b) => txt(a.categoria, b.categoria) || txt(a.nome, b.nome));
+  estado.comandas.sort((a, b) => txt(b.data, a.data) || txt(b.criado_em, a.criado_em));
+  estado.caixa.sort((a, b) => txt(b.data, a.data) || txt(b.criado_em, a.criado_em));
+  estado.estoque_mov.sort((a, b) => txt(b.criado_em, a.criado_em));
+  estado.agendamentos.sort((a, b) => txt(a.inicio, b.inicio));
 }
 
 // ─── Escrita ───────────────────────────────────────────────────────────────
@@ -238,17 +313,29 @@ export async function salvar(tabela, registro) {
   salvarCache();
   notificar();
 
+  // A subida acontece por trás. Antes a tela só respondia depois da ida e
+  // volta ao servidor: num 4G isso é meio segundo por toque, e é o que fazia
+  // a agenda parecer travada. O registro já está em memória e na fila — se a
+  // rede falhar, a fila resolve e o aviso aparece.
+  subirDepois(tabela, r);
+  return r;
+}
+
+async function subirDepois(tabela, r) {
   try {
     if (!cliente || !navigator.onLine) throw new Error('offline');
     const { data, error } = await cliente.from(tabela).upsert(r).select().single();
     if (error) throw error;
+    // O servidor devolve a linha com o que ele preencheu (carimbos, padrões).
+    // Só vale sobrescrever se ninguém mexeu nela nesse meio-tempo.
     const j = estado[tabela].findIndex((x) => x.id === r.id);
-    if (j >= 0) estado[tabela][j] = data;
-    salvarCache();
+    if (j >= 0 && JSON.stringify(estado[tabela][j]) === JSON.stringify(r)) {
+      estado[tabela][j] = data;
+      salvarCache();
+    }
   } catch (e) {
     enfileirar({ acao: 'upsert', tabela, dados: r }, e);
   }
-  return r;
 }
 
 /** Grava vários de uma vez (usado na carga inicial e nas importações). */
@@ -275,6 +362,10 @@ export async function salvarLote(tabela, registros) {
 export async function remover(tabela, id) {
   estado[tabela] = estado[tabela].filter((x) => x.id !== id);
   salvarCache(); notificar();
+  apagarDepois(tabela, id);
+}
+
+async function apagarDepois(tabela, id) {
   try {
     if (!cliente || !navigator.onLine) throw new Error('offline');
     const { error } = await cliente.from(tabela).delete().eq('id', id);
@@ -345,13 +436,7 @@ export async function setCfg(chave, valor) {
   const r = { chave, valor };
   if (i >= 0) lista[i] = r; else lista.push(r);
   salvarCache(); notificar();
-  try {
-    if (!cliente || !navigator.onLine) throw new Error('offline');
-    const { error } = await cliente.from('config').upsert(r);
-    if (error) throw error;
-  } catch (e) {
-    enfileirar({ acao: 'upsert', tabela: 'config', dados: r }, e);
-  }
+  subirDepois('config', r);
 }
 
 // ─── Inicialização ─────────────────────────────────────────────────────────
@@ -383,7 +468,7 @@ export async function iniciar() {
   // e tabela nova NÃO entra sozinha. Por isso não dá para depender disto.
   try {
     cliente.channel('alento')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => { recarregar(); })
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => { sincronizar(); })
       .subscribe();
   } catch { /* segue com a checagem periódica abaixo */ }
 
@@ -404,7 +489,11 @@ export async function iniciar() {
  */
 const VIGIA_ATIVO   = 45_000;
 const VIGIA_OCULTO  = 120_000;
+// De quanto em quanto tempo vale um pente fino completo. É ele que percebe o
+// que foi APAGADO em outro aparelho — uma consulta por data não vê remoção.
+const PENTE_FINO    = 10 * 60_000;
 let vigiaId = null;
+let ultimoPenteFino = Date.now();
 
 function vigiar() {
   const agendar = () => {
@@ -413,7 +502,12 @@ function vigiar() {
     vigiaId = setTimeout(async () => {
       if (navigator.onLine) {
         await drenarFila();
-        await recarregar();
+        if (Date.now() - ultimoPenteFino > PENTE_FINO) {
+          ultimoPenteFino = Date.now();
+          await recarregar();
+        } else {
+          await sincronizar();
+        }
       }
       agendar();
     }, espera);
@@ -421,7 +515,7 @@ function vigiar() {
 
   // Voltou para a aba: confere na hora, sem esperar o próximo ciclo.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && navigator.onLine) recarregar();
+    if (document.visibilityState === 'visible' && navigator.onLine) sincronizar();
     agendar();
   });
 

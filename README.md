@@ -45,10 +45,12 @@ fechado na agenda. Não depende do Trinks.
 3. Clique em **Run**. Deve aparecer *Success*.
 
 > **Se o seu banco já existia antes de agosto de 2026**, rode também
-> [`db/atualizar.sql`](db/atualizar.sql) do mesmo jeito: é o que acrescenta a
-> foto e a apresentação de cada profissional, e a conferência que tira do
-> celular da cliente o horário que já foi cancelado. Quem está criando o banco
-> agora não precisa — já vem no `schema.sql`. Rodar duas vezes não faz mal.
+> [`db/atualizar.sql`](db/atualizar.sql) do mesmo jeito. É o que acrescenta a
+> foto e a apresentação de cada profissional, a conferência que tira do celular
+> da cliente o horário já cancelado, e o carimbo de alteração que faz o app
+> baixar só o que mudou em vez do banco inteiro a cada volta. Quem está criando
+> o banco agora não precisa — já vem no `schema.sql`. Rodar duas vezes não faz
+> mal.
 
 ### 3. Pegar a URL e a chave pública
 

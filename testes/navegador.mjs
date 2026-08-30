@@ -22,29 +22,52 @@ if (!memoria.profissionais) memoria.profissionais = [
 function tabela(nome){ return memoria[nome] || (memoria[nome] = []); }
 function query(nome){
   const q = {
-    _rows: () => tabela(nome),
-    select(cols){
-      // O teste pode esconder uma coluna, para exercitar o "banco atrasado".
-      const some = globalThis.__SEM_COLUNA;
-      if (some && String(cols || '').split(',').map(x => x.trim()).includes(some)) {
-        const erro = { code: 'PGRST204', message: 'Could not find the ' + some + ' column of ' + nome };
-        return Object.assign(Promise.resolve({ data: null, error: erro }),
-          { ...q, limit: () => Promise.resolve({ data: null, error: erro }) });
-      }
-      return Object.assign(Promise.resolve({data: tabela(nome), error:null}),
-        { ...q, limit: () => Promise.resolve({ data: tabela(nome), error: null }) });
+    // O app agora pede só o que mudou desde a última conferida.
+    //
+    // Devolve CÓPIAS, como um servidor de verdade devolveria: entregando o
+    // próprio array em memória, o app comparava a lista com ela mesma e
+    // concluía que nada tinha mudado.
+    _rows(){
+      const t = tabela(nome);
+      const linhas = !this._gt ? t
+        : t.filter((x) => String(x[this._gt[0]] || '') > this._gt[1]);
+      return linhas.map((x) => ({ ...x }));
     },
+    // Preguiçoso, como o cliente de verdade: a consulta só é resolvida quando
+    // alguém a espera. Montando a resposta já no select, um gt() vindo depois
+    // na mesma linha chegava tarde demais e era simplesmente ignorado.
+    _resposta(){
+      const some = globalThis.__SEM_COLUNA;
+      if (some && String(this._cols || '').split(',').map((x) => x.trim()).includes(some)) {
+        return { data: null, error: { code: 'PGRST204',
+                 message: 'Could not find the ' + some + ' column of ' + nome } };
+      }
+      const linhas = this._rows();
+      globalThis.__LINHAS = (globalThis.__LINHAS || 0) + linhas.length;
+      return { data: linhas, error: null };
+    },
+    select(cols){ this._cols = cols; return this; },
+    then(ok, falha){
+      const d = globalThis.__DEMORA || 0;
+      return new Promise((r) => setTimeout(r, d)).then(() => this._resposta()).then(ok, falha);
+    },
+    limit(){ return this; },
     eq(){ return this; }, in(){ return this; }, single(){ return this; },
+    gt(col, v){ this._gt = [col, v]; return this; },
     upsert(r){ const arr = Array.isArray(r)?r:[r];
       // O teste pode mandar o banco recusar, para exercitar o caminho do erro.
       const recusa = globalThis.__RECUSAR;
       if (recusa && recusa.tabela === nome) {
         const out = { data: null, error: recusa.erro };
         return Object.assign(Promise.resolve(out), {select:()=>({single:()=>Promise.resolve(out)})}); }
+      const agora = new Date().toISOString();
       for (const x of arr){ const t=tabela(nome); const i=t.findIndex(y=>y.id===x.id||(y.chave&&y.chave===x.chave));
-        if(i>=0) t[i]={...t[i],...x}; else t.push({...x}); }
+        const linha = { ...x, atualizado_em: agora };
+        if(i>=0) t[i]={...t[i],...linha}; else t.push(linha); }
       const out = {data: arr[0], error:null};
-      return Object.assign(Promise.resolve(out), {select:()=>({single:()=>Promise.resolve(out)})}); },
+      const d = globalThis.__DEMORA || 0;
+      const espera = () => new Promise((r) => setTimeout(r, d)).then(() => out);
+      return Object.assign(espera(), {select:()=>({single:espera})}); },
     delete(){ return { eq:(c,v)=>{ memoria[nome]=tabela(nome).filter(x=>x[c]!==v); return Promise.resolve({error:null}); } }; },
   };
   return q;
@@ -1028,7 +1051,73 @@ await p2.waitForTimeout(700);
   checagens.push(['senha: a janela fecha depois', await p2.locator('.veu').count() === 0]);
 }
 
-// ── 26. Link de "esqueci a senha" ──
+// ── 26. O vigia só baixa o que mudou ──
+// Recarregar tudo a cada 45 segundos custava mais de 1 MB por volta depois de
+// um ano de studio — era isso que fazia a agenda travar no celular da Julia.
+{
+  const conta = () => p2.evaluate(() => {
+    const r = { linhas: globalThis.__LINHAS || 0 };
+    globalThis.__LINHAS = 0;
+    return r.linhas;
+  });
+
+  await p2.evaluate(async () => {
+    globalThis.__LINHAS = 0;
+    const db = await import('./js/db.js');
+    await db.recarregar();          // carga completa: traz tudo
+  });
+  const cheia = await conta();
+  checagens.push(['vigia: a carga completa traz o banco todo', cheia > 10, cheia + ' linhas']);
+
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.sincronizar();          // acerta o relógio
+    globalThis.__LINHAS = 0;
+    await db.sincronizar();          // esta é a que vale
+  });
+  checagens.push(['vigia: quando nada mudou, não baixa nada', await conta() === 0]);
+
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    globalThis.__DB.agendamentos.push({ id: 'sinc-1', profissional_id: 'p2',
+      servico_nome: 'Teste', cliente_nome: 'Teste', status: 'confirmado', origem: 'site',
+      inicio: new Date(Date.now() + 5 * 864e5).toISOString(), duracao_min: 60, valor: 90,
+      atualizado_em: new Date().toISOString() });
+    globalThis.__LINHAS = 0;
+    await db.sincronizar();
+  });
+  const uma = await conta();
+  checagens.push(['vigia: uma mudança baixa uma linha, não o banco', uma === 1, uma + ' linhas']);
+  checagens.push(['vigia: e a mudança chega ao app',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.estado.agendamentos.some((a) => a.id === 'sinc-1');
+    })]);
+}
+
+// ── 27. Salvar responde na hora, sem esperar a rede ──
+// A tela só respondia depois da ida e volta ao servidor: num 4G isso é meio
+// segundo por toque, e era o que fazia a agenda parecer travada.
+{
+  const r = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    globalThis.__DEMORA = 900;                 // servidor lento de propósito
+    const t = performance.now();
+    await db.salvar('clientes', { id: 'rapida-1', nome: 'Resposta Rápida', ativo: true });
+    const respondeu = performance.now() - t;
+    const naTela = db.estado.clientes.some((c) => c.id === 'rapida-1');
+    await new Promise((ok) => setTimeout(ok, 1400));   // deixa a rede terminar
+    const noBanco = (globalThis.__DB.clientes || []).some((c) => c.id === 'rapida-1');
+    globalThis.__DEMORA = 0;
+    return { respondeu, naTela, noBanco };
+  });
+  checagens.push(['salvar: responde na hora, sem esperar o servidor',
+    r.respondeu < 300, Math.round(r.respondeu) + 'ms com servidor de 900ms']);
+  checagens.push(['salvar: aparece na tela imediatamente', r.naTela]);
+  checagens.push(['salvar: e sobe para o servidor logo depois', r.noBanco]);
+}
+
+// ── 28. Link de "esqueci a senha" ──
 // Quem volta pelo link do e-mail chega logada, com um endereço cheio de
 // código, e antes ficava dentro do sistema sem saber que faltava escolher a
 // senha nova — no dia seguinte estaria trancada de novo.
