@@ -404,7 +404,7 @@ await p2.waitForTimeout(900);
   await p2.selectOption('.veu [data-prof]', 'p2');
   await p2.waitForTimeout(250);
   await p2.selectOption('.veu [data-serv]', 'manicure');
-  await p2.fill('[name=hora]', '10:00');
+  await p2.fill('.veu [data-hora]', '10:00');
   await p2.click('text=Marcar');
   await p2.waitForTimeout(900);
   const ag = await p2.evaluate(() => globalThis.__DB?.agendamentos || []);
@@ -1540,7 +1540,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     nb(await p2.textContent('.veu [data-tabela]')).includes('Tabela')]);
 
   await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
-  await p2.fill('.veu [name=hora]', '06:00');
+  await p2.fill('.veu [data-hora]', '06:00');
   await p2.fill('.veu [data-dur]', '100');
   await p2.waitForTimeout(200);
   checagens.push(['duração: mostra a hora em que termina',
@@ -1564,20 +1564,20 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForSelector('.veu #mudar');
   await p2.click('.veu #mudar');
   await p2.waitForSelector('.veu [name=duracao_min]');
-  checagens.push(['remarcar: abre com a duração de agora',
+  checagens.push(['editar: abre com a duração de agora',
     await p2.inputValue('.veu [name=duracao_min]') === '100']);
   await p2.fill('.veu [name=duracao_min]', '80');
   await p2.fill('.veu [name=hora]', '20:00');
   await p2.waitForTimeout(200);
-  checagens.push(['remarcar: recalcula a hora de término',
+  checagens.push(['editar: recalcula a hora de término',
     nb(await p2.textContent('.veu #termina')).includes('21:20')]);
   await p2.click('.veu .btn-primario');
   await p2.waitForTimeout(700);
   const mudado = await p2.evaluate(() =>
     globalThis.__DB.agendamentos.find((a) => a.cliente_nome === 'Cliente Tempo'));
-  checagens.push(['remarcar: salva sem criar outro horário',
+  checagens.push(['editar: salva sem criar outro horário',
     mudado.duracao_min === 80 && new Date(mudado.inicio).getHours() === 20]);
-  checagens.push(['remarcar: continua sendo o mesmo horário, não um novo',
+  checagens.push(['editar: continua sendo o mesmo horário, não um novo',
     (await p2.evaluate(() => globalThis.__DB.agendamentos
       .filter((a) => a.cliente_nome === 'Cliente Tempo').length)) === 1]);
 }
@@ -1598,7 +1598,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     await p2.waitForTimeout(200);
     await p2.fill('.veu [name=cliente_nome]', nome);
     await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
-    await p2.fill('.veu [name=hora]', hora);
+    await p2.fill('.veu [data-hora]', hora);
     await p2.fill('.veu [data-dur]', String(dur));
     await p2.click('.veu .btn-primario');
     await p2.waitForTimeout(600);
@@ -1684,7 +1684,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(200);
   await p2.fill('.veu [name=cliente_nome]', 'Cliente Fixa');
   await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
-  await p2.fill('.veu [name=hora]', '07:00');
+  await p2.fill('.veu [data-hora]', '07:00');
 
   checagens.push(['cliente fixa: o "até quando" só aparece depois de escolher repetir',
     await p2.locator('.veu #campo-ate').isHidden()]);
@@ -1726,6 +1726,10 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForSelector('.veu');
   const ficha = nb(await p2.textContent('.veu'));
   checagens.push(['cliente fixa: a ficha diz o intervalo', /toda semana/.test(ficha)]);
+  // Com dois serviços na mesma ida, o intervalo é entre as IDAS: a distância
+  // entre a manicure e o corte do mesmo dia é uma hora, não uma semana.
+  checagens.push(['cliente fixa: conta idas, não horários',
+    !/a cada 0 dias/.test(ficha)]);
   checagens.push(['cliente fixa: a ficha diz quantos faltam', /faltam \d+/.test(ficha)]);
 
   // Desmarcar pergunta o alcance: só este, ou daqui para a frente.
@@ -1758,7 +1762,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.fill('.veu [name=cliente_nome]', 'Cliente Dois');
   await p2.fill('.veu [name=cliente_telefone]', '11988887777');
   await p2.fill('.veu [name=data]', new Date().toISOString().slice(0, 10));
-  await p2.fill('.veu [name=hora]', '16:00');
+  await p2.fill('.veu .linha-servico:nth-child(1) [data-hora]', '16:00');
   await p2.selectOption('.veu .linha-servico:nth-child(1) [data-prof]', 'p2');
   await p2.selectOption('.veu .linha-servico:nth-child(1) [data-serv]', 'manicure');
   await p2.waitForTimeout(200);
@@ -1775,9 +1779,21 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.selectOption('.veu .linha-servico:nth-child(2) [data-serv]', 'cab-corte-final');
   await p2.waitForTimeout(250);
 
-  const linha2 = nb(await p2.textContent('.veu .linha-servico:nth-child(2)'));
-  checagens.push(['mais de um serviço: o segundo começa quando o primeiro acaba',
-    linha2.includes('17:00')]);
+  checagens.push(['mais de um serviço: o segundo já vem para quando o primeiro acaba',
+    await p2.inputValue('.veu .linha-servico:nth-child(2) [data-hora]') === '17:00']);
+
+  // Mas a hora é dela: a cliente pode fazer a unha às 16h e o cabelo só às 18h.
+  await p2.fill('.veu .linha-servico:nth-child(2) [data-hora]', '18:00');
+  await p2.waitForTimeout(250);
+  checagens.push(['mais de um serviço: dá para separar os horários',
+    await p2.inputValue('.veu .linha-servico:nth-child(2) [data-hora]') === '18:00']);
+  await p2.fill('.veu .linha-servico:nth-child(1) [data-dur]', '75');
+  await p2.waitForTimeout(250);
+  checagens.push(['mais de um serviço: mexeu na hora, ela não é mais recalculada',
+    await p2.inputValue('.veu .linha-servico:nth-child(2) [data-hora]') === '18:00']);
+  await p2.fill('.veu .linha-servico:nth-child(1) [data-dur]', '60');
+  await p2.fill('.veu .linha-servico:nth-child(2) [data-hora]', '17:00');
+  await p2.waitForTimeout(250);
   const fim = nb(await p2.textContent('.veu #termina'));
   checagens.push(['mais de um serviço: soma o tempo e o valor da ida',
     /2 serviços/.test(fim) && /18:30/.test(fim), fim]);
@@ -1862,6 +1878,78 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['sem aniversário: e sai da fila',
     (await p2.evaluate(() =>
       JSON.parse(localStorage.getItem('alento.fila.v1') || '[]').length)) === 0]);
+}
+
+// ── 38. Editar o horário, não só o relógio ──
+// A ficha só oferecia "não veio", "desmarcar" e "cliente chegou". Trocar o
+// serviço ou a profissional obrigava a desmarcar e marcar de novo: dois avisos
+// para a cliente por um atendimento que não mudou, e o horário livre no meio.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]').catch(() => {});
+  await p2.waitForTimeout(400);
+
+  const alvo = await p2.evaluate(() => {
+    const h = new Date(); h.setHours(11, 0, 0, 0);
+    const a = { id: 'ed-1', profissional_id: 'p2', servico_id: 'manicure',
+      servico_nome: 'Manicure', cliente_nome: 'Cliente Editar', cliente_telefone: '11900001111',
+      inicio: h.toISOString(), fim: new Date(h.getTime() + 3600000).toISOString(),
+      duracao_min: 60, valor: 45, status: 'confirmado', origem: 'studio',
+      atualizado_em: new Date().toISOString() };
+    globalThis.__DB.agendamentos.push(a);
+    return a.id;
+  });
+  await p2.evaluate(async () => { const db = await import('./js/db.js'); await db.recarregar(); });
+  await p2.waitForTimeout(500);
+
+  await p2.click(`[data-agend="${alvo}"]`);
+  await p2.waitForSelector('.veu #mudar');
+  checagens.push(['editar: a ficha oferece editar',
+    /Editar este horário/.test(nb(await p2.textContent('.veu #mudar')))]);
+
+  await p2.click('.veu #mudar');
+  await p2.waitForSelector('.veu [name=servico_id]');
+  const campos = await p2.evaluate(() =>
+    [...document.querySelectorAll('.veu [name]')].map((c) => c.name));
+  for (const campo of ['cliente_nome', 'cliente_telefone', 'profissional_id',
+                       'servico_id', 'data', 'hora', 'duracao_min', 'valor', 'observacoes']) {
+    checagens.push([`editar: tem o campo ${campo}`, campos.includes(campo)]);
+  }
+  checagens.push(['editar: abre com os dados de agora',
+    (await p2.inputValue('.veu [name=cliente_nome]')) === 'Cliente Editar'
+    && (await p2.inputValue('.veu [name=duracao_min]')) === '60']);
+
+  // Trocar o serviço traz tempo e preço da tabela junto.
+  await p2.selectOption('.veu [name=servico_id]', 'manicure-gel');
+  await p2.waitForTimeout(250);
+  checagens.push(['editar: trocar o serviço traz o tempo e o preço da tabela',
+    (await p2.inputValue('.veu [name=duracao_min]')) === '96'
+    && Number(await p2.inputValue('.veu [name=valor]')) === 120]);
+
+  await p2.selectOption('.veu [name=profissional_id]', 'p1');
+  await p2.fill('.veu [name=cliente_telefone]', '11922223333');
+  await p2.fill('.veu [name=hora]', '19:00');
+  await p2.fill('.veu [name=duracao_min]', '90');
+  await p2.fill('.veu [name=valor]', '150');
+  await p2.fill('.veu [name=observacoes]', 'quer francesinha');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(800);
+
+  const depois = await p2.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.id === 'ed-1'));
+  checagens.push(['editar: troca a profissional', depois.profissional_id === 'p1']);
+  checagens.push(['editar: troca o serviço', depois.servico_id === 'manicure-gel']);
+  checagens.push(['editar: guarda o telefone novo', depois.cliente_telefone === '11922223333']);
+  checagens.push(['editar: guarda hora, duração e valor',
+    new Date(depois.inicio).getHours() === 19 && depois.duracao_min === 90 && Number(depois.valor) === 150]);
+  checagens.push(['editar: guarda a observação', depois.observacoes === 'quer francesinha']);
+  checagens.push(['editar: o horário continua sendo o mesmo, e continua marcado',
+    depois.status === 'confirmado'
+    && (await p2.evaluate(() => globalThis.__DB.agendamentos
+        .filter((a) => a.cliente_nome === 'Cliente Editar').length)) === 1]);
+  checagens.push(['editar: o fim acompanha a duração',
+    (new Date(depois.fim) - new Date(depois.inicio)) / 60000 === 90]);
 }
 
 await browser.close();

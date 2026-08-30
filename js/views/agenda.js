@@ -128,6 +128,12 @@ function datasDaSerie(inicio, passo, meses) {
   return datas;
 }
 
+/** O relógio de um instante, no formato que o campo de hora entende. */
+const relogio = (ms) => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
 /** Datas por extenso, sem virar um parágrafo quando são muitas. */
 const listar = (datas) => datas.length <= 3
   ? datas.map(fmt.data).join(', ')
@@ -495,7 +501,7 @@ export function abrirAgendamento(id, dataPadrao) {
     aoAbrir: (veu) => {
       veu.querySelector('#mudar')?.addEventListener('click', () => {
         fecharModal();
-        setTimeout(() => abrirRemarcar(a), 80);
+        setTimeout(() => abrirEditar(a), 80);
       });
 
       const lista = veu.querySelector('#servicos-lista');
@@ -530,24 +536,39 @@ export function abrirAgendamento(id, dataPadrao) {
        * mesma ida — e o que resolvia o tempo quebrado com um só.
        */
       const recalcular = () => {
-        const base = new Date(`${veu.querySelector('[name=data]').value}T${veu.querySelector('[name=hora]').value}:00`);
-        let quando = base.getTime();
-        let total = 0, dinheiro = 0, completos = 0;
+        const dataEscolhida = veu.querySelector('[name=data]').value;
+        let quando = null;                       // fim do serviço anterior
+        let total = 0, dinheiro = 0, completos = 0, ultimoFim = null;
         for (const linha of lista.querySelectorAll('.linha-servico')) {
           const s = servicos.find((x) => x.id === linha.querySelector('[data-serv]').value);
           const min = Number(linha.querySelector('[data-dur]').value);
+          const campoHora = linha.querySelector('[data-hora]');
+
+          // A hora sugerida é logo depois do serviço anterior — é o caso comum.
+          // Mas quem está marcando pode mudar: às vezes a cliente faz a unha às
+          // 14h e o cabelo só às 16h, com uma folga no meio. Linha em que ela
+          // mexeu na hora não é mais recalculada.
+          if (!campoHora.dataset.tocada && quando != null) campoHora.value = relogio(quando);
+          if (!campoHora.value) campoHora.value = '09:00';
+
+          const ini = new Date(`${dataEscolhida}T${campoHora.value}:00`).getTime();
           linha.querySelector('[data-tabela]').textContent =
             s ? `Tabela: ${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
           linha.querySelector('[data-quando]').textContent =
-            s && min > 0 && !isNaN(quando) ? `${localHora(quando)} às ${localHora(quando + min * 60000)}` : '';
-          if (s && min > 0) { quando += min * 60000; total += min; dinheiro += Number(s.preco) || 0; completos++; }
+            s && min > 0 && !isNaN(ini) ? `até ${localHora(ini + min * 60000)}` : '';
+          if (s && min > 0 && !isNaN(ini)) {
+            quando = ini + min * 60000;
+            ultimoFim = Math.max(ultimoFim ?? quando, quando);
+            total += min; dinheiro += Number(s.preco) || 0; completos++;
+          }
         }
+        const quandoFim = ultimoFim;
         // O botão de tirar só faz sentido com mais de uma linha.
         const linhas = lista.querySelectorAll('.linha-servico');
         linhas.forEach((l) => { l.querySelector('[data-remover]').hidden = linhas.length < 2; });
 
-        veu.querySelector('#termina').textContent = completos && !isNaN(quando)
-          ? `Termina às ${localHora(quando)} · ${fmt.horas(total / 60)}`
+        veu.querySelector('#termina').textContent = completos && quandoFim
+          ? `Termina às ${localHora(quandoFim)} · ${fmt.horas(total / 60)} de atendimento`
             + (completos > 1 ? ` · ${completos} serviços · ${fmt.brl(dinheiro)}` : '')
           : '';
       };
@@ -564,9 +585,13 @@ export function abrirAgendamento(id, dataPadrao) {
           if (s) campoDur.value = minutosDe(s);
           recalcular();
         };
+        const campoHora = linha.querySelector('[data-hora]');
         selProf.onchange = () => { filtrarServicos(linha); doServico(); };
         selServico.onchange = doServico;
         campoDur.oninput = recalcular;
+        // Mexeu na hora: esta linha passa a mandar na própria, e as seguintes
+        // se reorganizam a partir dela.
+        campoHora.oninput = () => { campoHora.dataset.tocada = '1'; recalcular(); };
         linha.querySelector('[data-remover]').onclick = () => { linha.remove(); recalcular(); };
         filtrarServicos(linha);
       };
@@ -584,7 +609,6 @@ export function abrirAgendamento(id, dataPadrao) {
       };
 
       veu.querySelector('[name=data]').onchange = () => { recalcular(); mostrarRepeticao(); };
-      veu.querySelector('[name=hora]').onchange = recalcular;
 
       // Dizer quantas vezes e até quando: "repetir" sem número na tela é um
       // salto no escuro — ela precisa saber que vai marcar 13 horários.
@@ -616,12 +640,8 @@ function formNovo(servicos, profs, dataPadrao) {
       </datalist></label>
     <label class="campo"><span>WhatsApp</span>
       <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"></label>
-    <div class="linha-campos">
-      <label class="campo"><span>Dia</span>
-        <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
-      <label class="campo"><span>Hora</span>
-        <input type="time" name="hora" value="09:00" step="900"></label>
-    </div>
+    <label class="campo"><span>Dia</span>
+      <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
 
     <!-- Uma ida ao studio pode ter mais de um serviço: manicure e depois o
          corte. Antes era preciso fechar, abrir de novo e redigitar nome e
@@ -670,6 +690,8 @@ function linhaServico(profs) {
           <option value="">Escolha a profissional primeiro</option>
         </select>
         <span class="dica t3" data-tabela></span></label>
+      <label class="campo" style="max-width:130px"><span>Hora</span>
+        <input type="time" data-hora step="900"></label>
       <label class="campo" style="max-width:130px"><span>Duração (min)</span>
         <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
         <span class="dica t3" data-quando></span></label>
@@ -705,7 +727,7 @@ function fichaAgendamento(a) {
     </tbody></table>
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
-      : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('agenda')}Mudar dia, hora ou duração</button>`}`;
+      : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('editar')}Editar este horário</button>`}`;
 }
 
 /** Os outros serviços da mesma ida ao studio. */
@@ -724,14 +746,17 @@ const daSerie = (a) => db.estado.agendamentos
  * horários já dizem.
  */
 function descreverSerie(a) {
-  const irmas = daSerie(a);
-  const restam = irmas.filter((x) => x.inicio > a.inicio).length;
-  const cauda = restam ? ` · faltam ${restam}` : ' · este é o último';
-  if (irmas.length < 2) return 'sim' + cauda;
-  const dias = Math.round(
-    (new Date(irmas[1].inicio) - new Date(irmas[0].inicio)) / 86400000);
-  const nome = { 7: 'toda semana', 14: 'a cada 15 dias', 28: 'a cada 30 dias' }[dias]
-    || `a cada ${dias} dias`;
+  // Conta DIAS, não horários: uma ida com manicure e corte tem dois horários
+  // no mesmo dia, e a distância entre eles é uma hora, não uma semana.
+  const dias = [...new Set(daSerie(a).map((x) => localData(x.inicio)))].sort();
+  const hoje = localData(a.inicio);
+  const restam = dias.filter((d) => d > hoje).length;
+  const cauda = restam ? ` · faltam ${restam}` : ' · esta é a última';
+  if (dias.length < 2) return 'sim' + cauda;
+  const passo = Math.round(
+    (new Date(dias[1] + 'T12:00:00') - new Date(dias[0] + 'T12:00:00')) / 86400000);
+  const nome = { 7: 'toda semana', 14: 'a cada 15 dias', 28: 'a cada 30 dias' }[passo]
+    || `a cada ${passo} dias`;
   return nome + cauda;
 }
 
@@ -823,7 +848,7 @@ async function virarComanda(a) {
 async function salvarNovo(fechar, veu, servicos) {
   const d = lerForm(veu);
   if (!d.cliente_nome) return avisar('Informe o nome da cliente', 'erro');
-  if (!d.data || !d.hora) return avisar('Informe o dia e a hora', 'erro');
+  if (!d.data) return avisar('Informe o dia', 'erro');
 
   // Uma ida ao studio, um ou mais serviços, cada um começando quando o
   // anterior termina.
@@ -837,7 +862,9 @@ async function salvarNovo(fechar, veu, servicos) {
     if (!prof && !s && linhas.length > 1) continue;
     if (!prof) return avisar('Escolha quem vai atender', 'erro');
     if (!s) return avisar('Escolha o serviço', 'erro');
-    pedidos.push({ prof, s, dur: duracaoValida(linha.querySelector('[data-dur]').value, s) });
+    const hora = linha.querySelector('[data-hora]').value;
+    if (!hora) return avisar('Informe a hora do serviço', 'erro');
+    pedidos.push({ prof, s, hora, dur: duracaoValida(linha.querySelector('[data-dur]').value, s) });
   }
   if (!pedidos.length) return avisar('Escolha o serviço', 'erro');
 
@@ -846,15 +873,13 @@ async function salvarNovo(fechar, veu, servicos) {
   // anterior — o horário existia, mas ela não via e marcava de novo.
   dia = d.data;
 
-  /** Os horários de uma ida, encadeados a partir da hora escolhida. */
-  const idaDe = (data) => {
-    let quando = new Date(`${data}T${d.hora}:00`).getTime();
-    return pedidos.map(({ prof, s, dur }) => {
-      const ini = new Date(quando);
-      quando += dur * 60000;
-      return { prof, s, dur, ini };
-    });
-  };
+  /**
+   * Os horários de uma ida. Cada serviço tem a sua hora: em geral um começa
+   * quando o outro termina, mas a cliente pode fazer a unha às 14h e o cabelo
+   * só às 16h — e a agenda tem de aceitar isso.
+   */
+  const idaDe = (data) => pedidos.map(({ prof, s, dur, hora }) =>
+    ({ prof, s, dur, ini: new Date(`${data}T${hora}:00`) }));
 
   // A primeira ida pergunta sobre choque; as seguintes pulam o dia inteiro se
   // esbarrarem em alguém — quebrar a ida no meio deixaria a cliente com o
@@ -908,19 +933,38 @@ async function salvarNovo(fechar, veu, servicos) {
 }
 
 /**
- * Mudar dia, hora ou duração de um horário já marcado.
+ * Editar um horário já marcado — tudo, não só o relógio.
  *
- * O tempo da tabela é média: a mesma esmaltação em gel leva 1h20 numa cliente
- * e 1h40 noutra. Sem isto, o jeito de corrigir era desmarcar e marcar de novo
- * — e a cliente recebia dois avisos por um atendimento que não mudou.
+ * Antes, mudar o serviço ou a profissional exigia desmarcar e marcar de novo:
+ * a cliente recebia dois avisos por um atendimento que não mudou, e o horário
+ * ficava livre no meio do caminho para outra pessoa pegar.
  */
-export function abrirRemarcar(a) {
-  const fim = (ini, min) => localHora(new Date(ini).getTime() + min * 60000);
+export function abrirEditar(a) {
+  const profs = atendentes();
+  const servicos = db.estado.servicos.filter((x) => x.ativo !== false && x.tipo !== 'adicional');
 
   abrirModal({
-    titulo: `Mudar ${a.cliente_nome}`,
+    titulo: `Editar ${a.cliente_nome}`,
     corpo: `
-      <p class="t2 pequeno mb">${esc(a.servico_nome)} · ${esc(nomeProf(a.profissional_id) || '')}</p>
+      <label class="campo"><span>Cliente</span>
+        <input name="cliente_nome" list="lista-clientes-ed" value="${esc(a.cliente_nome || '')}" required>
+        <datalist id="lista-clientes-ed">
+          ${db.estado.clientes.map((c) => `<option value="${esc(c.nome)}">`).join('')}
+        </datalist></label>
+      <label class="campo"><span>WhatsApp</span>
+        <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"
+               value="${esc(fmt.telefone(a.cliente_telefone) || '')}"></label>
+      <div class="linha-campos">
+        <label class="campo"><span>Profissional</span>
+          <select name="profissional_id">
+            ${profs.map((p) => `<option value="${p.id}" ${p.id === a.profissional_id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
+          </select></label>
+        <label class="campo"><span>Serviço</span>
+          <select name="servico_id">
+            ${servicos.map((x) => `<option value="${x.id}" ${x.id === a.servico_id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}
+          </select>
+          <span class="dica t3" id="ed-tabela"></span></label>
+      </div>
       <div class="linha-campos">
         <label class="campo"><span>Dia</span>
           <input type="date" name="data" value="${localData(a.inicio)}"></label>
@@ -930,44 +974,78 @@ export function abrirRemarcar(a) {
           <input type="number" name="duracao_min" min="15" max="600" step="5"
                  inputmode="numeric" value="${a.duracao_min}"></label>
       </div>
-      <p class="dica t3" id="termina">Termina às ${fim(a.inicio, a.duracao_min)}</p>`,
+      <p class="dica t3" id="termina"></p>
+      <label class="campo"><span>Valor</span>
+        <input type="number" name="valor" step="0.01" min="0" value="${a.valor ?? 0}">
+        <span class="dica t3">Trocar o serviço traz o preço da tabela; aqui dá para
+          ajustar só para esta cliente.</span></label>
+      <label class="campo"><span>Observações</span>
+        <input name="observacoes" value="${esc(a.observacoes || '')}"
+               placeholder="Ex.: quer francesinha"></label>
+      ${a.serie_id ? `<div class="aviso mt">${ico('info')}<div>Esta cliente é fixa
+        (${esc(descreverSerie(a))}). A mudança vale só para este horário.</div></div>` : ''}`,
     acoes: [
       { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => f() },
       { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
           const d = lerForm(veu);
+          if (!d.cliente_nome) return avisar('Informe o nome da cliente', 'erro');
           if (!d.data || !d.hora) return avisar('Informe o dia e a hora', 'erro');
-          const inicio = new Date(`${d.data}T${d.hora}:00`);
-          const dur = duracaoValida(d.duracao_min, { tempo: a.duracao_min / 60 });
+          const s = servicos.find((x) => x.id === d.servico_id);
+          if (!s) return avisar('Escolha o serviço', 'erro');
 
-          const choque = choqueCom(a.profissional_id, inicio, dur, a.id);
-          const encaixe = choque ? await pedirEncaixe(choque, a.profissional_id) : false;
+          const inicio = new Date(`${d.data}T${d.hora}:00`);
+          const dur = duracaoValida(d.duracao_min, s);
+
+          const choque = choqueCom(d.profissional_id, inicio, dur, a.id);
+          const encaixe = choque ? await pedirEncaixe(choque, d.profissional_id) : false;
           if (choque && !encaixe) return;
 
           dia = d.data;
           try {
             await db.salvar('agendamentos', {
               ...a,
+              cliente_nome: d.cliente_nome,
+              cliente_telefone: (d.cliente_telefone || '').replace(/\D/g, '') || null,
+              profissional_id: d.profissional_id,
+              servico_id: s.id, servico_nome: s.nome,
               inicio: inicio.toISOString(),
               fim: new Date(inicio.getTime() + dur * 60000).toISOString(),
               duracao_min: dur,
+              valor: d.valor == null ? (Number(s.preco) || 0) : Number(d.valor),
+              observacoes: d.observacoes || null,
               encaixe: encaixe || !!a.encaixe,
             });
             fechar();
             avisar('Horário atualizado');
           } catch (e) {
-            avisar(e.message || 'Não foi possível mudar', 'erro');
+            avisar(e.message || 'Não foi possível salvar', 'erro');
           }
         } },
     ],
     aoAbrir: (veu) => {
+      const selServico = veu.querySelector('[name=servico_id]');
+      const campoDur = veu.querySelector('[name=duracao_min]');
+      const campoValor = veu.querySelector('[name=valor]');
+
       const ver = () => {
         const d = lerForm(veu);
+        const s = servicos.find((x) => x.id === d.servico_id);
         const min = Number(d.duracao_min);
+        veu.querySelector('#ed-tabela').textContent =
+          s ? `Tabela: ${fmt.horas(s.tempo)} · ${fmt.brl(s.preco)}` : '';
         veu.querySelector('#termina').textContent = min > 0 && d.data && d.hora
-          ? `Termina às ${fim(`${d.data}T${d.hora}:00`, min)} · ${fmt.horas(min / 60)}`
+          ? `Termina às ${localHora(new Date(`${d.data}T${d.hora}:00`).getTime() + min * 60000)}`
+            + ` · ${fmt.horas(min / 60)}`
           : '';
       };
-      veu.querySelectorAll('[name]').forEach((c) => { c.oninput = ver; c.onchange = ver; });
+      // Trocar o serviço traz tempo e preço da tabela; depois disso, o que ela
+      // digitar manda.
+      selServico.onchange = () => {
+        const s = servicos.find((x) => x.id === selServico.value);
+        if (s) { campoDur.value = minutosDe(s); campoValor.value = Number(s.preco) || 0; }
+        ver();
+      };
+      veu.querySelectorAll('[name]').forEach((c) => { c.oninput = ver; c.onchange = c.onchange || ver; });
       ver();
     },
   });
