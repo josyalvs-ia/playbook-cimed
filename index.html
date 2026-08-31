@@ -3,43 +3,649 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Alento — Studio de Beleza</title>
-<meta name="description" content="Sistema de gestão do Alento Studio de Beleza: precificação, estoque, caixa, clientes e comissão.">
+<title>Alento — Studio de Beleza | Tabela de valores</title>
+<meta name="description" content="Tabela de valores do Alento Studio de Beleza. Manicure, pedicure, esmaltação em gel, banho de gel e alongamento. Agende seu horário.">
 <meta name="theme-color" content="#2E3322">
 
-<!-- Como o link aparece no WhatsApp, no Instagram e no Google. Sem estas
-     linhas o WhatsApp cai no ícone do app — a letra "A" solta — em vez da
-     marca. A imagem é gerada por testes/previa.mjs. -->
+<!-- Como o link aparece no WhatsApp, no Instagram e no Google. É este que
+     circula entre as clientes: a imagem é a marca, não o ícone do app.
+     Gerada por testes/previa.mjs. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Alento Studio de Beleza">
 <meta property="og:title" content="Alento — Studio de Beleza">
-<meta property="og:description" content="Sistema do studio: agenda, atendimentos, estoque, caixa e comissão.">
+<meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://josyalvs-ia.github.io/playbook-cimed/">
-<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa.png?v=2026-08-31.1">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-31.3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
 <meta property="og:locale" content="pt_BR">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Alento">
-<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/selo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-08-31.1">
-<script src="config.js?v=2026-08-31.1"></script>
+<link rel="stylesheet" href="css/app.css?v=2026-08-31.3">
+<!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
+     e o agendamento fica indisponível. -->
+<script src="config.js?v=2026-08-31.3"></script>
+<style>
+  .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
+
+  .capa { text-align: center; padding: 58px 0 40px; position: relative; }
+  .capa .ceu { inset: -30px 0 0; }
+  /* O logo real é mais alto que largo (as estrelas sobem e descem), então
+     ele pede menos largura que o desenho antigo para ocupar o mesmo espaço. */
+  .capa img { width: min(300px, 74%); margin: 0 auto 14px; }
+  .capa .frase {
+    font-family: var(--display); font-size: clamp(26px, 5.4vw, 40px);
+    font-weight: 700; line-height: 1.16; max-width: 15ch; margin: 0 auto 12px;
+  }
+  .capa p { color: var(--texto-2); max-width: 44ch; margin: 0 auto; }
+
+  .secao { margin-bottom: 34px; }
+  /* Título com o ícone do destaque: cada bloco da tabela carrega a marca da
+     família a que pertence. */
+  .secao-marca { flex: none; display: grid; place-items: center;
+                 width: 30px; height: 30px; border-radius: 50%;
+                 border: 1px solid var(--linha-forte); color: var(--creme); }
+  .secao-marca .ico { width: 15px; height: 15px; }
+  .secao-titulo::before { display: none; }
+
+  .filtro-aviso {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    flex-wrap: wrap; margin: -18px 0 28px;
+    font-size: 13px; color: var(--texto-3);
+  }
+  .filtro-aviso button {
+    color: var(--creme); text-decoration: underline; text-underline-offset: 3px;
+    font-size: 13px;
+  }
+
+  /* Quem cuida de você */
+  .equipe { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+  .pessoa {
+    display: flex; align-items: center; gap: 16px; min-width: 0;
+    background: var(--superficie); border: 1px solid var(--linha);
+    border-radius: var(--r-lg); padding: 18px;
+    transition: border-color .3s ease, transform .3s cubic-bezier(.2,.8,.3,1);
+  }
+  .pessoa:hover { border-color: var(--linha-forte); transform: translateY(-2px); }
+  .pessoa-nome { font-family: var(--display); font-size: 21px; font-weight: 700; line-height: 1.15; }
+  .pessoa-funcao {
+    display: flex; align-items: center; gap: 6px; margin-top: 3px;
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--texto-3);
+  }
+  .pessoa-funcao .ico { width: 13px; height: 13px; }
+  .pessoa-bio { margin-top: 8px; font-size: 13.5px; color: var(--texto-2); line-height: 1.5; }
+  .secao-titulo {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .secao-titulo::before, .secao-titulo::after { content: ''; flex: 1; height: 1px; background: var(--linha); }
+  /* O título quebra em vez de esticar a página: com o círculo do destaque na
+     frente, "Lavagem, Escova e Finalização" não cabe numa linha de celular. */
+  .secao-titulo span {
+    font-size: 11.5px; font-weight: 500; letter-spacing: 0.26em;
+    text-transform: uppercase; color: var(--texto-2); min-width: 0;
+  }
+  .secao-titulo > span:not(.secao-marca) { flex: 1; }
+
+  .preco-linha {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 11px 4px;
+    border-bottom: 1px solid rgba(232, 223, 196, 0.09);
+  }
+  .preco-linha:last-child { border-bottom: none; }
+  .preco-linha .nome { flex: 1; font-size: 15px; }
+  .preco-linha .pontos { flex: none; width: 0; }
+  .preco-linha .valor {
+    font-family: var(--display); font-weight: 700; font-size: 17px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  /* "a partir de" e "sob avaliação" acompanham o número sem competir com ele */
+  .preco-linha .qualifica {
+    font-family: var(--ui); font-style: normal; font-weight: 400;
+    font-size: 12px; color: var(--texto-3); letter-spacing: .02em;
+  }
+  .preco-linha .obs { display: block; font-size: 12px; color: var(--texto-3); margin-top: 2px; }
+
+  .destaque-combo {
+    background: var(--creme); color: var(--verde);
+    border-radius: var(--r-lg); padding: 26px; text-align: center;
+  }
+  .destaque-combo .valor-grande {
+    font-family: var(--display); font-size: 46px; font-weight: 700; line-height: 1;
+  }
+  .destaque-combo .riscado { text-decoration: line-through; opacity: .5; }
+
+  .regra { font-size: 13.5px; color: var(--texto-2); line-height: 1.6; }
+  .regra li { list-style: none; padding-left: 20px; position: relative; margin-bottom: 9px; }
+  .regra li::before {
+    content: ''; position: absolute; left: 2px; top: 8px;
+    width: 7px; height: 7px; background: var(--creme); opacity: .55;
+    clip-path: polygon(50% 0, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0 50%, 42% 42%);
+  }
+
+  .cta { position: sticky; bottom: 0; z-index: 20; padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+         background: linear-gradient(to top, var(--fundo) 62%, transparent); }
+  .cta .btn { font-size: 15px; padding: 13px 24px; }
+
+  .rodape { text-align: center; color: var(--texto-3); font-size: 13px; padding-top: 26px; }
+  .rodape a { color: var(--texto-2); }
+  .rodape .contatos { display: flex; flex-wrap: wrap; gap: 10px 22px; justify-content: center; margin-bottom: 16px; }
+
+  /* ── Agendamento ────────────────────────────────────────────────────── */
+  .ag-tela { position: fixed; inset: 0; z-index: 90; background: var(--fundo);
+             overflow-y: auto; padding: 18px 18px 40px; }
+  .ag-topo { display: flex; align-items: center; gap: 12px; max-width: 640px;
+             margin: 0 auto 18px; }
+  .ag-topo img { height: 44px; }
+  .ag-fechar { margin-left: auto; }
+  .ag-conteudo { max-width: 640px; margin: 0 auto; }
+
+  .ag-passos { display: flex; gap: 6px; margin-bottom: 22px; }
+  .ag-passo { flex: 1; display: flex; align-items: center; gap: 7px;
+              font-size: 11.5px; color: var(--texto-3);
+              padding-top: 9px; border-top: 2px solid var(--linha); }
+  .ag-passo b { width: 19px; height: 19px; border-radius: 50%; flex: none;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 10.5px; background: rgba(232,223,196,.12); }
+  .ag-passo.atual { color: var(--creme); border-top-color: var(--creme); }
+  .ag-passo.atual b { background: var(--creme); color: var(--verde); }
+  /* Passo já cumprido é um botão de verdade: volta para lá. */
+  .ag-passo { background: none; border-left: none; border-right: none; border-bottom: none;
+              text-align: left; transition: color .2s ease, border-color .2s ease; }
+  .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); cursor: pointer; }
+  .ag-passo.feito b { background: rgba(232,223,196,.22); color: var(--creme); }
+  .ag-passo.feito:hover { color: var(--creme); border-top-color: var(--creme); }
+  .ag-passo[disabled] { cursor: default; }
+
+  /* Enquanto o banco responde, o lugar dos horários já existe — a lista não
+     salta na tela quando as respostas chegam. */
+  .ag-esqueleto {
+    height: 62px; border-radius: 10px;
+    background: linear-gradient(100deg, var(--superficie) 30%, var(--elevado) 50%, var(--superficie) 70%);
+    background-size: 300% 100%; animation: brilhar 1.25s ease-in-out infinite;
+  }
+  @keyframes brilhar { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .ag-esqueleto { animation: none; background: var(--superficie); }
+  }
+  .ag-passo.feito { color: var(--texto-2); border-top-color: var(--linha-forte); }
+
+  .ag-grupo { margin-bottom: 22px; }
+  .ag-grupo-titulo { display: flex; align-items: center; gap: 8px;
+                     font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+                     color: var(--texto-3); margin-bottom: 9px; }
+  .ag-grupo-titulo .ico { width: 14px; height: 14px; flex: none; color: var(--creme); opacity: .7; }
+  .ag-opcao { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+              background: var(--superficie); border: 1px solid var(--linha);
+              border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+              color: var(--texto); transition: border-color .14s, background .14s; }
+  .ag-opcao:hover, .ag-opcao:focus-visible { border-color: var(--creme); background: var(--superficie-2); }
+  .ag-opcao strong { display: block; font-size: 15px; }
+  .ag-dur { font-size: 12.5px; color: var(--texto-3); }
+  .ag-preco { font-family: var(--display); font-weight: 700; font-size: 16px;
+              white-space: nowrap; }
+
+  .ag-voltar { color: var(--texto-3); font-size: 13.5px; margin-bottom: 14px; }
+  .ag-voltar:hover { color: var(--texto); }
+  .ag-escolhido { background: var(--superficie); border: 1px solid var(--linha);
+                  border-radius: 12px; padding: 13px 16px; margin-bottom: 18px; }
+  .ag-escolhido strong { display: block; }
+  .ag-escolhido span { font-size: 13px; color: var(--texto-3); }
+
+  .ag-dias { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;
+             margin-bottom: 18px; scroll-snap-type: x proximity; }
+  .ag-dia { flex: none; width: 62px; scroll-snap-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            padding: 10px 4px; border-radius: 12px; color: var(--texto-2);
+            border: 1px solid var(--linha); background: var(--superficie); }
+  .ag-dia .sem, .ag-dia .mes { font-size: 10.5px; text-transform: uppercase;
+                               letter-spacing: .08em; color: var(--texto-3); }
+  .ag-dia .num { font-family: var(--display); font-size: 21px; font-weight: 700; }
+  .ag-dia.atual { background: var(--creme); border-color: var(--creme); color: var(--verde); }
+  .ag-dia.atual .sem, .ag-dia.atual .mes { color: rgba(46,51,34,.62); }
+
+  .ag-turno { margin-bottom: 20px; }
+  .ag-turno-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+                     color: var(--texto-3); margin-bottom: 10px; }
+  .ag-horas { display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); gap: 8px; }
+  /* O rosto de quem atende vem junto do horário: a cliente escolhe a pessoa e
+     a hora no mesmo gesto, sem ter de decorar nome nenhum. */
+  .ag-hora { padding: 10px 6px; border-radius: 10px; border: 1px solid var(--linha-forte);
+             background: var(--superficie); color: var(--texto);
+             display: flex; flex-direction: column; align-items: center; gap: 3px;
+             transition: background .2s ease, border-color .2s ease, color .2s ease,
+                         transform .2s cubic-bezier(.2,.8,.3,1); }
+  .ag-hora b { font-family: var(--display); font-size: 17px; font-weight: 700; line-height: 1; }
+  .ag-hora span { font-family: var(--ui); font-size: 11px; font-weight: 400;
+                  color: var(--texto-3); }
+  .ag-hora-foto { margin-bottom: 1px; }
+  .ag-hora:hover, .ag-hora:focus-visible { background: var(--creme); color: var(--verde);
+                                           border-color: var(--creme); transform: translateY(-2px); }
+  .ag-hora:hover span, .ag-hora:focus-visible span { color: rgba(46,51,34,.6); }
+
+  .ag-vazio { text-align: center; padding: 34px 16px; color: var(--texto-3); }
+
+  /* O recado de quem se combina no WhatsApp. Ocupa o lugar dos horários, com
+     o mesmo peso: não é um erro, é o caminho daquele serviço.
+     Nome próprio: `.ag-recado` já é a frase de assinatura do fim, que vive
+     numa linha só — e este texto é um parágrafo que precisa quebrar. */
+  .ag-combinar { text-align: center; padding: 26px 18px 30px;
+                 background: var(--superficie); border: 1px solid var(--linha);
+                 border-radius: var(--r); }
+  .ag-combinar .ico.grande { width: 42px; height: 42px; color: var(--creme);
+                             margin-bottom: 12px; }
+  .ag-combinar p { max-width: 380px; margin: 0 auto 10px; line-height: 1.55;
+                   overflow-wrap: anywhere; }
+  .ag-combinar .btn { margin-top: 16px; width: 100%; max-width: 320px; }
+  .ag-combinar .btn + .btn { margin-top: 9px; }
+
+  /* Quem vai atender, com o rosto — logo antes de a cliente deixar os dados. */
+  .ag-com {
+    display: flex; align-items: center; gap: 14px; min-width: 0;
+    background: var(--superficie); border: 1px solid var(--linha);
+    border-radius: var(--r); padding: 14px 16px; margin-bottom: 16px;
+  }
+  .ag-vazio a { color: var(--creme); }
+
+  .ag-resumo { background: var(--superficie); border: 1px solid var(--linha);
+               border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
+  .ag-resumo .linha { display: flex; justify-content: space-between; gap: 14px;
+                      padding: 6px 0; font-size: 14px; }
+  .ag-resumo .linha span { color: var(--texto-3); }
+  .ag-resumo .linha.total { border-top: 1px solid var(--linha); margin-top: 6px;
+                            padding-top: 11px; font-size: 16px; }
+  /* O endereço é longo demais para dividir a linha com o rótulo: ganha a
+     largura toda do cartão e cabe de uma vez só. */
+  .ag-resumo .linha.onde { display: block; text-align: left; }
+  .ag-resumo .linha.onde strong { display: block; font-size: 13.5px;
+                                  line-height: 1.5; margin-top: 2px; }
+  .ag-resumo .linha.onde a { color: var(--creme); font-size: 13px;
+                             display: inline-block; margin-top: 4px; }
+
+  .ag-pronto { text-align: center; padding: 10px 0 24px; }
+  .ag-marca { width: min(250px, 62%); margin: 0 auto 20px; display: block; }
+  .ag-selo { width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 16px;
+             background: var(--creme); color: var(--verde);
+             display: flex; align-items: center; justify-content: center;
+             font-size: 25px; font-weight: 700; }
+  .ag-pronto h2 { font-family: var(--display); font-size: 30px; margin: 0 0 8px; }
+  /* A frase de espera é o momento mais caloroso da página: fica em display. */
+  /* Uma linha só: a frase é uma assinatura, não um parágrafo. O corpo encolhe
+     com a tela para caber inteira até num celular estreito. */
+  .ag-recado {
+    font-family: var(--display); font-style: italic;
+    font-size: clamp(14px, 4.2vw, 21px);
+    white-space: nowrap; line-height: 1.35; color: var(--creme); opacity: .92;
+    margin: 0 auto 16px;
+  }
+  .ag-desmarcar {
+    margin-top: 16px; color: var(--texto-3); font-size: 13px;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .ag-desmarcar:hover { color: var(--erro); }
+
+  /* Cartão do próximo horário, para quem já marcou e voltou à página. */
+  .meu-horario {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--creme); color: var(--verde);
+    border-radius: 16px; padding: 16px 18px; margin-bottom: 26px;
+  }
+  .meu-horario .quando { font-family: var(--display); font-weight: 700; font-size: 18px; }
+  .meu-horario .oque { font-size: 13.5px; opacity: .72; }
+  .meu-horario .acoes { margin-left: auto; display: flex; gap: 8px; }
+  .meu-horario button {
+    border: 1px solid rgba(46,51,34,.28); border-radius: 999px;
+    padding: 7px 14px; font-size: 13px; color: var(--verde);
+  }
+  .meu-horario button:hover { background: rgba(46,51,34,.08); }
+  .meu-horario .rot {
+    width: 100%; font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    opacity: .6;
+  }
+
+  @media (max-width: 860px) {
+    .ag-tela { padding: 14px 14px 40px; }
+    .ag-passo { font-size: 0; gap: 0; justify-content: center; }
+    .ag-passo b { font-size: 11px; width: 22px; height: 22px; }
+
+    /* Dedo: os alvos do agendamento crescem. */
+    .ag-voltar { padding: 12px 4px; font-size: 14.5px; }
+    .ag-desmarcar { padding: 14px 8px; display: inline-block; font-size: 14px; }
+    .ag-opcao { padding: 16px; }
+    .ag-hora { padding: 14px 6px; }
+    /* Agora que o passo cumprido volta atrás, ele é alvo de dedo: 44px. */
+    .ag-passo { padding-top: 12px; padding-bottom: 10px; min-height: 44px; }
+    .ag-dia { width: 66px; padding: 12px 4px; }
+    .ag-fechar { min-height: 40px; padding: 9px 16px; }
+
+    /* Rótulos pequenos ficam legíveis. */
+    .ag-grupo-titulo, .ag-turno-titulo { font-size: 11.5px; }
+    .meu-horario .rot { font-size: 11px; }
+    .secao-titulo span { font-size: 11.5px; }
+    .ag-marca { width: min(220px, 68%); }
+  }
+</style>
 </head>
 <body>
-<div id="app">
-  <div style="min-height:100vh;display:grid;place-items:center">
-    <img src="assets/marca.webp" alt="Alento — Studio de Beleza" style="width:min(210px,58vw);opacity:.5">
-  </div>
+<div class="vitrine" id="vitrine">
+  <div class="vazio"><p>Carregando a tabela…</p></div>
 </div>
 <div id="toasts"></div>
-<script type="module" src="js/app.js?v=2026-08-31.1"></script>
+
+<script type="module">
+import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
+import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa,
+         destaque, icoDestaque, familiaDe, retrato } from './js/ui.js';
+import { iniciarAgendamento, meusHorarios, desmarcar, conferirMeusHorarios,
+         hora, dataLonga } from './js/agendar.js';
+
+// A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
+// aqui). Se não houver conexão configurada, mostra a tabela oficial embutida.
+let sbCliente = null;
+
+async function carregar() {
+  const cfg = (() => {
+    try {
+      const l = JSON.parse(localStorage.getItem('alento.supabase') || 'null');
+      if (l?.url && l?.anonKey) return l;
+    } catch {}
+    const g = window.ALENTO_CONFIG;
+    return (g?.url && !g.url.includes('SUA-')) ? g : null;
+  })();
+
+  if (!cfg) return { servicos: SERVICOS, adicionais: ADICIONAIS, studio: {} };
+
+  try {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
+    const sb = createClient(cfg.url, cfg.anonKey);
+    sbCliente = sb;
+    // A equipe vem da view `equipe_publica`: só nome, foto e apresentação.
+    // Se o banco ainda não tiver a view, a página segue sem a seção.
+    const [{ data: servicos }, { data: conf }, { data: equipe }] = await Promise.all([
+      sb.from('servicos').select('*').eq('ativo', true),
+      sb.from('config').select('*').in('chave', ['studio', 'categorias']),
+      sb.from('equipe_publica').select('*').then((r) => r, () => ({ data: [] })),
+    ]);
+    if (!servicos?.length) throw new Error('vazio');
+    const studio = conf?.find((c) => c.chave === 'studio')?.valor || {};
+    return {
+      servicos: servicos.filter((s) => s.tipo !== 'adicional').sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
+      adicionais: servicos.filter((s) => s.tipo === 'adicional'),
+      equipe: equipe || [],
+      studio,
+    };
+  } catch {
+    return { servicos: SERVICOS, adicionais: ADICIONAIS, equipe: [], studio: {} };
+  }
+}
+
+function grupo(titulo, itens, cat) {
+  if (!itens.length) return '';
+  const fam = familiaDe(cat);
+  return `<section class="secao" data-familia="${esc(fam)}">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque(fam)}</span>
+      <span>${esc(titulo)}</span></div>
+    <div>${itens.map((s) => `
+      <div class="preco-linha">
+        <span class="nome">${esc(s.nome)}
+          ${s.nota ? `<span class="obs">${esc(s.nota)}</span>` : ''}</span>
+        <span class="valor">${
+          s.preco_tipo === 'avaliacao'
+            ? '<i class="qualifica">sob avaliação</i>'
+            : (s.preco_tipo === 'a_partir' ? '<i class="qualifica">a partir de</i> ' : '') + fmt.brl(s.preco)
+        }</span>
+      </div>`).join('')}</div>
+  </section>`;
+}
+
+const { servicos, adicionais, equipe, studio } = await carregar();
+
+const porCat = new Map();
+for (const s of servicos) {
+  if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);
+  porCat.get(s.categoria).push(s);
+}
+
+const zap = String(studio.whatsapp || '').replace(/\D/g, '');
+const trinks = studio.trinks || '';
+
+document.getElementById('vitrine').innerHTML = `
+  <div id="meus-horarios"></div>
+
+  <header class="capa">
+    ${ceuEstrelado()}
+    <img src="assets/marca.webp" alt="Alento — Studio de Beleza" class="assenta" style="position:relative;z-index:1">
+    <div class="frase assenta-2" style="position:relative;z-index:1">Realce sua melhor versão.</div>
+    <p class="assenta-3" style="position:relative;z-index:1">Cuidado que transforma. Beleza que acolhe e renova.</p>
+  </header>
+
+  <nav class="destaques" id="destaques" aria-label="Filtrar por tipo de serviço">
+    ${destaque('unhas', 'Unhas', { attrs: 'data-familia="unhas"' })}
+    ${destaque('cabelos', 'Cabelos', { attrs: 'data-familia="cabelos"' })}
+    ${destaque('tratamentos', 'Tratamentos', { attrs: 'data-familia="tratamentos"' })}
+    ${destaque('agenda', 'Agenda', { attrs: 'data-acao="agendar"' })}
+    ${destaque('sobre', 'Sobre nós', { attrs: 'data-acao="sobre"' })}
+  </nav>
+
+  <div class="filtro-aviso" id="filtro-aviso" hidden>
+    Mostrando só uma parte da tabela.
+    <button id="limpar-filtro">Ver tudo</button>
+  </div>
+
+  ${CATEGORIAS_SERVICO
+    .filter((c) => porCat.has(c.id))
+    .map((c) => grupo(c.nome, porCat.get(c.id), c.id)).join('')}
+
+  ${[...porCat.entries()]
+    .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
+    .map(([id, itens]) => grupo(id, itens, id)).join('')}
+
+  ${adicionais.length ? `<section class="secao">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('unhas')}</span>
+      <span>Adicionais</span></div>
+    ${adicionais.map((a) => `<div class="preco-linha">
+        <span class="nome">${esc(a.nome)}${a.unidade ? `<span class="obs">${esc(a.unidade)}</span>` : ''}</span>
+        <span class="valor">+ ${fmt.brl(a.preco)}</span>
+      </div>`).join('')}
+  </section>` : ''}
+
+  <section class="secao">
+    <div class="destaque-combo">
+      <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;opacity:.62;margin-bottom:8px">
+        Combo de alongamento</div>
+      <div class="valor-grande">${fmt.brl(COMBO_ALONGAMENTO.combo)}</div>
+      <p style="margin:8px 0 14px;font-size:14px">
+        Alongamento em gel moldado + manicure + esmaltação em gel<br>
+        <span class="riscado">${fmt.brl(COMBO_ALONGAMENTO.separado)} separado</span> ·
+        <strong>você economiza ${fmt.brl(COMBO_ALONGAMENTO.economia)}</strong>
+      </p>
+      <div style="font-size:12.5px;opacity:.7">
+        ${COMBO_ALONGAMENTO.componentes.map((c) => `${esc(c.nome)} ${fmt.brl(c.valor)}`).join(' · ')}
+      </div>
+    </div>
+  </section>
+
+  ${equipe.length ? `<section class="secao" id="sobre">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('sobre')}</span>
+      <span>Quem cuida de você</span></div>
+    <div class="equipe">
+      ${equipe.map((p) => `
+        <div class="pessoa">
+          ${retrato(p, { tam: 104 })}
+          <div class="crescer">
+            <div class="pessoa-nome">${esc(p.apelido || p.nome)}</div>
+            <div class="pessoa-funcao">
+              ${icoDestaque(p.funcao === 'cabelo' ? 'cabelos' : p.funcao === 'ambos' ? 'tratamentos' : 'unhas')}
+              ${p.funcao === 'cabelo' ? 'Cabelos' : p.funcao === 'ambos' ? 'Unhas e cabelos' : 'Unhas'}
+            </div>
+            ${p.bio ? `<p class="pessoa-bio">${esc(p.bio)}</p>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+  </section>` : ''}
+
+  <section class="secao" id="boas-de-saber">
+    <div class="secao-titulo">
+      <span class="secao-marca">${icoDestaque('tratamentos')}</span>
+      <span>Boas de saber</span></div>
+    ${REGRAS.map((r) => `
+      <div style="margin-bottom:20px">
+        <div class="rotulo" style="margin-bottom:8px">${esc(r.titulo)}</div>
+        <ul class="regra">${r.itens.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+      </div>`).join('')}
+  </section>
+
+  <div class="cta">
+    <button class="btn btn-primario btn-bloco" id="btn-agendar">
+      ${ico('agenda')} Agende seu horário</button>
+  </div>
+
+  <footer class="rodape">
+    <div class="regua" style="margin-bottom:20px">${estrela()}</div>
+    <div class="contatos">
+      ${studio.instagram ? `<a href="https://instagram.com/${esc(String(studio.instagram).replace('@', ''))}"
+        target="_blank" rel="noopener">${esc(studio.instagram)}</a>` : ''}
+      ${zap ? `<a href="https://wa.me/55${zap}" target="_blank" rel="noopener">${esc(fmt.telefone(studio.whatsapp))}</a>` : ''}
+      ${studio.endereco ? `<a href="${esc(linkMapa(studio.endereco))}" target="_blank" rel="noopener"
+        >${esc(studio.endereco)}</a>` : ''}
+    </div>
+    <p>${esc(studio.nome || 'Alento Studio de Beleza')}</p>
+    <p style="margin-top:6px;font-size:12px;opacity:.7">
+      Serviços de fibra de vidro, acrílico e troca de formato não fazem parte desta tabela.</p>
+    <!-- A porta da equipe. Esta página é a raiz do site desde que o studio
+         passou a ter domínio próprio, e sem esta linha quem trabalha aqui
+         ficaria sem caminho para o sistema depois de trocar de celular. -->
+    <p style="margin-top:10px"><a href="sistema.html"
+      style="display:inline-block;padding:11px 18px;font-size:12px;opacity:.55"
+      >Equipe do studio</a></p>
+  </footer>`;
+
+document.title = `${studio.nome || 'Alento — Studio de Beleza'} | Tabela de valores`;
+
+/** Quem já marcou e voltou à página vê o próprio horário logo no topo. */
+function pintarMeusHorarios() {
+  const alvo = document.getElementById('meus-horarios');
+  const meus = sbCliente ? meusHorarios() : [];
+  if (!meus.length) { alvo.innerHTML = ''; return; }
+
+  alvo.innerHTML = meus.map((h) => `
+    <div class="meu-horario">
+      <span class="rot">Seu próximo horário</span>
+      <span>
+        <span class="quando">${dataLonga(h.quando)}, ${hora(h.quando)}</span>
+        <span class="oque" style="display:block">${esc(h.servico)} com ${esc(h.prof)}</span>
+      </span>
+      <span class="acoes">
+        <button data-desmarcar="${esc(h.codigo)}">Desmarcar</button>
+      </span>
+    </div>`).join('');
+
+  alvo.querySelectorAll('[data-desmarcar]').forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    await desmarcar(sbCliente, b.dataset.desmarcar, pintarMeusHorarios);
+    b.disabled = false;
+  });
+}
+pintarMeusHorarios();
+// O cartão é memória do celular; o banco é quem manda. Confere assim que a
+// página abre e repinta — assim um horário desmarcado pelo studio some daqui.
+conferirMeusHorarios(sbCliente).then(pintarMeusHorarios);
+
+// ── Destaques: a fileira de círculos do manual, virada em navegação ─────────
+// Clicar num deles esconde o que não é daquela família e leva a página até a
+// primeira seção que sobrou. Clicar de novo no mesmo mostra tudo — não existe
+// beco sem saída.
+{
+  const barra = document.getElementById('destaques');
+  const secoes = [...document.querySelectorAll('.secao[data-familia]')];
+  let familiaAtiva = null;
+
+  const aplicar = () => {
+    for (const sec of secoes) {
+      sec.hidden = !!familiaAtiva && sec.dataset.familia !== familiaAtiva;
+    }
+    barra.querySelectorAll('[data-familia]').forEach((b) =>
+      b.classList.toggle('ativo', b.dataset.familia === familiaAtiva));
+    document.getElementById('filtro-aviso').hidden = !familiaAtiva;
+  };
+
+  // Uma família sem nenhum serviço não vira botão morto: some da fileira.
+  const existentes = new Set(secoes.map((x) => x.dataset.familia));
+  barra.querySelectorAll('[data-familia]').forEach((b) => {
+    if (!existentes.has(b.dataset.familia)) b.remove();
+  });
+
+  barra.querySelectorAll('[data-familia]').forEach((b) => {
+    b.onclick = () => {
+      familiaAtiva = familiaAtiva === b.dataset.familia ? null : b.dataset.familia;
+      aplicar();
+      if (familiaAtiva) {
+        secoes.find((x) => x.dataset.familia === familiaAtiva)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+  });
+
+  barra.querySelector('[data-acao="sobre"]')?.addEventListener('click', () => {
+    familiaAtiva = null; aplicar();
+    (document.getElementById('sobre') || document.getElementById('boas-de-saber'))
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  barra.querySelector('[data-acao="agendar"]')?.addEventListener('click', () => {
+    document.getElementById('btn-agendar')?.click();
+  });
+
+  document.getElementById('limpar-filtro').onclick = () => {
+    familiaAtiva = null; aplicar();
+    barra.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  aplicar();
+}
+
+// ── Agendamento ────────────────────────────────────────────────────────────
+// Só funciona com o banco conectado: sem ele a página é apenas a tabela, e o
+// botão manda para o WhatsApp em vez de prometer algo que não vai acontecer.
+document.getElementById('btn-agendar').onclick = async () => {
+  if (!sbCliente) {
+    if (zap) return window.open(`https://wa.me/55${zap}`, '_blank', 'noopener');
+    if (trinks) return window.open(trinks, '_blank', 'noopener');
+    return alert('Não consegui abrir a agenda agora. Recarregue a página ou fale com o studio.');
+  }
+
+  const tela = document.createElement('div');
+  tela.className = 'ag-tela';
+  tela.innerHTML = `
+    <div class="ag-topo">
+      <img src="assets/marca-pequena.webp" alt="Alento">
+      <button class="btn btn-sm ag-fechar" id="ag-sair">Fechar</button>
+    </div>
+    <div class="ag-conteudo" id="ag-raiz"></div>`;
+  document.body.appendChild(tela);
+  document.body.style.overflow = 'hidden';
+
+  const sair = () => { tela.remove(); document.body.style.overflow = ''; };
+  tela.querySelector('#ag-sair').onclick = sair;
+
+  await iniciarAgendamento({
+    sb: sbCliente,
+    // Todos entram, inclusive os que não se marcam sozinha: some da lista
+    // seria pior — a cliente procuraria o preço e não acharia. Quem não se
+    // marca sozinha abre um recado com o WhatsApp em vez dos horários.
+    servicos,
+    categorias: CATEGORIAS_SERVICO,
+    studio, equipe,
+    raiz: tela.querySelector('#ag-raiz'),
+  });
+};
+</script>
 </body>
 </html>

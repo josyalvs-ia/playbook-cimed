@@ -1,4 +1,5 @@
-// Carimba a versão em js/versao.js, no index.html e na vitrine.html.
+// Carimba a versão em js/versao.js, no index.html (página das clientes)
+// e no sistema.html (app da equipe).
 // Rode antes de cada publicação: node testes/publicar.mjs
 import fs from 'fs';
 
@@ -13,7 +14,7 @@ const nova = diaAntigo === dia ? `${dia}.${Number(n || 0) + 1}` : `${dia}.1`;
 fs.writeFileSync(RAIZ + 'js/versao.js',
   fs.readFileSync(RAIZ + 'js/versao.js', 'utf8').replace(/VERSAO = '[^']+'/, `VERSAO = '${nova}'`));
 
-for (const arquivo of ['index.html', 'vitrine.html']) {
+for (const arquivo of ['index.html', 'sistema.html']) {
   const caminho = RAIZ + arquivo;
   let html = fs.readFileSync(caminho, 'utf8');
   html = html

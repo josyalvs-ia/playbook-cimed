@@ -166,7 +166,7 @@ page.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') erros.push('[console] ' + m.text()); });
 
 // ── 1. Vitrine pública ──
-await page.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
 const nb = (x) => x.replace(/\u00a0/g, ' ');
 const vitrine = nb(await page.textContent('#vitrine'));
 const checagens = [
@@ -187,7 +187,7 @@ await page.screenshot({ path: '/tmp/shot-vitrine.png', fullPage: false });
 
 // ── 2. App: primeira configuração ──
 // O config.js comitado já traz URL e chave: o app não deve mais pedir nada.
-await page.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+await page.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
 await page.waitForTimeout(600);
 const cfgLida = await page.evaluate(() => window.ALENTO_CONFIG);
 checagens.push(['config.js: URL do projeto preenchida',
@@ -211,7 +211,7 @@ await pCfg.route(/\/config\.js(\?|$)/, (route) => route.fulfill({
   status: 200, contentType: 'application/javascript',
   body: "window.ALENTO_CONFIG = { url: 'https://SUA-URL.supabase.co', anonKey: 'SUA-CHAVE-ANON' };",
 }));
-await pCfg.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+await pCfg.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
 await pCfg.waitForSelector('#cfg-url', { timeout: 8000 });
 checagens.push(['app: pede configuração quando o config.js está vazio', true]);
 
@@ -233,7 +233,7 @@ checagens.push(['config: recusa chave secreta',
   (await tentaChave('sb_secret_' + 'A1b2C3d4E5f6G7h8I9j0K1')).includes('chave secreta')]);
 checagens.push(['config: aceita Publishable key nova', (await tentaChave(CHAVE_NOVA)) === '']);
 await pCfg.evaluate(() => localStorage.clear());
-await pCfg.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+await pCfg.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
 await pCfg.waitForSelector('#cfg-url', { timeout: 8000 });
 checagens.push(['config: aceita anon public legada', (await tentaChave(CHAVE_LEGADA)) === '']);
 await ctxCfg.close();
@@ -245,7 +245,7 @@ await ctx.addInitScript(() => {
 const p2 = await ctx.newPage();
 p2.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
 p2.on('console', (m) => { if (m.type() === 'error') erros.push('[console] ' + m.text()); });
-await p2.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+await p2.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
 await p2.waitForSelector('.shell', { timeout: 8000 });
 checagens.push(['app: casca carregou', await p2.locator('.lateral').count() > 0]);
 
@@ -328,14 +328,14 @@ await p2.screenshot({ path: '/tmp/shot-painel-final.png' });
 const mob = await ctx.newPage();
 await mob.setViewportSize({ width: 390, height: 844 });
 mob.on('pageerror', (e) => erros.push('[mobile pageerror] ' + e.message));
-await mob.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+await mob.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
 await mob.waitForSelector('.shell', { timeout: 8000 });
 await mob.waitForTimeout(900);
 checagens.push(['mobile: barra inferior visível', await mob.locator('.tabbar').isVisible()]);
 checagens.push(['mobile: sem rolagem lateral',
   await mob.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)]);
 await mob.screenshot({ path: '/tmp/shot-mobile.png' });
-await mob.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+await mob.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
 await mob.waitForTimeout(700);
 checagens.push(['mobile vitrine: sem rolagem lateral',
   await mob.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)]);
@@ -351,7 +351,7 @@ await mob.screenshot({ path: '/tmp/shot-mobile-vitrine.png', fullPage: false });
   });
   // O próprio falso já sabe fingir uma conta estranha quando `__INTRUSO` está
   // ligado — não precisa de cirurgia de texto, que quebrava a cada mudança.
-  await p3.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await p3.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
   await p3.waitForTimeout(1400);
   const txt = nb(await p3.textContent('#app'));
   checagens.push(['segurança: conta não autorizada é barrada', txt.includes('Acesso não liberado')]);
@@ -455,12 +455,12 @@ await p2.waitForTimeout(900);
   pv.on('pageerror', (e) => erros.push('[vitrine] ' + e.message));
 
   // A configuração precisa vir do config.js, não do armazenamento local.
-  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   const semStorage = await pv.evaluate(() => !localStorage.getItem('alento.supabase'));
   const temConfig = await pv.evaluate(() => !!window.ALENTO_CONFIG?.url);
   checagens.push(['vitrine: navegador limpo, sem configuração guardada', semStorage]);
   checagens.push(['vitrine: carrega o config.js', temConfig]);
-  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await pv.waitForTimeout(700);
   await pv.click('#btn-agendar');
   await pv.waitForSelector('.ag-tela', { timeout: 6000 });
@@ -532,7 +532,7 @@ await p2.waitForTimeout(900);
       nome: 'Josianny', quando: new Date(Date.now() + 3 * 864e5).toISOString(),
     }]));
   });
-  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await pv.waitForTimeout(900);
   checagens.push(['cartão preso: some sozinho quando o horário não existe mais',
     await pv.locator('.meu-horario').count() === 0]);
@@ -562,7 +562,7 @@ await p2.waitForTimeout(900);
   checagens.push(['cartão preso: o botão também tira do celular', desmarcado.sobrou === 0]);
 
   await pv.evaluate(() => localStorage.removeItem('alento.meus-horarios'));
-  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await pv.waitForTimeout(500);
   await pv.click('#btn-agendar');
   await pv.waitForSelector('.ag-tela');
@@ -999,7 +999,7 @@ await p2.waitForTimeout(700);
   const versao = fs.readFileSync('js/versao.js', 'utf8').match(/VERSAO = '([^']+)'/)?.[1];
   checagens.push(['versão: existe um carimbo', !!versao, String(versao)]);
 
-  for (const arq of ['index.html', 'vitrine.html']) {
+  for (const arq of ['index.html', 'sistema.html']) {
     const html = fs.readFileSync(arq, 'utf8');
     checagens.push([`versão: ${arq} pede o CSS carimbado`,
       html.includes(`css/app.css?v=${versao}`)]);
@@ -1312,7 +1312,7 @@ await p2.waitForTimeout(700);
     JSON.stringify({ url: 'https://t.supabase.co', anonKey: 'x'.repeat(50) })));
   const pr = await ctxR.newPage();
 
-  await pr.goto(BASE + '/index.html#access_token=abc&type=recovery', { waitUntil: 'networkidle' });
+  await pr.goto(BASE + '/sistema.html#access_token=abc&type=recovery', { waitUntil: 'networkidle' });
   await pr.waitForTimeout(1200);
   checagens.push(['recuperar senha: o link do e-mail leva direto a escolher a senha',
     await pr.locator('#form-senha').count() === 1]);
@@ -1332,7 +1332,7 @@ await p2.waitForTimeout(700);
 
   // E o pedido de link deixa de mentir quando o servidor recusa.
   await pr.evaluate(() => { globalThis.__RESET_ERRO = { message: 'For security purposes, you can only request this after 47 seconds.' }; });
-  await pr.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await pr.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
   await pr.evaluate(() => { globalThis.__SEM_SESSAO = true; });
   await pr.reload({ waitUntil: 'networkidle' });
   await pr.waitForTimeout(900);
@@ -1418,7 +1418,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       ],
     }));
   });
-  await pw.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pw.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await pw.waitForTimeout(600);
   await pw.click('#btn-agendar');
   await pw.waitForSelector('.ag-tela', { timeout: 6000 });
@@ -2006,6 +2006,41 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       && !!globalThis.__DB.comandas.find((c) => c.id === 'com-fila-1'))]);
   checagens.push(['fila: sem assustar com aviso de erro',
     !/recus|não consegui/i.test(nb(await p2.textContent('#toasts')))]);
+}
+
+// ── 40. A raiz do site é a página das clientes ──
+// Com domínio próprio, quem digita alentoostudio.com.br tem de cair no studio
+// — fotos, preços e o botão de agendar —, não numa tela de login pedindo senha.
+{
+  const ctxR = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxR.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pr2 = await ctxR.newPage();
+
+  await pr2.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await pr2.waitForTimeout(700);
+  checagens.push(['raiz: abre a página das clientes',
+    await pr2.locator('#btn-agendar').count() === 1]);
+  checagens.push(['raiz: não pede senha a quem chega',
+    await pr2.locator('#senha, [name=senha]').count() === 0]);
+
+  // O endereço que as clientes já receberam continua chegando lá.
+  await pr2.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pr2.waitForTimeout(700);
+  checagens.push(['raiz: o link antigo da vitrine ainda chega na página certa',
+    new URL(pr2.url()).pathname.replace(/\/$/, '') === ''
+    && await pr2.locator('#btn-agendar').count() === 1, pr2.url()]);
+
+  // E a equipe tem porta própria, tanto pelo rodapé quanto pelo endereço.
+  await pr2.goto(BASE + '/', { waitUntil: 'networkidle' });
+  await pr2.waitForTimeout(600);
+  const porta = pr2.locator('.rodape a[href="sistema.html"]');
+  checagens.push(['raiz: o rodapé leva a equipe ao sistema', await porta.count() === 1]);
+  await porta.click();
+  await pr2.waitForTimeout(900);
+  checagens.push(['raiz: e o sistema abre pedindo acesso',
+    /sistema\.html/.test(pr2.url())]);
+  await ctxR.close();
 }
 
 await browser.close();

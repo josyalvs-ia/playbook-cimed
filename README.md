@@ -23,7 +23,7 @@ fechado na agenda. Não depende do Trinks.
 | **Precificação** | A planilha 2026 viva: mexeu numa premissa, a tabela toda recalcula |
 | **Comissões** | Quanto cada uma produziu e quanto tem a receber |
 | **Relatórios** | O mês inteiro: faturamento, taxa de retorno, ranking, resultado |
-| **Vitrine** (`vitrine.html`) | Página pública com a tabela de valores e o agendamento da cliente |
+| **Vitrine** (`/`) | Página pública com a tabela de valores e o agendamento da cliente |
 
 ---
 
@@ -148,11 +148,15 @@ Aceite. Depois é só ir ajustando.
 O app é estático — não precisa de servidor nem de build. No Netlify, com o
 repositório conectado, ele já vai ao ar na raiz do site.
 
-- **App da equipe:** `SEU-SITE.netlify.app/`
-- **Página pública:** `SEU-SITE.netlify.app/vitrine.html`
+- **Página das clientes:** `SEU-SITE/` — é a raiz, porque é o endereço que vai
+  no Instagram e no cartão. Quem digita o domínio tem de cair no studio, não
+  numa tela de login.
+- **App da equipe:** `SEU-SITE/sistema.html` — pede login e é só para a equipe.
+  Há um link discreto para ele no rodapé da página das clientes, para quem
+  trocar de celular não ficar sem caminho.
 
-O link que você manda para as clientes é o da **vitrine**. O `index.html` pede
-login e é só para vocês duas.
+O endereço antigo `vitrine.html` continua funcionando: ele redireciona para a
+raiz, porque já tinha sido divulgado às clientes.
 
 ### Instalar como aplicativo no celular
 
@@ -284,8 +288,9 @@ mas uma cópia sua não custa nada.
 ## Estrutura dos arquivos
 
 ```
-├── index.html            app da equipe (login)
-├── vitrine.html          página pública com a tabela de valores
+├── index.html            página das clientes: tabela de valores e agendamento
+├── sistema.html          app da equipe (login)
+├── vitrine.html          endereço antigo da página das clientes, redireciona para a raiz
 ├── guia-dominio.html     passo a passo para comprar o domínio (abre e imprime)
 ├── apresentacao-marca.html  o manual da marca, em 14 telas
 ├── config.js             URL e chave do Supabase
