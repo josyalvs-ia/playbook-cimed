@@ -2008,6 +2008,67 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     !/recus|não consegui/i.test(nb(await p2.textContent('#toasts')))]);
 }
 
+// ── 41. A tabela lida de cima a baixo, sem vai e volta ──
+// A tabela impressa alterna cabelo e tratamento, e os adicionais de unha
+// ficavam depois de tudo: quem abria "Cabelos" ia descendo e reencontrava
+// unha no fim. E a mesma frase de "fora da tabela" aparecia duas vezes.
+{
+  const ctxT = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxT.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pt = await ctxT.newPage();
+  await pt.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pt.waitForTimeout(800);
+
+  const familias = await pt.evaluate(() =>
+    [...document.querySelectorAll('.secao[data-familia]')].map((s) => s.dataset.familia));
+  // Uma família não pode reaparecer depois de outra ter começado.
+  const blocos = familias.filter((f, i) => f !== familias[i - 1]);
+  checagens.push(['tabela: cada família num bloco só, sem vai e volta',
+    new Set(blocos).size === blocos.length, blocos.join(' → ')]);
+  checagens.push(['tabela: unha vem antes de cabelo',
+    blocos.indexOf('unhas') === 0 && blocos.indexOf('cabelos') === 1]);
+  checagens.push(['tabela: os adicionais de unha ficam no bloco de unha',
+    await pt.evaluate(() => {
+      const sec = [...document.querySelectorAll('.secao')]
+        .find((x) => /Adicionais/.test(x.querySelector('.secao-titulo')?.textContent || ''));
+      return sec?.dataset.familia === 'unhas';
+    })]);
+
+  const inteira = nb(await pt.textContent('#vitrine'));
+  const quantas = (inteira.match(/fibra de vidro/g) || []).length;
+  checagens.push(['tabela: a frase de "fora da tabela" aparece uma vez só',
+    quantas === 1, quantas + ' vez(es)']);
+
+  // Filtrar cabelos não pode deixar nada de unha à vista.
+  await pt.click('[data-familia="cabelos"]');
+  await pt.waitForTimeout(500);
+  checagens.push(['tabela: filtrar cabelos esconde tudo o que é de unha',
+    await pt.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
+      .filter((x) => !x.hidden).every((x) => x.dataset.familia === 'cabelos'))]);
+
+  // A descrição inteira também na hora de escolher o serviço.
+  await pt.click('#limpar-filtro');
+  await pt.waitForTimeout(300);
+  await pt.click('#btn-agendar');
+  await pt.waitForSelector('.ag-opcao');
+  await pt.waitForTimeout(400);
+  const grupos = await pt.evaluate(() =>
+    [...document.querySelectorAll('.ag-grupo-titulo')].map((t) => t.textContent.trim()));
+  checagens.push(['agendamento: os grupos também saem por família',
+    grupos.indexOf('Cortes') > grupos.indexOf('Mãos')
+    && grupos.indexOf('Terapia Capilar') > grupos.indexOf('Cortes'), grupos.join(' · ')]);
+
+  const comDescricao = await pt.evaluate(() => {
+    const opcao = [...document.querySelectorAll('.ag-opcao')]
+      .find((b) => /Morena iluminada/.test(b.textContent));
+    return opcao?.querySelector('.ag-nota')?.textContent.trim() || '';
+  });
+  checagens.push(['agendamento: mostra a descrição do serviço, não só o preço',
+    /cabelos naturais/i.test(comDescricao), comDescricao.slice(0, 60)]);
+  await ctxT.close();
+}
+
 await browser.close();
 
 let falhas = 0;

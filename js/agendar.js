@@ -171,10 +171,16 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
     const rotulo = { unhas: 'Unhas', cabelos: 'Cabelos', tratamentos: 'Tratamentos' };
 
     const visiveis = familia ? servicos.filter((s) => familiaDe(s.categoria) === familia) : servicos;
+    // Sem filtro, a lista sai na ordem da tabela impressa — que alterna cabelo
+    // e tratamento, e termina em unha. Aqui as categorias saem agrupadas pela
+    // mesma família dos destaques: unha com unha, cabelo com cabelo.
     const porCat = new Map();
-    for (const s of visiveis) {
-      if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);
-      porCat.get(s.categoria).push(s);
+    for (const fam of ['unhas', 'cabelos', 'tratamentos']) {
+      for (const s of visiveis) {
+        if (familiaDe(s.categoria) !== fam) continue;
+        if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);
+        porCat.get(s.categoria).push(s);
+      }
     }
 
     document.getElementById('ag-corpo').innerHTML = `
@@ -196,6 +202,10 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
             <button class="ag-opcao" data-serv="${esc(s.id)}">
               <span class="crescer">
                 <strong>${esc(s.nome)}</strong>
+                <!-- A descrição inteira, a mesma da tabela de preços. A cliente
+                     escolhe o serviço aqui: esconder o que está incluso é
+                     obrigá-la a voltar à tabela para decidir. -->
+                ${s.nota ? `<span class="ag-nota">${esc(s.nota)}</span>` : ''}
                 <span class="ag-dur">${marcaSozinha(s)
                   ? fmt.horas(s.tempo)
                   : 'combinado no WhatsApp'}</span>

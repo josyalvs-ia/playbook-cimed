@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://josyalvs-ia.github.io/playbook-cimed/vitrine.html">
-<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-31.4">
+<meta property="og:image" content="https://josyalvs-ia.github.io/playbook-cimed/assets/previa-vitrine.png?v=2026-08-31.5">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,10 +26,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-08-31.4">
+<link rel="stylesheet" href="css/app.css?v=2026-08-31.5">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-08-31.4"></script>
+<script src="config.js?v=2026-08-31.5"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -188,6 +188,9 @@
   .ag-opcao:hover, .ag-opcao:focus-visible { border-color: var(--creme); background: var(--superficie-2); }
   .ag-opcao strong { display: block; font-size: 15px; }
   .ag-dur { font-size: 12.5px; color: var(--texto-3); }
+  /* A descrição do serviço na hora de escolher: o mesmo texto da tabela. */
+  .ag-nota { display: block; font-size: 12.5px; line-height: 1.45;
+             color: var(--texto-2); margin: 3px 0 4px; }
   .ag-preco { font-family: var(--display); font-weight: 700; font-size: 16px;
               white-space: nowrap; }
 
@@ -416,6 +419,54 @@ for (const s of servicos) {
 const zap = String(studio.whatsapp || '').replace(/\D/g, '');
 const trinks = studio.trinks || '';
 
+/**
+ * As seções na ordem das famílias: tudo de unha junto, tudo de cabelo junto.
+ *
+ * A ordem da tabela impressa alterna — corte, tratamento, cor, terapia — e os
+ * adicionais, que são de unha, ficavam depois de tudo. Quem abria "Cabelos" ia
+ * descendo e reencontrava unha no fim. Aqui as seções são agrupadas pela mesma
+ * família dos destaques, e dentro de cada uma a ordem da tabela é mantida.
+ */
+const secoesDaTabela = [
+  ...CATEGORIAS_SERVICO
+    .filter((c) => porCat.has(c.id))
+    .map((c) => ({ fam: familiaDe(c.id), html: grupo(c.nome, porCat.get(c.id), c.id) })),
+  ...[...porCat.entries()]
+    .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
+    .map(([id, itens]) => ({ fam: familiaDe(id), html: grupo(id, itens, id) })),
+  // O combo é de unha, e o destaque dele vale mais perto dos serviços que o
+  // compõem do que no rodapé da tabela.
+  { fam: 'unhas', html: `<section class="secao" data-familia="unhas">
+      <div class="destaque-combo">
+        <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;opacity:.62;margin-bottom:8px">
+          Combo de alongamento</div>
+        <div class="valor-grande">${fmt.brl(COMBO_ALONGAMENTO.combo)}</div>
+        <p style="margin:8px 0 14px;font-size:14px">
+          Alongamento em gel moldado + manicure + esmaltação em gel<br>
+          <span class="riscado">${fmt.brl(COMBO_ALONGAMENTO.separado)} separado</span> ·
+          <strong>você economiza ${fmt.brl(COMBO_ALONGAMENTO.economia)}</strong>
+        </p>
+        <div style="font-size:12.5px;opacity:.7">
+          ${COMBO_ALONGAMENTO.componentes.map((c) => `${esc(c.nome)} ${fmt.brl(c.valor)}`).join(' · ')}
+        </div>
+      </div>
+    </section>` },
+  // Adicionais são de unha: entram no bloco de unha, não no fim da página.
+  ...(adicionais.length ? [{ fam: 'unhas', html: `<section class="secao" data-familia="unhas">
+      <div class="secao-titulo">
+        <span class="secao-marca">${icoDestaque('unhas')}</span>
+        <span>Adicionais</span></div>
+      ${adicionais.map((a) => `<div class="preco-linha">
+          <span class="nome">${esc(a.nome)}${a.unidade ? `<span class="obs">${esc(a.unidade)}</span>` : ''}</span>
+          <span class="valor">+ ${fmt.brl(a.preco)}</span>
+        </div>`).join('')}
+    </section>` }] : []),
+];
+
+const blocos = ['unhas', 'cabelos', 'tratamentos']
+  .flatMap((fam) => secoesDaTabela.filter((x) => x.fam === fam).map((x) => x.html))
+  .join('');
+
 document.getElementById('vitrine').innerHTML = `
   <div id="meus-horarios"></div>
 
@@ -439,39 +490,7 @@ document.getElementById('vitrine').innerHTML = `
     <button id="limpar-filtro">Ver tudo</button>
   </div>
 
-  ${CATEGORIAS_SERVICO
-    .filter((c) => porCat.has(c.id))
-    .map((c) => grupo(c.nome, porCat.get(c.id), c.id)).join('')}
-
-  ${[...porCat.entries()]
-    .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
-    .map(([id, itens]) => grupo(id, itens, id)).join('')}
-
-  ${adicionais.length ? `<section class="secao">
-    <div class="secao-titulo">
-      <span class="secao-marca">${icoDestaque('unhas')}</span>
-      <span>Adicionais</span></div>
-    ${adicionais.map((a) => `<div class="preco-linha">
-        <span class="nome">${esc(a.nome)}${a.unidade ? `<span class="obs">${esc(a.unidade)}</span>` : ''}</span>
-        <span class="valor">+ ${fmt.brl(a.preco)}</span>
-      </div>`).join('')}
-  </section>` : ''}
-
-  <section class="secao">
-    <div class="destaque-combo">
-      <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;opacity:.62;margin-bottom:8px">
-        Combo de alongamento</div>
-      <div class="valor-grande">${fmt.brl(COMBO_ALONGAMENTO.combo)}</div>
-      <p style="margin:8px 0 14px;font-size:14px">
-        Alongamento em gel moldado + manicure + esmaltação em gel<br>
-        <span class="riscado">${fmt.brl(COMBO_ALONGAMENTO.separado)} separado</span> ·
-        <strong>você economiza ${fmt.brl(COMBO_ALONGAMENTO.economia)}</strong>
-      </p>
-      <div style="font-size:12.5px;opacity:.7">
-        ${COMBO_ALONGAMENTO.componentes.map((c) => `${esc(c.nome)} ${fmt.brl(c.valor)}`).join(' · ')}
-      </div>
-    </div>
-  </section>
+  ${blocos}
 
   ${equipe.length ? `<section class="secao" id="sobre">
     <div class="secao-titulo">
@@ -519,8 +538,6 @@ document.getElementById('vitrine').innerHTML = `
         >${esc(studio.endereco)}</a>` : ''}
     </div>
     <p>${esc(studio.nome || 'Alento Studio de Beleza')}</p>
-    <p style="margin-top:6px;font-size:12px;opacity:.7">
-      Serviços de fibra de vidro, acrílico e troca de formato não fazem parte desta tabela.</p>
   </footer>`;
 
 document.title = `${studio.nome || 'Alento — Studio de Beleza'} | Tabela de valores`;
