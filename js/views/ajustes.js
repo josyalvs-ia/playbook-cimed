@@ -119,6 +119,7 @@ export function render(raiz) {
             ['Sistema de vocês', '', 'Este aqui. Só para a equipe.'],
             ['Manual da marca', 'apresentacao-marca.html', 'Logo, cores, tipografia e voz, em 14 telas.'],
             ['Guia do domínio', 'guia-dominio.html', 'Passo a passo para comprar o alentoostudio.com.br.'],
+            ['DNS do domínio', 'guia-dns.html', 'O que configurar no Registro.br para o domínio abrir o site.'],
           ].map(([nome, caminho, oque]) => {
             const url = BASE_PUBLICA + caminho;
             return `<button class="endereco" data-copiar="${esc(url)}">
