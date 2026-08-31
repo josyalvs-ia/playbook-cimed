@@ -440,7 +440,7 @@ function telaLogin() {
         <button type="button" class="btn-fantasma" id="btn-reset"
           style="text-decoration:underline;padding:0">receber link por e-mail</button>.</p>
     </form>
-    <p class="pequeno t3 mt centro"><a href="./">Ver a tabela de preços pública</a></p>`);
+    <p class="pequeno t3 mt centro"><a href="vitrine.html">Ver a tabela de preços pública</a></p>`);
 
   document.getElementById('form-login').onsubmit = async (e) => {
     e.preventDefault();
@@ -530,7 +530,7 @@ function telaSemAcesso({ email, inativa }) {
       <strong>Ajustes → Equipe</strong>, ou convidar este e-mail pelo painel do Supabase
       em <strong>Authentication → Users → Invite user</strong>.</div></div>
     <button class="btn btn-bloco" id="btn-sair-sem-acesso">Sair desta conta</button>
-    <p class="pequeno t3 mt centro"><a href="./">Ver a tabela de preços pública</a></p>`);
+    <p class="pequeno t3 mt centro"><a href="vitrine.html">Ver a tabela de preços pública</a></p>`);
   document.getElementById('btn-sair-sem-acesso').onclick = () => db.sair();
 }
 

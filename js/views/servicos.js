@@ -98,7 +98,7 @@ export function render(raiz) {
   raiz.querySelectorAll('[data-quem]').forEach((b) => b.onclick = () => {
     filtroQuem = b.dataset.quem; render(raiz);
   });
-  raiz.querySelector('#ver-vitrine').onclick = () => window.open('./', '_blank');
+  raiz.querySelector('#ver-vitrine').onclick = () => window.open('vitrine.html', '_blank');
   raiz.querySelector('#novo').onclick = () => abrirServico();
   raiz.querySelector('#novo2')?.addEventListener('click', () => abrirServico());
   raiz.querySelectorAll('[data-serv]').forEach((b) => b.onclick = () => abrirServico(b.dataset.serv));

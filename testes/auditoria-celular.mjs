@@ -121,7 +121,7 @@ for (const [nomeAparelho, perfil] of APARELHOS) {
   const erros = [];
   p.on('pageerror', (e) => erros.push(`${nomeAparelho}: ${e.message}`));
 
-  await p.goto(BASE + '/sistema.html', { waitUntil: 'networkidle' });
+  await p.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
   await p.waitForSelector('.shell', { timeout: 9000 });
   await p.waitForTimeout(900);
   if (await p.locator('.veu').count()) { await p.click('text=Instalar dados iniciais'); await p.waitForTimeout(1600); }
@@ -196,7 +196,7 @@ for (const [nomeAparelho, perfil] of APARELHOS) {
   const c = await ctxC.newPage();
   c.on('pageerror', (e) => erros.push(`${nomeAparelho} vitrine: ${e.message}`));
 
-  await c.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await c.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
   await c.waitForTimeout(800);
   await auditar(c, 'vitrine', nomeAparelho);
   if (nomeAparelho === 'iPhone 13') await c.screenshot({ path: '/tmp/cel-vitrine.png' });
