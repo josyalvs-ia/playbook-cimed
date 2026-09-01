@@ -2147,6 +2147,51 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await ctxA.close();
 }
 
+// ── 43. Almoço fixo não serve para todo mundo ──
+// Quem faz cor e mecha almoça no intervalo que sobrar, não às 12h. E limpar
+// hora a hora, sete dias, num celular, é trabalho que o sistema devia poupar.
+{
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(900);
+
+  // Dá um almoço a todo mundo para depois tirar o de uma só.
+  await p2.evaluate(() => {
+    document.querySelectorAll('#horarios-lista tr[data-prof]').forEach((tr) => {
+      tr.querySelector('[data-campo=ativo]').checked = true;
+      tr.querySelector('[data-campo=pausa_inicio]').value = '12:00';
+      tr.querySelector('[data-campo=pausa_fim]').value = '13:00';
+    });
+  });
+  await p2.click('#salvar-horarios');
+  await p2.waitForTimeout(900);
+  const comAlmoco = await p2.evaluate(() =>
+    globalThis.__DB.horarios.filter((h) => h.pausa_inicio).length);
+  checagens.push(['almoço: todo mundo com pausa para começar', comAlmoco >= 14, String(comAlmoco)]);
+
+  // Tira o almoço só da Laura.
+  await p2.click('[data-sem-almoco="p1"]');
+  await p2.waitForTimeout(300);
+  checagens.push(['almoço: o botão limpa os campos dela na tela',
+    await p2.evaluate(() => [...document.querySelectorAll('#horarios-lista tr[data-prof="p1"]')]
+      .every((tr) => !tr.querySelector('[data-campo=pausa_inicio]').value))]);
+  checagens.push(['almoço: e não encosta nos da outra',
+    await p2.evaluate(() => [...document.querySelectorAll('#horarios-lista tr[data-prof="p2"]')]
+      .every((tr) => tr.querySelector('[data-campo=pausa_inicio]').value === '12:00'))]);
+
+  await p2.click('#salvar-horarios');
+  await p2.waitForTimeout(900);
+  const depois = await p2.evaluate(() => ({
+    laura: globalThis.__DB.horarios.filter((h) => h.profissional_id === 'p1' && h.pausa_inicio).length,
+    julia: globalThis.__DB.horarios.filter((h) => h.profissional_id === 'p2' && h.pausa_inicio).length,
+  }));
+  checagens.push(['almoço: a Laura fica sem pausa fixa', depois.laura === 0]);
+  checagens.push(['almoço: a Julia mantém a dela', depois.julia >= 7, String(depois.julia)]);
+  checagens.push(['almoço: em branco vira ausência, não texto vazio',
+    await p2.evaluate(() => globalThis.__DB.horarios
+      .filter((h) => h.profissional_id === 'p1')
+      .every((h) => h.pausa_inicio === null && h.pausa_fim === null))]);
+}
+
 await browser.close();
 
 let falhas = 0;

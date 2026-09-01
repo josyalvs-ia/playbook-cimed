@@ -59,7 +59,8 @@ export function render(raiz) {
       <div class="cartao">
         <div class="cartao-cabeca">${ico('agenda')}<h3>Horário de funcionamento</h3></div>
         <p class="pequeno t2 mb">É isto que define os horários que a cliente vê no site.
-          Dia sem horário marcado é dia fechado.</p>
+          Dia sem horário marcado é dia fechado, e almoço em branco é dia sem
+          pausa fixa — a cliente pode marcar em qualquer horário aberto.</p>
         <div id="horarios-lista"></div>
         <div class="flex mt" style="gap:8px">
           <button class="btn btn-primario" id="salvar-horarios">Salvar horários</button>
@@ -211,6 +212,13 @@ export function render(raiz) {
   raiz.querySelector('#equipe').onclick = () => abrirEquipe();
   raiz.querySelector('#folga').onclick = () => abrirBloqueio();
   pintarHorarios(raiz);
+  raiz.querySelectorAll('[data-sem-almoco]').forEach((b) => {
+    b.onclick = () => {
+      raiz.querySelectorAll(`#horarios-lista tr[data-prof="${b.dataset.semAlmoco}"]`)
+        .forEach((tr) => tr.querySelectorAll('[data-campo^=pausa]').forEach((c) => { c.value = ''; }));
+      avisar('Almoço limpo — toque em "Salvar horários" para valer');
+    };
+  });
   raiz.querySelector('#salvar-horarios').onclick = () => salvarHorarios(raiz);
 
   pintarRegras(raiz);
@@ -321,11 +329,18 @@ function pintarHorarios(raiz) {
 
   alvo.innerHTML = profs.map((p) => `
     <div style="margin-bottom:18px">
-      <div class="rotulo mb">${esc(p.nome)}</div>
+      <!-- Almoço fixo não serve para todo mundo: quem faz cor e mecha almoça
+           no intervalo que sobrar, não às 12h. Limpar hora a hora num celular
+           é trabalhoso — daí o botão. -->
+      <div class="flex-entre mb" style="gap:10px">
+        <span class="rotulo">${esc(p.nome)}</span>
+        <button class="btn btn-sm btn-fantasma" data-sem-almoco="${p.id}">Sem almoço fixo</button>
+      </div>
       <div class="tabela-wrap"><table><thead><tr>
         <th style="width:38px"></th><th>Dia</th><th>Abre</th><th>Fecha</th>
         <th>Almoço de</th><th>até</th>
       </tr></thead><tbody>
+      <!-- Almoço em branco = sem pausa fixa; a agenda oferece o dia inteiro. -->
       ${DIAS.map(([d, nome]) => {
         const h = db.estado.horarios.find((x) => x.profissional_id === p.id && String(x.dia_semana) === d);
         const on = h && h.ativo !== false;
