@@ -2192,6 +2192,63 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       .every((h) => h.pausa_inicio === null && h.pausa_fim === null))]);
 }
 
+// ── 44. Bloquear um pedaço do dia, não só o dia todo ──
+// As duas coisas sempre couberam na tela, mas a de pedaço vivia atrás de uma
+// caixinha marcada — e quem abria concluía que só dava para tirar o dia todo.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  checagens.push(['bloqueio: o botão diz o que faz',
+    /Bloquear/.test(nb(await p2.textContent('#bloquear')))]);
+
+  await p2.click('#bloquear');
+  await p2.waitForSelector('.veu [data-quanto]');
+  checagens.push(['bloqueio: as duas opções aparecem juntas',
+    await p2.locator('.veu [data-quanto]').count() === 2]);
+  checagens.push(['bloqueio: "só um horário" já vem escolhido',
+    await p2.evaluate(() =>
+      document.querySelector('.veu [data-quanto="horario"]').classList.contains('ativa'))]);
+  checagens.push(['bloqueio: e os campos de hora já estão à vista',
+    await p2.locator('.veu [name=hi]').isVisible()]);
+
+  const amanha = await p2.evaluate(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  });
+  await p2.fill('.veu [name=de]', amanha);
+  await p2.fill('.veu [name=hi]', '12:00');
+  await p2.fill('.veu [name=hf]', '13:30');
+  await p2.fill('.veu [name=motivo]', 'almoço');
+  await p2.selectOption('.veu [name=profissional_id]', 'p1');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(900);
+
+  const b = await p2.evaluate(() => globalThis.__DB.bloqueios.at(-1));
+  checagens.push(['bloqueio: guarda só o pedaço escolhido',
+    new Date(b.inicio).getHours() === 12 && new Date(b.fim).getHours() === 13
+    && (new Date(b.fim) - new Date(b.inicio)) / 60000 === 90]);
+  checagens.push(['bloqueio: é da profissional escolhida', b.profissional_id === 'p1']);
+
+  // A agenda diz quando é o bloqueio, não só que existe.
+  await p2.waitForTimeout(400);
+  const aviso = nb(await p2.textContent('#conteudo'));
+  checagens.push(['bloqueio: a agenda mostra o horário bloqueado',
+    /12:00/.test(aviso) && /13:30/.test(aviso) && /almoço/.test(aviso)]);
+
+  // Dia todo continua existindo, com o "até" para férias.
+  await p2.click('#bloquear');
+  await p2.waitForSelector('.veu [data-quanto]');
+  checagens.push(['bloqueio: sem "até" enquanto for um horário só',
+    await p2.locator('.veu #campo-ate').isHidden()]);
+  await p2.click('.veu [data-quanto="dia"]');
+  await p2.waitForTimeout(200);
+  checagens.push(['bloqueio: "dia todo" traz o período de férias',
+    await p2.locator('.veu #campo-ate').isVisible()
+    && await p2.locator('.veu #horas').isHidden()]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+}
+
 await browser.close();
 
 let falhas = 0;

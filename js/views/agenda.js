@@ -236,7 +236,7 @@ export function render(raiz) {
         <button class="btn-icone" id="proximo" title="Próximo" style="transform:rotate(180deg)">${ico('voltar')}</button>
         <button class="btn btn-sm ${dia === hoje() ? 'btn-primario' : ''}" id="hoje">Hoje</button>`}
       <span class="crescer"></span>
-      <button class="btn btn-sm" id="bloquear">${ico('relogio')}Folga</button>
+      <button class="btn btn-sm" id="bloquear">${ico('relogio')}Bloquear</button>
       <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Encaixar</button>
     </div>
 
@@ -256,8 +256,9 @@ export function render(raiz) {
     </div>
 
     ${bloqueiosHoje.length ? `<div class="aviso alerta mb">${ico('relogio')}<div>
-      ${bloqueiosHoje.map((b) => `<div><strong>${esc(nomeProf(b.profissional_id) || 'Studio inteiro')}</strong>
-        — ${esc(b.motivo || 'bloqueado')}
+      ${bloqueiosHoje.map((b) => `<div style="margin-bottom:4px">
+        <strong>${esc(nomeProf(b.profissional_id) || 'Studio inteiro')}</strong>
+        · ${esc(quandoBloqueio(b))}${b.motivo ? ` · ${esc(b.motivo)}` : ''}
         <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button></div>`).join('')}
     </div>` : ''}
 
@@ -1086,49 +1087,110 @@ export function abrirEditar(a) {
 }
 
 // ─── Folga e férias ────────────────────────────────────────────────────────
+/**
+ * Bloquear a agenda: o dia inteiro ou só um pedaço dele.
+ *
+ * As duas coisas sempre couberam aqui, mas a de pedaço vivia atrás de uma
+ * caixinha marcada — e quem abria a tela concluía que só dava para tirar o dia
+ * todo. Agora as duas aparecem lado a lado, e a de horário já vem escolhida:
+ * férias se marca uma vez por ano, um buraco na tarde se marca toda semana.
+ */
 export function abrirBloqueio(dataPadrao) {
+  // Sugere a próxima hora cheia, dentro do horário em que o studio funciona:
+  // abrir a tela às onze da noite e ver "23:00" não ajuda ninguém.
+  const agora = new Date();
+  const hora = Math.min(20, Math.max(8, agora.getHours() + 1));
+  const dois = (n) => String(n).padStart(2, '0');
+  const proximaHora = `${dois(hora)}:00`;
+  const maisUma = `${dois(hora + 1)}:00`;
+
   abrirModal({
     titulo: 'Bloquear agenda',
     corpo: `
-      <p class="t2 pequeno mb">Folga, férias, curso, médico. No período bloqueado
-        as clientes não conseguem marcar pelo site.</p>
-      <label class="campo"><span>Quem</span>
+      <p class="t2 pequeno mb">Almoço, médico, curso, férias. No período bloqueado
+        ninguém consegue marcar pelo site, e a agenda mostra o motivo.</p>
+      <label class="campo"><span>Quem fica bloqueada</span>
         <select name="profissional_id">
-          <option value="">O studio inteiro</option>
           ${atendentes().map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+          <option value="">O studio inteiro</option>
         </select></label>
+
+      <div class="campo"><span class="rotulo" style="display:block;margin-bottom:7px">Quanto tempo</span>
+        <div class="pilulas">
+          <button type="button" class="pilula ativa" data-quanto="horario">Só um horário</button>
+          <button type="button" class="pilula" data-quanto="dia">Dia todo</button>
+        </div>
+      </div>
+      <input type="hidden" name="dia_todo" value="">
+
       <div class="linha-campos">
         <label class="campo"><span>De</span>
           <input type="date" name="de" value="${dataPadrao || hoje()}"></label>
-        <label class="campo"><span>Até</span>
+        <label class="campo" id="campo-ate" hidden><span>Até</span>
           <input type="date" name="ate" value="${dataPadrao || hoje()}"></label>
       </div>
-      <label class="check"><input type="checkbox" name="dia_todo" checked>
-        <span>Dia todo</span></label>
-      <div class="linha-campos" id="horas" hidden>
-        <label class="campo"><span>Das</span><input type="time" name="hi" value="12:00"></label>
-        <label class="campo"><span>Às</span><input type="time" name="hf" value="14:00"></label>
+      <div class="linha-campos" id="horas">
+        <label class="campo"><span>Das</span>
+          <input type="time" name="hi" value="${proximaHora}" step="900"></label>
+        <label class="campo"><span>Às</span>
+          <input type="time" name="hf" value="${maisUma}" step="900"></label>
       </div>
       <label class="campo"><span>Motivo</span>
-        <input name="motivo" placeholder="Ex.: férias, curso, médico"></label>`,
+        <input name="motivo" placeholder="Ex.: almoço, médico, curso"></label>`,
     acoes: [{ texto: 'Bloquear', classe: 'btn-primario', onClick: async (fechar, veu) => {
       const d = lerForm(veu);
-      if (!d.de || !d.ate) return avisar('Informe o período', 'erro');
-      if (d.ate < d.de) return avisar('A data final não pode ser antes da inicial', 'erro');
-      const inicio = new Date(`${d.de}T${d.dia_todo ? '00:00' : d.hi}:00`);
-      const fim = new Date(`${d.ate}T${d.dia_todo ? '23:59' : d.hf}:00`);
+      const diaTodo = !!d.dia_todo;
+      if (!d.de) return avisar('Informe o dia', 'erro');
+      const ate = diaTodo ? (d.ate || d.de) : d.de;
+      if (ate < d.de) return avisar('A data final não pode ser antes da inicial', 'erro');
+      if (!diaTodo && (!d.hi || !d.hf)) return avisar('Informe o horário', 'erro');
+
+      const inicio = new Date(`${d.de}T${diaTodo ? '00:00' : d.hi}:00`);
+      const fim = new Date(`${ate}T${diaTodo ? '23:59' : d.hf}:00`);
       if (fim <= inicio) return avisar('O fim precisa ser depois do início', 'erro');
+
+      // Bloquear por cima de quem já está marcada não desmarca ninguém — mas
+      // ela precisa saber, senão descobre no dia.
+      const pegou = db.estado.agendamentos.filter((a) =>
+        ['confirmado', 'concluido'].includes(a.status)
+        && (!d.profissional_id || a.profissional_id === d.profissional_id)
+        && new Date(a.inicio) < fim && new Date(a.fim || a.inicio) > inicio);
+      if (pegou.length && !await confirmar('Já tem cliente nesse período',
+        `${pegou.map((a) => `${a.cliente_nome} às ${localHora(a.inicio)}`).join(', ')}.\n\n`
+        + 'O bloqueio não desmarca ninguém: impede novos horários e fica anotado na agenda.',
+        'Bloquear assim mesmo', false)) return;
+
+      dia = d.de;
       await db.salvar('bloqueios', {
         profissional_id: d.profissional_id || null,
         inicio: inicio.toISOString(), fim: fim.toISOString(),
         motivo: d.motivo || null,
       });
-      fechar(); avisar('Agenda bloqueada');
+      fechar();
+      avisar(diaTodo ? 'Dia bloqueado' : `Bloqueado das ${d.hi} às ${d.hf}`);
     } }],
     aoAbrir: (veu) => {
-      const chk = veu.querySelector('[name=dia_todo]');
-      const horas = veu.querySelector('#horas');
-      chk.onchange = () => { horas.hidden = chk.checked; };
+      const marca = veu.querySelector('[name=dia_todo]');
+      veu.querySelectorAll('[data-quanto]').forEach((b) => {
+        b.onclick = () => {
+          const diaTodo = b.dataset.quanto === 'dia';
+          veu.querySelectorAll('[data-quanto]').forEach((x) => x.classList.toggle('ativa', x === b));
+          marca.value = diaTodo ? '1' : '';
+          veu.querySelector('#horas').hidden = diaTodo;
+          veu.querySelector('#campo-ate').hidden = !diaTodo;
+        };
+      });
     },
   });
+}
+
+/** "hoje, 12:00 às 13:30" ou "de 2 a 9 de setembro" — o que a tela precisa dizer. */
+function quandoBloqueio(b) {
+  const de = localData(b.inicio), ate = localData(b.fim);
+  const diaTodo = localHora(b.inicio) === '00:00' && localHora(b.fim) >= '23:00';
+  if (!diaTodo && de === ate) {
+    return `${fmt.data(de)}, das ${localHora(b.inicio)} às ${localHora(b.fim)}`;
+  }
+  return de === ate ? `${fmt.data(de)}, dia todo`
+                    : `de ${fmt.data(de)} a ${fmt.data(ate)}`;
 }
