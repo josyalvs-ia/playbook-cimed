@@ -58,6 +58,17 @@ export const FAMILIA_DA_CATEGORIA = {
 };
 export const familiaDe = (cat) => FAMILIA_DA_CATEGORIA[cat] || 'tratamentos';
 
+/**
+ * Este serviço entra no destaque escolhido?
+ *
+ * Tratamento e terapia capilar são cabelo — quem toca em "Cabelos" e não os vê
+ * conclui que o studio não faz, e vai procurar noutro lugar. Então "Cabelos"
+ * mostra também os tratamentos, e "Tratamentos" continua servindo de atalho
+ * para quem já sabe o que quer. Do largo para o estreito, nunca o contrário.
+ */
+export const noDestaque = (escolhido, fam) =>
+  !escolhido || fam === escolhido || (escolhido === 'cabelos' && fam === 'tratamentos');
+
 /** O ícone do destaque, sem o anel — para títulos e listas. */
 export function icoDestaque(nome, cls = 'ico') {
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor"

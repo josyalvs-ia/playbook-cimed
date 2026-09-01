@@ -2040,12 +2040,28 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['tabela: o aviso interno não aparece para a cliente',
     !/fibra de vidro/.test(inteira)]);
 
-  // Filtrar cabelos não pode deixar nada de unha à vista.
+  // Filtrar cabelos não pode deixar nada de unha à vista — mas tratamento
+  // capilar é cabelo: quem toca em "Cabelos" e não vê os tratamentos conclui
+  // que o studio não faz, e vai procurar noutro lugar.
   await pt.click('[data-familia="cabelos"]');
   await pt.waitForTimeout(500);
+  const emCabelos = await pt.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
+    .filter((x) => !x.hidden).map((x) => x.dataset.familia));
   checagens.push(['tabela: filtrar cabelos esconde tudo o que é de unha',
+    !emCabelos.includes('unhas')]);
+  checagens.push(['tabela: cabelos mostra também os tratamentos capilares',
+    emCabelos.includes('tratamentos') && emCabelos.includes('cabelos')]);
+  checagens.push(['tabela: e os tratamentos vêm logo depois dos cabelos',
+    emCabelos.lastIndexOf('cabelos') < emCabelos.indexOf('tratamentos')]);
+
+  // O caminho contrário não vale: "Tratamentos" é atalho, não guarda-chuva.
+  await pt.click('[data-familia="tratamentos"]');
+  await pt.waitForTimeout(500);
+  checagens.push(['tabela: tratamentos continua sendo um atalho estreito',
     await pt.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
-      .filter((x) => !x.hidden).every((x) => x.dataset.familia === 'cabelos'))]);
+      .filter((x) => !x.hidden).every((x) => x.dataset.familia === 'tratamentos'))]);
+  await pt.click('[data-familia="cabelos"]');
+  await pt.waitForTimeout(400);
 
   // A descrição inteira também na hora de escolher o serviço.
   await pt.click('#limpar-filtro');
@@ -2058,6 +2074,14 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['agendamento: os grupos também saem por família',
     grupos.indexOf('Cortes') > grupos.indexOf('Mãos')
     && grupos.indexOf('Terapia Capilar') > grupos.indexOf('Cortes'), grupos.join(' · ')]);
+
+  const contagem = await pt.evaluate(() => {
+    const b = [...document.querySelectorAll('[data-fam]')]
+      .find((x) => x.dataset.fam === 'cabelos');
+    return b?.querySelector('.destaque-nota')?.textContent.trim() || '';
+  });
+  checagens.push(['agendamento: a conta de "Cabelos" inclui os tratamentos',
+    Number(contagem.match(/\d+/)?.[0]) > 19, contagem]);
 
   const comDescricao = await pt.evaluate(() => {
     const opcao = [...document.querySelectorAll('.ag-opcao')]

@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { esc, fmt, avisar, precoTexto, linkMapa, retrato, destaque, icoDestaque,
-         familiaDe, RECADO_AGENDA } from './ui.js';
+         familiaDe, noDestaque, RECADO_AGENDA } from './ui.js';
 
 const DIAS_A_FRENTE = 45;
 const GUARDADOS = 'alento.meus-horarios';
@@ -170,7 +170,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
       .filter((f) => servicos.some((s) => familiaDe(s.categoria) === f));
     const rotulo = { unhas: 'Unhas', cabelos: 'Cabelos', tratamentos: 'Tratamentos' };
 
-    const visiveis = familia ? servicos.filter((s) => familiaDe(s.categoria) === familia) : servicos;
+    const visiveis = servicos.filter((s) => noDestaque(familia, familiaDe(s.categoria)));
     // Sem filtro, a lista sai na ordem da tabela impressa — que alterna cabelo
     // e tratamento, e termina em unha. Aqui as categorias saem agrupadas pela
     // mesma família dos destaques: unha com unha, cabelo com cabelo.
@@ -188,7 +188,7 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
         <nav class="destaques" id="ag-familias">
           ${familias.map((f) => destaque(f, rotulo[f], {
             attrs: `data-fam="${f}"`,
-            nota: `${servicos.filter((s) => familiaDe(s.categoria) === f).length} serviços`,
+            nota: `${servicos.filter((s) => noDestaque(f, familiaDe(s.categoria))).length} serviços`,
           })).join('')}
         </nav>` : ''}
       <p class="t2 pequeno mb centro">${familia
