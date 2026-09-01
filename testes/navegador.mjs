@@ -2249,6 +2249,52 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(300);
 }
 
+// ── 45. O tempo do serviço em minutos ──
+// A Júlia precisava de 1h20 e digitava 1,20, que virava 1h12. Para 1h40 teria
+// de escrever 1,666… — e o que saía era 1h43. Hora decimal não é a língua de
+// ninguém que marca horário.
+{
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(800);
+  await p2.click('[data-quem=""]').catch(() => {});
+  await p2.waitForTimeout(300);
+  await p2.click('[data-serv="manicure-gel"]');
+  await p2.waitForSelector('.veu [name=tempo_min]');
+
+  checagens.push(['tempo: o campo é em minutos, não em horas decimais',
+    (await p2.inputValue('.veu [name=tempo_min]')) === '96']);
+
+  await p2.fill('.veu [name=tempo_min]', '80');
+  await p2.waitForTimeout(300);
+  checagens.push(['tempo: a tela confirma o que 80 minutos viram',
+    /1h20/.test(nb(await p2.textContent('.veu #tempo-lido')))]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(800);
+  const s80 = await p2.evaluate(() =>
+    globalThis.__DB.servicos.find((x) => x.id === 'manicure-gel'));
+  checagens.push(['tempo: 80 minutos chegam ao banco como 1h20',
+    Math.round(Number(s80.tempo) * 60) === 80, String(s80.tempo)]);
+
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(700);
+  checagens.push(['tempo: e a tabela mostra 1h20',
+    /1h20/.test(nb(await p2.textContent('#conteudo')))]);
+
+  // O que a agenda propõe tem de bater com o que ela cadastrou.
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [data-serv]');
+  await p2.selectOption('.veu [data-prof]', 'p2');
+  await p2.selectOption('.veu [data-serv]', 'manicure-gel');
+  await p2.waitForTimeout(300);
+  checagens.push(['tempo: a agenda propõe os mesmos 80 minutos',
+    (await p2.inputValue('.veu [data-dur]')) === '80']);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+}
+
 await browser.close();
 
 let falhas = 0;

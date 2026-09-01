@@ -143,8 +143,13 @@ export function abrirServico(id) {
           </select></label>
         <label class="campo"><span>Custo de material</span>
           <input type="number" name="custo" step="0.01" min="0" value="${s.custo ?? 0}"></label>
-        <label class="campo"><span>Tempo (horas)</span>
-          <input type="number" name="tempo" step="0.05" min="0" value="${s.tempo ?? 0}"></label>
+        <!-- Em minutos, não em horas decimais. Ninguém pensa "1,33 hora": ela
+             digitava 1,20 querendo 1h20 e o sistema entendia 1h12; para 1h40
+             teria de escrever 1,666… e o que saía era 1h43. -->
+        <label class="campo"><span>Tempo (min)</span>
+          <input type="number" name="tempo_min" step="5" min="0" inputmode="numeric"
+                 value="${Math.round((Number(s.tempo) || 0) * 60)}">
+          <span class="dica t3" id="tempo-lido"></span></label>
       </div>
       <label class="campo"><span>Observação</span>
         <input name="nota" value="${esc(s.nota || '')}" placeholder="aparece na tabela pública"></label>
@@ -172,8 +177,12 @@ export function abrirServico(id) {
       { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
           const d = lerForm(veu);
           if (!d.nome) return avisar('Informe o nome', 'erro');
+          const { tempo_min, ...campos } = d;
           await db.salvar('servicos', {
-            ...s, ...d,
+            ...s, ...campos,
+            // O banco e a precificação continuam em horas; a tela é que fala
+            // a língua de quem usa.
+            tempo: (Number(tempo_min) || 0) / 60,
             id: s.id || chave(d.nome).replace(/[^a-z0-9]+/g, '-').slice(0, 50),
             ativo: true, estimado: false,
             agenda_online: !!d.agenda_online,
@@ -185,6 +194,9 @@ export function abrirServico(id) {
     aoAbrir: (veu) => {
       const previa = () => {
         const d = lerForm(veu);
+        d.tempo = (Number(d.tempo_min) || 0) / 60;
+        veu.querySelector('#tempo-lido').textContent =
+          d.tempo ? `= ${fmt.horas(d.tempo)}` : '';
         const r = precoTecnico(d, p, { adicional: d.tipo === 'adicional' });
         veu.querySelector('#previa-preco').innerHTML = `
           <div class="cartao" style="background:var(--fundo);padding:14px">
