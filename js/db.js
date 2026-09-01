@@ -9,6 +9,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { avisar, uid } from './ui.js';
+import { CATEGORIAS_SERVICO } from './data/servicos.js';
 
 const CHAVE_CONFIG = 'alento.supabase';
 const CHAVE_CACHE  = 'alento.cache.v1';
@@ -474,6 +475,21 @@ export async function conferirBanco() {
 }
 
 // ─── Config (premissas, link do Trinks…) ───────────────────────────────────
+/**
+ * As categorias da tabela, com o nome que a cliente vê.
+ *
+ * O nome das categorias conhecidas vem do arquivo, não da cópia guardada no
+ * banco na instalação: a página das clientes lê o arquivo, e duas fontes para
+ * o mesmo nome acabam divergindo — foi o que aconteceu quando "Combos — Mãos e
+ * Pés" virou só "Combos", para caber também os combos de cabelo. Categoria
+ * criada por elas, que o arquivo não conhece, continua vindo do banco.
+ */
+export function categorias() {
+  const doArquivo = new Map(CATEGORIAS_SERVICO.map((c) => [c.id, c]));
+  return (cfg('categorias') || [])
+    .map((c) => ({ ...c, nome: doArquivo.get(c.id)?.nome || c.nome }));
+}
+
 export function cfg(chave, padrao = null) {
   const r = estado.config.find((c) => c.chave === chave);
   return r ? r.valor : padrao;

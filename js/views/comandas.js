@@ -485,7 +485,7 @@ async function excluirComanda(id) {
 
 /** <optgroup> por categoria, para o seletor não virar uma lista infinita. */
 function agrupado(catalogo) {
-  const cats = db.cfg('categorias') || [];
+  const cats = db.categorias();
   const nomeCat = (id) => cats.find((c) => c.id === id)?.nome || (id === 'adicionais' ? 'Adicionais' : id);
   const grupos = new Map();
   for (const s of catalogo) {

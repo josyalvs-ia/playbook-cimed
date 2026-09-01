@@ -15,7 +15,7 @@
 export const CATEGORIAS_SERVICO = [
   { id: 'maos',        nome: 'Mãos',                        ordem: 1 },
   { id: 'pes',         nome: 'Pés',                         ordem: 2 },
-  { id: 'combos',      nome: 'Combos — Mãos e Pés',         ordem: 3 },
+  { id: 'combos',      nome: 'Combos',                      ordem: 3 },
   { id: 'blindagem',   nome: 'Blindagem e Banho de Gel',    ordem: 4 },
   { id: 'alongamento', nome: 'Alongamento em Gel Moldado',  ordem: 5 },
   { id: 'combo-along', nome: 'Combo de Alongamento',        ordem: 6 },

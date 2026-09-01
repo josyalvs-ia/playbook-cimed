@@ -166,16 +166,16 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
   // São dezenas de serviços — pedir a família primeiro encurta a lista para o
   // tamanho de uma tela de celular.
   function passoServico() {
-    const familias = ['unhas', 'cabelos', 'tratamentos']
+    const familias = ['unhas', 'cabelos', 'combos']
       .filter((f) => servicos.some((s) => familiaDe(s.categoria) === f));
-    const rotulo = { unhas: 'Unhas', cabelos: 'Cabelos', tratamentos: 'Tratamentos' };
+    const rotulo = { unhas: 'Unhas', cabelos: 'Cabelos', combos: 'Combos' };
 
     const visiveis = servicos.filter((s) => noDestaque(familia, familiaDe(s.categoria)));
     // Sem filtro, a lista sai na ordem da tabela impressa — que alterna cabelo
     // e tratamento, e termina em unha. Aqui as categorias saem agrupadas pela
     // mesma família dos destaques: unha com unha, cabelo com cabelo.
     const porCat = new Map();
-    for (const fam of ['unhas', 'cabelos', 'tratamentos']) {
+    for (const fam of ['unhas', 'cabelos', 'combos']) {
       for (const s of visiveis) {
         if (familiaDe(s.categoria) !== fam) continue;
         if (!porCat.has(s.categoria)) porCat.set(s.categoria, []);

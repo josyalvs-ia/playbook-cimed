@@ -46,28 +46,41 @@ const DESTAQUES = {
   tratamentos: '<path d="M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z"/>',
   unhas:       '<rect x="10" y="2.4" width="4" height="4" rx="1.1"/><path d="M11 6.4v1.5l-1.9 2.2a2 2 0 0 0-.5 1.3V20a1.4 1.4 0 0 0 1.4 1.4h4a1.4 1.4 0 0 0 1.4-1.4v-6.6a2 2 0 0 0-.5-1.3L13 9.9V6.4"/>',
   agenda:      '<rect x="3.2" y="5.2" width="17.6" height="15.6" rx="2.4"/><path d="M8 3.2v4M16 3.2v4M3.2 10.4h17.6"/>',
+  // Combos usam a estrela da marca — o mesmo desenho de "tratamentos", que
+  // continua definido porque é o ícone de várias telas do sistema.
+  combos:      '<path d="M12 2.6q1.4 7.6 8 9q-6.6 1.4-8 9q-1.4-7.6-8-9q6.6-1.4 8-9z"/>',
   sobre:       '<path d="M12 20.6C12 20.6 3.6 15.2 3.6 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8.4 2.5c0 5.7-8.4 11.1-8.4 11.1z"/>',
 };
 
-/** Qual destaque do manual representa cada categoria da tabela. */
+/**
+ * Qual destaque do catálogo representa cada categoria da tabela.
+ *
+ * Tratamento e terapia capilar são CABELO: a cliente que toca em "Cabelos" e
+ * não os vê conclui que o studio não faz. E combo não é de unha nem de cabelo
+ * — é pacote, pode misturar os dois —, por isso tem destaque próprio.
+ */
 export const FAMILIA_DA_CATEGORIA = {
-  maos: 'unhas', pes: 'unhas', combos: 'unhas', blindagem: 'unhas',
-  alongamento: 'unhas', 'combo-along': 'unhas',
+  maos: 'unhas', pes: 'unhas', blindagem: 'unhas', alongamento: 'unhas',
+  combos: 'combos', 'combo-along': 'combos',
   'cab-escova': 'cabelos', 'cab-corte': 'cabelos', 'cab-cor': 'cabelos',
-  'cab-tratamento': 'tratamentos', 'cab-terapia': 'tratamentos',
+  'cab-tratamento': 'cabelos', 'cab-terapia': 'cabelos',
 };
-export const familiaDe = (cat) => FAMILIA_DA_CATEGORIA[cat] || 'tratamentos';
 
 /**
- * Este serviço entra no destaque escolhido?
- *
- * Tratamento e terapia capilar são cabelo — quem toca em "Cabelos" e não os vê
- * conclui que o studio não faz, e vai procurar noutro lugar. Então "Cabelos"
- * mostra também os tratamentos, e "Tratamentos" continua servindo de atalho
- * para quem já sabe o que quer. Do largo para o estreito, nunca o contrário.
+ * Categoria nova, criada por elas, não pode ficar órfã e sumir de todo filtro.
+ * Sem entrada no mapa, o nome decide: "cab-" ou "cabelo" é cabelo, "combo" é
+ * combo, o resto é unha — que é o grosso da tabela.
  */
-export const noDestaque = (escolhido, fam) =>
-  !escolhido || fam === escolhido || (escolhido === 'cabelos' && fam === 'tratamentos');
+export function familiaDe(cat) {
+  if (FAMILIA_DA_CATEGORIA[cat]) return FAMILIA_DA_CATEGORIA[cat];
+  const id = String(cat || '').toLowerCase();
+  if (/^cab-|cabelo/.test(id)) return 'cabelos';
+  if (/combo|pacote/.test(id)) return 'combos';
+  return 'unhas';
+}
+
+/** Este serviço entra no destaque escolhido? Sem destaque escolhido, tudo entra. */
+export const noDestaque = (escolhido, fam) => !escolhido || fam === escolhido;
 
 /** O ícone do destaque, sem o anel — para títulos e listas. */
 export function icoDestaque(nome, cls = 'ico') {

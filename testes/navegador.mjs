@@ -2026,8 +2026,8 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   const blocos = familias.filter((f, i) => f !== familias[i - 1]);
   checagens.push(['tabela: cada família num bloco só, sem vai e volta',
     new Set(blocos).size === blocos.length, blocos.join(' → ')]);
-  checagens.push(['tabela: unha vem antes de cabelo',
-    blocos.indexOf('unhas') === 0 && blocos.indexOf('cabelos') === 1]);
+  checagens.push(['tabela: a ordem é unhas, cabelos e combos',
+    blocos.join() === 'unhas,cabelos,combos', blocos.join(' → ')]);
   checagens.push(['tabela: os adicionais de unha ficam no bloco de unha',
     await pt.evaluate(() => {
       const sec = [...document.querySelectorAll('.secao')]
@@ -2040,28 +2040,27 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['tabela: o aviso interno não aparece para a cliente',
     !/fibra de vidro/.test(inteira)]);
 
-  // Filtrar cabelos não pode deixar nada de unha à vista — mas tratamento
-  // capilar é cabelo: quem toca em "Cabelos" e não vê os tratamentos conclui
-  // que o studio não faz, e vai procurar noutro lugar.
+  // Tratamento e terapia capilar são cabelo: quem toca em "Cabelos" e não os
+  // vê conclui que o studio não faz, e vai procurar noutro lugar.
   await pt.click('[data-familia="cabelos"]');
   await pt.waitForTimeout(500);
   const emCabelos = await pt.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
-    .filter((x) => !x.hidden).map((x) => x.dataset.familia));
-  checagens.push(['tabela: filtrar cabelos esconde tudo o que é de unha',
-    !emCabelos.includes('unhas')]);
-  checagens.push(['tabela: cabelos mostra também os tratamentos capilares',
-    emCabelos.includes('tratamentos') && emCabelos.includes('cabelos')]);
-  checagens.push(['tabela: e os tratamentos vêm logo depois dos cabelos',
-    emCabelos.lastIndexOf('cabelos') < emCabelos.indexOf('tratamentos')]);
+    .filter((x) => !x.hidden)
+    .map((x) => x.querySelector('.secao-titulo span:last-child')?.textContent.trim() || ''));
+  checagens.push(['tabela: cabelos traz tratamento e terapia capilar junto',
+    emCabelos.some((t) => /^Tratamentos$/.test(t))
+    && emCabelos.some((t) => /Terapia Capilar/.test(t)), emCabelos.join(' · ')]);
+  checagens.push(['tabela: e nada de unha aparece em cabelos',
+    !emCabelos.some((t) => /Mãos|Pés|Alongamento|Adicionais/.test(t))]);
 
-  // O caminho contrário não vale: "Tratamentos" é atalho, não guarda-chuva.
-  await pt.click('[data-familia="tratamentos"]');
+  // Combo tem destaque próprio: não é de unha nem de cabelo, pode misturar.
+  await pt.click('[data-familia="combos"]');
   await pt.waitForTimeout(500);
-  checagens.push(['tabela: tratamentos continua sendo um atalho estreito',
+  checagens.push(['tabela: combos tem destaque só dele',
     await pt.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
-      .filter((x) => !x.hidden).every((x) => x.dataset.familia === 'tratamentos'))]);
-  await pt.click('[data-familia="cabelos"]');
-  await pt.waitForTimeout(400);
+      .filter((x) => !x.hidden).every((x) => x.dataset.familia === 'combos'))]);
+  checagens.push(['tabela: não sobrou destaque de tratamentos',
+    await pt.locator('[data-familia="tratamentos"]').count() === 0]);
 
   // A descrição inteira também na hora de escolher o serviço.
   await pt.click('#limpar-filtro');
@@ -2074,6 +2073,8 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['agendamento: os grupos também saem por família',
     grupos.indexOf('Cortes') > grupos.indexOf('Mãos')
     && grupos.indexOf('Terapia Capilar') > grupos.indexOf('Cortes'), grupos.join(' · ')]);
+  checagens.push(['agendamento: o destaque de combos existe',
+    await pt.locator('[data-fam="combos"]').count() === 1]);
 
   const contagem = await pt.evaluate(() => {
     const b = [...document.querySelectorAll('[data-fam]')]
@@ -2081,7 +2082,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     return b?.querySelector('.destaque-nota')?.textContent.trim() || '';
   });
   checagens.push(['agendamento: a conta de "Cabelos" inclui os tratamentos',
-    Number(contagem.match(/\d+/)?.[0]) > 19, contagem]);
+    Number(contagem.match(/\d+/)?.[0]) === 24, contagem]);
 
   const comDescricao = await pt.evaluate(() => {
     const opcao = [...document.querySelectorAll('.ag-opcao')]

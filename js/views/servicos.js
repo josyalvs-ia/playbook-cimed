@@ -10,7 +10,7 @@ import { premissas } from '../metricas.js';
 let filtroQuem = '';
 
 export function render(raiz) {
-  const cats = db.cfg('categorias') || [];
+  const cats = db.categorias();
   const p = premissas();
   const cabe = (s) => !filtroQuem || s.profissional === filtroQuem || s.profissional === 'ambos';
   const servicos = db.estado.servicos.filter((s) => s.tipo !== 'adicional' && cabe(s));
@@ -105,7 +105,7 @@ export function render(raiz) {
 }
 
 export function abrirServico(id) {
-  const cats = db.cfg('categorias') || [];
+  const cats = db.categorias();
   const s = id ? db.estado.servicos.find((x) => x.id === id)
               : { tipo: 'servico', categoria: cats[0]?.id || 'maos', ativo: true, preco: 0, custo: 0, tempo: 1 };
   const p = premissas();
