@@ -400,8 +400,11 @@ async function salvarHorarios(raiz) {
     const prof = tr.dataset.prof;
     const dia = Number(tr.dataset.dia);
     const v = (c) => tr.querySelector(`[data-campo=${c}]`);
+    // `Number()` dos dois lados: a tela compara como texto ao desenhar a
+    // grade, e comparar de outro jeito aqui faria o sistema não reconhecer a
+    // linha que já existe — e tentar criar uma segunda para o mesmo dia.
     const existente = db.estado.horarios.find(
-      (x) => x.profissional_id === prof && x.dia_semana === dia);
+      (x) => x.profissional_id === prof && Number(x.dia_semana) === dia);
 
     if (!v('ativo').checked) {
       if (existente) apagar.push(existente.id);

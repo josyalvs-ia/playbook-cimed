@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato, dataLocal } from '../ui.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
 import { resumo, taxaDe, premissas } from '../metricas.js';
 
@@ -38,7 +38,7 @@ function intervalo() {
   if (filtro.periodo === 'hoje') return { de: hoje(), ate: hoje() };
   if (filtro.periodo === 'semana') {
     const ini = new Date(d); ini.setDate(d.getDate() - 6);
-    return { de: ini.toISOString().slice(0, 10), ate: hoje() };
+    return { de: dataLocal(ini), ate: hoje() };
   }
   // O mês inteiro, não só até hoje: atendimento lançado com data à frente
   // ficava invisível em todos os períodos — foi assim que um valor apareceu
@@ -392,6 +392,14 @@ export function abrirComanda(id, inicial) {
     const bruto = itens.reduce((s, i) => s + i.valor * i.qtd, 0);
     const desconto = Number($('#desc').value) || 0;
 
+    // Corrigir um dado de uma comanda já fechada não desfaz o pagamento.
+    //
+    // O botão "Salvar" é o mesmo para as duas situações. Numa comanda fechada,
+    // ele reabria o atendimento — mas o dinheiro continuava lançado no caixa.
+    // O dia ficava com uma comanda em aberto e a receita já contada: a conferência
+    // do caixa não fechava, e ninguém desconfiava de um simples "Salvar".
+    const fechando = fecharComanda || fechada;
+
     const comanda = {
       ...c,
       cliente_id: clienteId,
@@ -404,8 +412,8 @@ export function abrirComanda(id, inicial) {
       total: Math.max(0, bruto - desconto),
       custo_total: itens.reduce((s, i) => s + (Number(i.custo) || 0) * i.qtd, 0),
       tempo_total: itens.reduce((s, i) => s + (Number(i.tempo) || 0) * i.qtd, 0),
-      status: fecharComanda ? 'fechada' : 'aberta',
-      fechada_em: fecharComanda ? new Date().toISOString() : null,
+      status: fechando ? 'fechada' : 'aberta',
+      fechada_em: fechando ? (c.fechada_em || new Date().toISOString()) : null,
     };
 
     await db.salvar('comandas', comanda);
@@ -417,10 +425,18 @@ export function abrirComanda(id, inicial) {
     // `confirmar_valor` é só um aviso de tela; não existe como coluna no banco.
     await db.salvarLote('comanda_itens', itens.map(({ confirmar_valor, ...i }) => ({ ...i, comanda_id: c.id })));
 
-    if (fecharComanda) {
+    if (fechando) {
+      // O caixa acompanha a correção: se o valor ou a forma de pagamento
+      // mudaram, a entrada é reescrita — é a mesma linha, achada pelo id da
+      // comanda. O estoque, esse não: os insumos já saíram da prateleira
+      // quando a comanda fechou, e baixar de novo faria falta que não existe.
       await lancarNoCaixa(comanda);
-      const baixados = await baixarEstoque(comanda, itens);
-      avisar(`Comanda fechada — ${fmt.brl(comanda.total)}${baixados ? ` · ${baixados} insumo(s) baixado(s)` : ''}`);
+      if (fechada) {
+        avisar(`Comanda atualizada — ${fmt.brl(comanda.total)}`);
+      } else {
+        const baixados = await baixarEstoque(comanda, itens);
+        avisar(`Comanda fechada — ${fmt.brl(comanda.total)}${baixados ? ` · ${baixados} insumo(s) baixado(s)` : ''}`);
+      }
     } else {
       avisar('Comanda salva em aberto');
     }

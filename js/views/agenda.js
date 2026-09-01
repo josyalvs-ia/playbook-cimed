@@ -199,7 +199,7 @@ function duracaoValida(valor, s) {
 function somarDias(data, n) {
   const d = new Date(data + 'T12:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return iso(d);
 }
 
 export function render(raiz) {
@@ -988,7 +988,7 @@ export function abrirEditar(a) {
         </datalist></label>
       <label class="campo"><span>WhatsApp</span>
         <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"
-               value="${esc(fmt.telefone(a.cliente_telefone) || '')}"></label>
+               value="${esc(a.cliente_telefone ? fmt.telefone(a.cliente_telefone) : '')}"></label>
       <div class="linha-campos">
         <label class="campo"><span>Profissional</span>
           <select name="profissional_id">

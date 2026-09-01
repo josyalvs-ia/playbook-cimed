@@ -9,8 +9,15 @@ let ordem = 'nome';
 
 export function render(raiz) {
   const termo = chave(busca);
+  // Buscar por telefone tem de funcionar com ou sem máscara: a agenda grava só
+  // os números, a ficha às vezes vinha com parênteses, e quem digita "11 99999"
+  // não encontrava a própria cliente que acabou de cadastrar.
+  const so = (t) => String(t || '').replace(/\D/g, '');
+  const numeros = so(busca);
   let lista = db.estado.clientes
-    .filter((c) => !termo || chave(c.nome).includes(termo) || String(c.telefone || '').includes(busca))
+    .filter((c) => !termo
+      || chave(c.nome).includes(termo)
+      || (numeros && so(c.telefone).includes(numeros)))
     .map((c) => ({ c, f: M.fichaCliente(c) }));
 
   if (ordem === 'gasto') lista.sort((a, b) => b.f.total - a.f.total);
@@ -101,7 +108,8 @@ export function abrirCliente(id) {
       <div class="linha-campos">
         <label class="campo"><span>Nome</span><input name="nome" required value="${esc(c.nome || '')}"></label>
         <label class="campo"><span>WhatsApp</span>
-          <input name="telefone" type="tel" placeholder="(11) 99999-9999" value="${esc(c.telefone || '')}"></label>
+          <input name="telefone" type="tel" placeholder="(11) 99999-9999"
+                 value="${esc(c.telefone ? fmt.telefone(c.telefone) : '')}"></label>
         <label class="campo"><span>Aniversário</span>
           <input name="nascimento" type="date" value="${c.nascimento || ''}">
           <span class="dica t3">Opcional. Com a data, ela aparece no painel no dia.</span></label>
@@ -134,13 +142,19 @@ export function abrirCliente(id) {
             }
           } },
         { texto: 'Novo atendimento', classe: 'btn-fantasma', onClick: (fechar) => {
-            fechar(); setTimeout(() => abrirComanda(), 60);
+            // Aberto de dentro da ficha, o atendimento já é dela: obrigar a
+            // redigitar o nome é como se o sistema não soubesse de quem falava.
+            fechar();
+            setTimeout(() => abrirComanda(null, { cliente_nome: c.nome, cliente_id: c.id }), 60);
           } },
       ] : []),
       { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
           const d = lerForm(veu);
           if (!d.nome) return avisar('O nome é obrigatório', 'erro');
-          await db.salvar('clientes', { ...c, ...d, ativo: true });
+          // Telefone guardado só em números, como a agenda faz: é o formato do
+          // link do WhatsApp, e é o que deixa a busca achar a cliente.
+          await db.salvar('clientes', { ...c, ...d,
+            telefone: (d.telefone || '').replace(/\D/g, '') || null, ativo: true });
           fechar(); avisar('Cliente salva');
         } },
     ],

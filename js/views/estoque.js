@@ -476,7 +476,12 @@ export function abrirMaterial(id) {
       { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
           const d = lerForm(veu);
           if (!d.nome || !d.categoria) return avisar('Nome e categoria são obrigatórios', 'erro');
-          await db.salvar('materiais', { ...m, ...d, id: m.id || slug(d.nome), ativo: true });
+          await db.salvar('materiais', {
+            ...m, ...d, id: m.id || slug(d.nome), ativo: true,
+            // Saldo e mínimo em branco são zero: a coluna não aceita vazio.
+            estoque: Number(d.estoque) || 0,
+            estoque_minimo: Number(d.estoque_minimo) || 0,
+          });
           fechar(); avisar('Insumo salvo');
         } },
     ],

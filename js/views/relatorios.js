@@ -1,7 +1,7 @@
 // RELATÓRIOS — o mês inteiro em uma tela, incluindo o resultado real
 // depois de tudo que sai.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, mesAtual } from '../ui.js';
+import { ico, estrela, esc, fmt, mesAtual, dataLocal } from '../ui.js';
 import * as M from '../metricas.js';
 import { custoFixoMensal } from '../pricing.js';
 import { baixarCSV } from './precificacao.js';
@@ -129,7 +129,7 @@ export function render(raiz) {
           ${M.saidasPorCategoria(cx.linhas).slice(0, 8).map((c, i, arr) => `
             <div style="margin-bottom:10px">
               <div class="flex-entre pequeno"><span>${esc(c.categoria)}</span><span class="num">${fmt.brl(c.valor)}</span></div>
-              <div class="barra erro"><i style="width:${(c.valor / arr[0].valor) * 100}%"></i></div>
+              <div class="barra erro"><i style="width:${arr[0].valor ? (c.valor / arr[0].valor) * 100 : 0}%"></i></div>
             </div>`).join('') || '<p class="t3 pequeno">Nenhuma saída lançada.</p>'}
         </div>
       </div>
@@ -156,7 +156,7 @@ function ultimosMeses(n) {
   const d = new Date();
   for (let i = n - 1; i >= 0; i--) {
     const x = new Date(d.getFullYear(), d.getMonth() - i, 1);
-    out.push(x.toISOString().slice(0, 7));
+    out.push(dataLocal(x).slice(0, 7));
   }
   return out;
 }
@@ -167,5 +167,5 @@ function rotuloMes(m) {
 
 function fimDoMes(m) {
   const [a, mm] = m.split('-').map(Number);
-  return new Date(a, mm, 0).toISOString().slice(0, 10);
+  return dataLocal(new Date(a, mm, 0));
 }

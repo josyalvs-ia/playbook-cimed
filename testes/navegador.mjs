@@ -2295,6 +2295,184 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(300);
 }
 
+// ── 46. Nove da noite ainda é hoje ──
+// A data saía de toISOString(), que responde em UTC. No Brasil, das 21h à
+// meia-noite, isso já é o dia seguinte: a agenda abria amanhã, a comanda
+// fechada às nove caía no faturamento do dia errado e as aniversariantes do
+// dia eram as de amanhã. Quem trabalha à noite via um sistema fora do lugar.
+{
+  const ctxTz = await browser.newContext({
+    serviceWorkers: 'block', timezoneId: 'America/Sao_Paulo',
+  });
+  await ctxTz.clock.install({ time: new Date('2026-09-02T00:30:00Z') });
+  await ctxTz.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pTz = await ctxTz.newPage();
+  pTz.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
+  await ctxTz.clock.resume();
+  await pTz.goto(BASE + '/index.html', { waitUntil: 'networkidle' });
+  await pTz.waitForTimeout(600);
+
+  const rel = await pTz.evaluate(async () => {
+    const ui = await import('./js/ui.js');
+    return {
+      hoje: ui.hoje(),
+      mes: ui.mesAtual(),
+      relogio: new Date().toLocaleString('pt-BR'),
+    };
+  });
+  checagens.push(['fuso: às 21h30 de terça o sistema ainda diz terça',
+    rel.hoje === '2026-09-01', `${rel.relogio} → ${rel.hoje}`]);
+  checagens.push(['fuso: e o mês em curso é o de quem está olhando',
+    rel.mes === '2026-09', rel.mes]);
+
+  // Uma virada de mês à noite: 31 de agosto às 21h30 não é setembro.
+  await ctxTz.clock.setFixedTime(new Date('2026-09-01T00:30:00Z'));
+  const virada = await pTz.evaluate(async () => {
+    const ui = await import('./js/ui.js');
+    return { hoje: ui.hoje(), mes: ui.mesAtual() };
+  });
+  checagens.push(['fuso: a virada do mês também espera a meia-noite daqui',
+    virada.hoje === '2026-08-31' && virada.mes === '2026-08',
+    `${virada.hoje} / ${virada.mes}`]);
+  await ctxTz.close();
+}
+
+// ── 47. Campo de número apagado não derruba o cadastro ──
+// Mesma família do aniversário em branco: o campo vazio chegava ao servidor
+// como nulo, e a coluna não aceita nulo — o banco recusava a linha inteira e
+// ela ficava presa na fila, sem que ninguém entendesse por quê.
+{
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(800);
+  await p2.click('[data-serv="manicure-gel"]');
+  await p2.waitForSelector('.veu [name=preco]');
+  await p2.fill('.veu [name=preco]', '');
+  await p2.fill('.veu [name=custo]', '');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(800);
+
+  const s = await p2.evaluate(() =>
+    globalThis.__DB.servicos.find((x) => x.id === 'manicure-gel'));
+  checagens.push(['número vazio: o serviço salva mesmo assim',
+    s && s.preco === 0 && s.custo === 0, JSON.stringify([s?.preco, s?.custo])]);
+  checagens.push(['número vazio: sem aviso de recusa na tela',
+    !/recus|não consegui/i.test(nb(await p2.textContent('#toasts')))]);
+
+  // E a rede de proteção da camada de dados: mesmo que uma tela deixe passar
+  // um campo em branco, ele não pode virar nulo numa coluna que não aceita.
+  const bruto = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('servicos', { id: 'teste-vazio', nome: 'Teste',
+      categoria: 'mao', preco: '', custo: null, tempo: '', ordem: '', ativo: true });
+    await new Promise((r) => setTimeout(r, 500));
+    return globalThis.__DB.servicos.find((x) => x.id === 'teste-vazio');
+  });
+  checagens.push(['número vazio: a camada de dados troca branco por zero',
+    bruto && bruto.preco === 0 && bruto.custo === 0 && bruto.tempo === 0 && bruto.ordem === 0,
+    JSON.stringify(bruto && [bruto.preco, bruto.custo, bruto.tempo, bruto.ordem])]);
+  checagens.push(['número vazio: e o que não é obrigatório continua nulo',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      await db.salvar('clientes', { id: 'teste-aniv', nome: 'Sem aniversário',
+        telefone: '11999990000', nascimento: '' });
+      await new Promise((r) => setTimeout(r, 500));
+      const c = globalThis.__DB.clientes.find((x) => x.id === 'teste-aniv');
+      return c && c.nascimento === null;
+    })]);
+}
+
+// ── 48. Corrigir uma comanda fechada não reabre o atendimento ──
+// "Salvar" é o mesmo botão nos dois casos. Numa comanda já fechada ele
+// devolvia o atendimento para "aberta" — e o dinheiro continuava lançado no
+// caixa. O dia terminava com uma comanda em aberto e a receita já contada.
+{
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+
+  const alvo = await p2.evaluate(() => {
+    const c = globalThis.__DB.comandas.find((x) => x.status === 'fechada');
+    return c && { id: c.id, total: c.total,
+      caixa: globalThis.__DB.caixa.filter((l) => l.comanda_id === c.id).length,
+      movs: (globalThis.__DB.estoque_mov || []).filter((m) => m.comanda_id === c.id).length };
+  });
+  checagens.push(['comanda fechada: há uma para corrigir',
+    !!alvo && alvo.caixa === 1, JSON.stringify(alvo)]);
+
+  if (alvo) {
+    await p2.evaluate((id) => document.querySelector(`[data-comanda="${id}"]`).click(), alvo.id);
+    await p2.waitForSelector('.veu #obs');
+    await p2.fill('.veu #obs', 'Alergia a amônia');
+    await p2.click('.veu .modal-pe .btn-fantasma');
+    await p2.waitForTimeout(900);
+
+    const depois2 = await p2.evaluate((id) => {
+      const c = globalThis.__DB.comandas.find((x) => x.id === id);
+      const linhas = globalThis.__DB.caixa.filter((l) => l.comanda_id === id);
+      return { status: c.status, obs: c.observacoes, fechada_em: c.fechada_em,
+               caixa: linhas.length, valor: linhas[0]?.valor };
+    }, alvo.id);
+
+    checagens.push(['comanda fechada: a correção foi salva',
+      depois2.obs === 'Alergia a amônia']);
+    checagens.push(['comanda fechada: e ela continua fechada',
+      depois2.status === 'fechada', depois2.status]);
+    checagens.push(['comanda fechada: a hora do fechamento é a original',
+      !!depois2.fechada_em]);
+    checagens.push(['comanda fechada: o caixa não ganhou uma segunda linha',
+      depois2.caixa === 1 && depois2.valor === alvo.total,
+      `${depois2.caixa} linha(s) · ${depois2.valor}`]);
+
+    // Estoque não baixa duas vezes: os insumos já saíram quando ela fechou.
+    const movs = await p2.evaluate((id) => (globalThis.__DB.estoque_mov || [])
+      .filter((m) => m.comanda_id === id).length, alvo.id);
+    checagens.push(['comanda fechada: o estoque não baixa de novo',
+      movs === alvo.movs, `${alvo.movs} → ${movs}`]);
+  }
+}
+
+// ── 49. Telefone com máscara ou sem, é o mesmo telefone ──
+// A agenda grava só os números; a ficha guardava o que fosse digitado. Quem
+// procurava "11 99999" não achava a cliente que tinha acabado de cadastrar.
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'tel-mascara', nome: 'Rita Mascarada',
+      telefone: '(11) 98888-7777', ativo: true });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(900);
+
+  await p2.fill('#busca', '11988887777');
+  await p2.waitForTimeout(500);
+  checagens.push(['telefone: busca por números acha quem foi salva com máscara',
+    /Rita Mascarada/.test(nb(await p2.textContent('#conteudo')))]);
+
+  await p2.fill('#busca', '(11) 98888');
+  await p2.waitForTimeout(500);
+  checagens.push(['telefone: e busca com máscara também acha',
+    /Rita Mascarada/.test(nb(await p2.textContent('#conteudo')))]);
+
+  await p2.fill('#busca', 'Rita');
+  await p2.waitForTimeout(500);
+  await p2.click('[data-cli="tel-mascara"]');
+  await p2.waitForSelector('.veu [name=telefone]');
+  checagens.push(['telefone: a ficha mostra o número formatado',
+    (await p2.inputValue('.veu [name=telefone]')) === '(11) 98888-7777',
+    await p2.inputValue('.veu [name=telefone]')]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(900);
+  checagens.push(['telefone: e vai para o banco só com os números',
+    await p2.evaluate(() =>
+      globalThis.__DB.clientes.find((c) => c.id === 'tel-mascara').telefone === '11988887777'),
+    await p2.evaluate(() =>
+      globalThis.__DB.clientes.find((c) => c.id === 'tel-mascara').telefone)]);
+
+  await p2.fill('#busca', '');
+  await p2.waitForTimeout(300);
+}
+
 await browser.close();
 
 let falhas = 0;

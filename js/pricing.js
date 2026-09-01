@@ -69,7 +69,8 @@ export function precoTecnico(servico, p, opts = {}) {
     diferenca: preco - tecnico,
     semPrecoFixo,
     abaixoDoPiso: !semPrecoFixo && preco < tecnico,
-    margemReal: preco > 0 ? (preco - custoDireto - preco * taxa - preco * p.imposto) / preco : 0,
+    margemReal: preco > 0
+      ? (preco - custoDireto - preco * taxa - preco * Number(p.imposto || 0)) / preco : 0,
   };
 }
 

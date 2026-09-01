@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio, dataLocal } from '../ui.js';
 import * as M from '../metricas.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
 
@@ -50,7 +50,10 @@ export function render(raiz) {
       <div class="cartao">
         <div class="cartao-cabeca">${ico('caixa')}<h3>Como as clientes pagaram</h3></div>
         ${pgto.some((f) => f.qtd) ? pgto.map((f) => {
-          const pct = entradas ? (f.valor / comandas.reduce((s, c) => s + Number(c.total), 0)) * 100 : 0;
+          // Um mês inteiro de cortesia soma zero: dividir por ele dá NaN, e a
+          // barra desaparecia sem explicação.
+          const totalPago = comandas.reduce((s, c) => s + Number(c.total || 0), 0);
+          const pct = totalPago > 0 ? (f.valor / totalPago) * 100 : 0;
           return `<div style="margin-bottom:11px">
             <div class="flex-entre pequeno"><span>${f.nome} <span class="t3">· ${f.qtd}×</span></span>
               <strong class="num">${fmt.brl(f.valor)}</strong></div>
@@ -65,7 +68,7 @@ export function render(raiz) {
           <div style="margin-bottom:11px">
             <div class="flex-entre pequeno"><span>${esc(c.categoria)}</span>
               <strong class="num">${fmt.brl(c.valor)}</strong></div>
-            <div class="barra erro"><i style="width:${(c.valor / porCat[0].valor) * 100}%"></i></div>
+            <div class="barra erro"><i style="width:${porCat[0].valor ? (c.valor / porCat[0].valor) * 100 : 0}%"></i></div>
           </div>`).join('') : '<p class="t3 pequeno">Nenhuma saída lançada no mês.</p>'}
       </div>
     </div>
@@ -185,5 +188,5 @@ export function abrirLancamento(id) {
 
 function fimDoMes(m) {
   const [a, mm] = m.split('-').map(Number);
-  return new Date(a, mm, 0).toISOString().slice(0, 10);
+  return dataLocal(new Date(a, mm, 0));
 }

@@ -8,7 +8,7 @@ npx http-server . -p 8899 -s
 
 | Arquivo | O que faz |
 |---|---|
-| `navegador.mjs` | 114 checagens: as telas do app, o fluxo de comanda, a precificação, o agendamento de ponta a ponta, o sino e o contraste dos campos |
+| `navegador.mjs` | Mais de 350 checagens: as telas do app, o fluxo de comanda, a precificação, o agendamento de ponta a ponta, a agenda em quatro visões, a fila de envio, o sino e o contraste dos campos |
 | `auditoria-celular.mjs` | Percorre as duas experiências — equipe e cliente — em iPhone 13, Galaxy S9+ e uma tela de 320px, medindo rolagem lateral, alvos de toque e tamanho de texto |
 
 ```

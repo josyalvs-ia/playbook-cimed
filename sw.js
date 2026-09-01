@@ -1,18 +1,20 @@
 // Service worker: guarda a casca do app para ele abrir mesmo sem internet.
 // Os dados vêm do Supabase (ou do cache local do próprio app), nunca daqui.
-const CACHE = 'alento-2026-09-01.6';
+const CACHE = 'alento-2026-09-01.7';
 const CASCA = [
   './', './index.html', './vitrine.html', './config.js',
   './css/app.css', './manifest.webmanifest',
   './assets/marca.webp', './assets/marca-pequena.webp', './assets/selo.svg', './assets/estrela.svg',
   './assets/icone-192.png', './assets/icone-512.png',
   './js/app.js', './js/db.js', './js/ui.js', './js/pricing.js',
-  './js/metricas.js', './js/seed.js',
+  './js/metricas.js', './js/seed.js', './js/versao.js',
+  './js/agendar.js', './js/novidades.js',
   './js/data/servicos.js', './js/data/materiais.js', './js/data/premissas.js',
+  './js/data/fichas.js',
   './js/views/painel.js', './js/views/comandas.js', './js/views/clientes.js',
   './js/views/estoque.js', './js/views/caixa.js', './js/views/servicos.js',
   './js/views/precificacao.js', './js/views/comissoes.js',
-  './js/views/relatorios.js', './js/views/ajustes.js',
+  './js/views/relatorios.js', './js/views/ajustes.js', './js/views/agenda.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -44,6 +46,10 @@ self.addEventListener('fetch', (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copia));
         return r;
       })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html')))
+      // Sem rede e sem cópia guardada: só a navegação cai no app. Devolver a
+      // página inteira no lugar de um arquivo .js dava um erro de sintaxe
+      // incompreensível — a resposta era HTML onde o navegador esperava código.
+      .catch(() => caches.match(e.request).then((r) =>
+        r || (e.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
   );
 });

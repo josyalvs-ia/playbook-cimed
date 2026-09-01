@@ -1,7 +1,7 @@
 // COMISSÕES — quanto cada profissional produziu e quanto tem a receber.
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, mesAtual, avisar, abrirModal, confirmar, lerForm, vazio, hoje,
-         retrato, fotoReduzida } from '../ui.js';
+         retrato, fotoReduzida, dataLocal } from '../ui.js';
 import * as M from '../metricas.js';
 import { baixarCSV } from './precificacao.js';
 import { RECADO_PADRAO } from '../agendar.js';
@@ -262,5 +262,5 @@ export function abrirProfissional(id) {
 
 function fimDoMes(m) {
   const [a, mm] = m.split('-').map(Number);
-  return new Date(a, mm, 0).toISOString().slice(0, 10);
+  return dataLocal(new Date(a, mm, 0));
 }

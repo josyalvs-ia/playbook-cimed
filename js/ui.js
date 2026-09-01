@@ -272,8 +272,21 @@ export function linkMapa(endereco) {
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(endereco);
 }
 
-export const hoje = () => new Date().toISOString().slice(0, 10);
-export const mesAtual = () => new Date().toISOString().slice(0, 7);
+/**
+ * A data de um instante, no fuso de quem está olhando.
+ *
+ * `toISOString()` responde em UTC. No Brasil, das 21h à meia-noite, isso já é
+ * o dia seguinte: a agenda abria amanhã, o atendimento fechado às nove da
+ * noite caía no faturamento do dia errado, e as aniversariantes do dia eram as
+ * de amanhã. Quem usa o sistema à noite via um sistema fora do lugar.
+ */
+export function dataLocal(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export const hoje = () => dataLocal();
+export const mesAtual = () => dataLocal().slice(0, 7);
 
 export function diasEntre(a, b) {
   return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);

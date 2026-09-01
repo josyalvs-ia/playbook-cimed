@@ -166,9 +166,34 @@ function explicar(erro, tabela) {
  * isto, uma cliente cadastrada sem aniversário ficava presa no aparelho,
  * tentando de novo para sempre.
  */
-const limpo = (r) => (r && typeof r === 'object' && !Array.isArray(r))
-  ? Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v === '' ? null : v]))
-  : r;
+/**
+ * Colunas que o banco não aceita vazias, com o valor que "em branco" significa.
+ *
+ * Campo numérico apagado no formulário chega aqui como nada, e nada numa coluna
+ * `not null` faz o servidor recusar a linha inteira — o mesmo estrago do campo
+ * de data em branco, noutra tabela. Zero é a leitura honesta de um custo em
+ * branco; deixar a gravação falhar não é.
+ */
+const NUNCA_VAZIO = {
+  servicos:      { preco: 0, custo: 0, tempo: 0, ordem: 0 },
+  materiais:     { estoque: 0, estoque_minimo: 0 },
+  comandas:      { desconto: 0, total: 0, custo_total: 0, tempo_total: 0 },
+  comanda_itens: { qtd: 1, valor: 0, custo: 0, tempo: 0 },
+  agendamentos:  { valor: 0 },
+  profissionais: { comissao_pct: 0.5 },
+};
+
+const limpo = (r, tabela) => {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return r;
+  const obrigatorias = NUNCA_VAZIO[tabela] || {};
+  return Object.fromEntries(Object.entries(r).map(([k, v]) => {
+    // `undefined` é campo que nem foi mencionado: ele some no caminho e a
+    // coluna continua como estava. Trocá-lo por um valor aqui apagaria o que
+    // já estava gravado — a foto, a comissão combinada — sem ninguém pedir.
+    if (v !== '' && v !== null) return [k, v];
+    return [k, k in obrigatorias ? obrigatorias[k] : null];
+  }));
+};
 
 function enfileirar(op, erro, { silencioso = false } = {}) {
   const f = lerFila();
@@ -195,7 +220,7 @@ export async function drenarFila() {
   for (const op of f) {
     try {
       if (op.acao === 'upsert') {
-        const { error } = await cliente.from(op.tabela).upsert(limpo(op.dados));
+        const { error } = await cliente.from(op.tabela).upsert(limpo(op.dados, op.tabela));
         if (error) throw error;
       } else if (op.acao === 'remover') {
         const { error } = await cliente.from(op.tabela).delete().eq('id', op.id);
@@ -353,7 +378,7 @@ async function subirDepois(tabela, r) {
   }
   try {
     if (!cliente || !navigator.onLine) throw new Error('offline');
-    const { data, error } = await cliente.from(tabela).upsert(limpo(r)).select().single();
+    const { data, error } = await cliente.from(tabela).upsert(limpo(r, tabela)).select().single();
     if (error) throw error;
     // O servidor devolve a linha com o que ele preencheu (carimbos, padrões).
     // Só vale sobrescrever se ninguém mexeu nela nesse meio-tempo.
@@ -387,7 +412,7 @@ export async function salvarLote(tabela, registros) {
     const parte = registros.slice(i, i + 200);
     try {
       if (!cliente || !navigator.onLine) throw new Error('offline');
-      const { error } = await cliente.from(tabela).upsert(parte.map(limpo));
+      const { error } = await cliente.from(tabela).upsert(parte.map((x) => limpo(x, tabela)));
       if (error) throw error;
     } catch (e) {
       parte.forEach((r) => enfileirar({ acao: 'upsert', tabela, dados: r }, e));

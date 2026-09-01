@@ -180,6 +180,10 @@ export function abrirServico(id) {
           const { tempo_min, ...campos } = d;
           await db.salvar('servicos', {
             ...s, ...campos,
+            // Preço e custo em branco são zero, não ausência: a coluna não
+            // aceita vazio, e "não custa nada" é o que a tela quis dizer.
+            preco: Number(campos.preco) || 0,
+            custo: Number(campos.custo) || 0,
             // O banco e a precificação continuam em horas; a tela é que fala
             // a língua de quem usa.
             tempo: (Number(tempo_min) || 0) / 60,
