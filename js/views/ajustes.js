@@ -4,6 +4,7 @@ import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, retrato
 import { abrirEquipe } from './comissoes.js';
 import { abrirBloqueio } from './agenda.js';
 import { RECADO_PADRAO } from '../agendar.js';
+import { REGRAS } from '../data/servicos.js';
 
 /** Onde o site está publicado. Serve para a equipe achar os endereços sem
     ter de decorar nada — e sem cair no github.com, que é outro lugar. */
@@ -63,6 +64,20 @@ export function render(raiz) {
         <div class="flex mt" style="gap:8px">
           <button class="btn btn-primario" id="salvar-horarios">Salvar horários</button>
           <button class="btn" id="folga">${ico('relogio')}Folga ou férias</button>
+        </div>
+      </div>
+
+      <!-- Procedimento entra e sai da tabela, e o aviso que vale hoje pode não
+           valer no mês que vem. Elas editam sem depender de ninguém. -->
+      <div class="cartao">
+        <div class="cartao-cabeca">${ico('info')}<h3>Boas de saber</h3></div>
+        <p class="pequeno t2 mb">Os avisos que aparecem no fim da página das clientes.
+          Um assunto por bloco, um aviso por linha. Assunto sem nenhum aviso não
+          aparece para a cliente.</p>
+        <div id="regras-lista"></div>
+        <div class="flex mt" style="gap:8px;flex-wrap:wrap">
+          <button class="btn" id="mais-regra">${ico('mais')}Assunto</button>
+          <button class="btn btn-primario" id="salvar-regras">Salvar avisos</button>
         </div>
       </div>
 
@@ -198,6 +213,26 @@ export function render(raiz) {
   pintarHorarios(raiz);
   raiz.querySelector('#salvar-horarios').onclick = () => salvarHorarios(raiz);
 
+  pintarRegras(raiz);
+  raiz.querySelector('#mais-regra').onclick = () => {
+    raiz.querySelector('#regras-lista')
+      .insertAdjacentHTML('beforeend', blocoRegra({ titulo: '', itens: [] }));
+    ligarRegras(raiz);
+    raiz.querySelector('#regras-lista').lastElementChild.querySelector('[data-titulo]').focus();
+  };
+  raiz.querySelector('#salvar-regras').onclick = async () => {
+    const s = db.cfg('studio') || {};
+    const regras = [...raiz.querySelectorAll('#regras-lista .regra-bloco')]
+      .map((b) => ({
+        titulo: b.querySelector('[data-titulo]').value.trim(),
+        itens: b.querySelector('[data-itens]').value.split('\n')
+          .map((x) => x.trim()).filter(Boolean),
+      }))
+      .filter((r) => r.titulo && r.itens.length);
+    await db.setCfg('studio', { ...s, regras });
+    avisar(regras.length ? `${regras.length} assunto(s) salvo(s)` : 'Avisos removidos da página');
+  };
+
   raiz.querySelector('#backup').onclick = () => {
     const dados = { gerado_em: new Date().toISOString(), ...db.estado };
     const url = URL.createObjectURL(new Blob([JSON.stringify(dados, null, 1)], { type: 'application/json' }));
@@ -305,6 +340,40 @@ function pintarHorarios(raiz) {
       }).join('')}
       </tbody></table></div>
     </div>`).join('');
+}
+
+/** Um assunto: o título e os avisos, um por linha. */
+function blocoRegra(r) {
+  return `
+    <div class="regra-bloco" style="border-top:1px solid var(--linha);padding-top:14px;margin-top:14px">
+      <div class="flex" style="gap:10px;align-items:flex-end">
+        <label class="campo crescer" style="margin-bottom:0"><span>Assunto</span>
+          <input data-titulo value="${esc(r.titulo || '')}" placeholder="Ex.: Manutenção do alongamento"></label>
+        <button class="btn-icone" data-tirar title="Tirar este assunto">${ico('lixo')}</button>
+      </div>
+      <label class="campo" style="margin-top:12px"><span>Avisos</span>
+        <textarea data-itens style="min-height:130px"
+          placeholder="Um aviso por linha.">${esc((r.itens || []).join('\n'))}</textarea></label>
+    </div>`;
+}
+
+/**
+ * Começa mostrando o que a página mostra hoje.
+ *
+ * Sem nada salvo ainda, os avisos vêm do arquivo — e editar a partir do texto
+ * que já está no ar é bem mais fácil do que escrever tudo de novo do zero.
+ */
+function pintarRegras(raiz) {
+  const s = db.cfg('studio') || {};
+  const regras = Array.isArray(s.regras) && s.regras.length ? s.regras : REGRAS;
+  raiz.querySelector('#regras-lista').innerHTML = regras.map(blocoRegra).join('');
+  ligarRegras(raiz);
+}
+
+function ligarRegras(raiz) {
+  raiz.querySelectorAll('#regras-lista [data-tirar]').forEach((b) => {
+    b.onclick = () => b.closest('.regra-bloco').remove();
+  });
 }
 
 async function salvarHorarios(raiz) {

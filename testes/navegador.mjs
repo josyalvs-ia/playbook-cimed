@@ -2035,10 +2035,10 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       return sec?.dataset.familia === 'unhas';
     })]);
 
+  // "Fora da tabela" era informação interna do studio; saiu da página.
   const inteira = nb(await pt.textContent('#vitrine'));
-  const quantas = (inteira.match(/fibra de vidro/g) || []).length;
-  checagens.push(['tabela: a frase de "fora da tabela" aparece uma vez só',
-    quantas === 1, quantas + ' vez(es)']);
+  checagens.push(['tabela: o aviso interno não aparece para a cliente',
+    !/fibra de vidro/.test(inteira)]);
 
   // Filtrar cabelos não pode deixar nada de unha à vista.
   await pt.click('[data-familia="cabelos"]');
@@ -2067,6 +2067,59 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['agendamento: mostra a descrição do serviço, não só o preço',
     /cabelos naturais/i.test(comDescricao), comDescricao.slice(0, 60)]);
   await ctxT.close();
+}
+
+// ── 42. Os avisos da página são delas ──
+// Procedimento entra e sai da tabela, e o aviso que vale hoje pode não valer no
+// mês que vem. Sem isto, mudar uma linha do "boas de saber" dependia de mim.
+{
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(900);
+  const quantos = await p2.locator('.regra-bloco').count();
+  checagens.push(['avisos: o editor começa com o que a página mostra hoje',
+    quantos === 3, quantos + ' assunto(s)']);
+  checagens.push(['avisos: cada assunto tem título e uma caixa de linhas',
+    await p2.locator('.regra-bloco [data-titulo]').count() === quantos
+    && await p2.locator('.regra-bloco [data-itens]').count() === quantos]);
+
+  // Tirar um, acrescentar outro, salvar.
+  await p2.locator('.regra-bloco [data-tirar]').first().click();
+  await p2.click('#mais-regra');
+  await p2.waitForTimeout(200);
+  await p2.locator('.regra-bloco [data-titulo]').last().fill('Formas de pagamento');
+  await p2.locator('.regra-bloco [data-itens]').last()
+    .fill('Pix, dinheiro e cartão.\nParcelamos no cartão em até 3x.');
+  await p2.click('#salvar-regras');
+  await p2.waitForTimeout(800);
+
+  const salvo = await p2.evaluate(() =>
+    globalThis.__DB.config.find((c) => c.chave === 'studio')?.valor?.regras);
+  checagens.push(['avisos: o que elas escrevem fica salvo no studio',
+    Array.isArray(salvo) && salvo.length === 3]);
+  checagens.push(['avisos: o assunto tirado sai mesmo',
+    !salvo?.some((r) => /Manutenção do alongamento/.test(r.titulo))]);
+  checagens.push(['avisos: uma linha por aviso, sem linha vazia',
+    salvo?.at(-1)?.itens.length === 2 && salvo.at(-1).itens.every((x) => x.trim())]);
+
+  // E a página das clientes passa a mostrar o que elas escreveram.
+  const ctxA = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxA.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  await ctxA.addInitScript(() => sessionStorage.setItem('__db', JSON.stringify({
+    config: [{ chave: 'studio', valor: { nome: 'Alento', regras: [
+      { titulo: 'Formas de pagamento', itens: ['Pix, dinheiro e cartão.'] }] } }],
+    servicos: [{ id: 'manicure', categoria: 'maos', nome: 'Manicure', tipo: 'servico',
+      preco: 45, tempo: 1, ativo: true, profissional: 'unhas', ordem: 1 }],
+  })));
+  const pa = await ctxA.newPage();
+  await pa.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pa.waitForTimeout(800);
+  const texto = nb(await pa.textContent('#boas-de-saber'));
+  checagens.push(['avisos: a página das clientes mostra o que elas escreveram',
+    /Formas de pagamento/.test(texto) && /Pix, dinheiro/.test(texto)]);
+  checagens.push(['avisos: e não mostra mais os do arquivo',
+    !/Francesinha tradicional é cortesia/.test(texto)]);
+  await ctxA.close();
 }
 
 await browser.close();

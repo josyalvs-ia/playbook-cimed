@@ -123,6 +123,13 @@ export const ADICIONAIS = [
 ];
 
 // Regras que aparecem na vitrine pública e no app, direto da tabela oficial.
+/**
+ * Os avisos do fim da página das clientes.
+ *
+ * Estes são só o ponto de partida: o studio edita em Ajustes → Boas de saber, e
+ * o que estiver salvo lá manda. Procedimento entra e sai da tabela, e elas não
+ * podem depender de mim para mudar um aviso.
+ */
 export const REGRAS = [
   { titulo: 'Manutenção do alongamento',
     itens: [
@@ -143,10 +150,6 @@ export const REGRAS = [
       'Correção de cor é orçada sob avaliação, presencialmente.',
       'Serviços de coloração e mechas partem do valor indicado e variam conforme comprimento, volume e histórico do cabelo.',
       'Terapia capilar: consulte valores especiais para pacotes.',
-    ] },
-  { titulo: 'Fora da tabela',
-    itens: [
-      'Serviços de fibra de vidro, acrílico e troca de formato não fazem parte desta tabela.',
     ] },
 ];
 
