@@ -7,7 +7,7 @@
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato, dataLocal } from '../ui.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
-import { resumo, taxaDe, premissas } from '../metricas.js';
+import { resumo, taxaDe, premissas, pacoteDoServico, pacotesDe } from '../metricas.js';
 
 let filtro = { periodo: 'hoje', de: hoje(), ate: hoje(), profissional: '', status: '' };
 
@@ -187,10 +187,18 @@ export function abrirComanda(id, inicial) {
     for (const id of inicial?.servico_ids || [inicial?.servico_id].filter(Boolean)) {
       const s = db.estado.servicos.find((x) => x.id === id);
       if (!s) continue;
-      itens.push({ id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
-                   tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
-                   custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
-                   confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' });
+      const item = { id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
+                     tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
+                     custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
+                     confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' };
+      // Ela chegou para uma sessão que já pagou: a comanda abre descontada.
+      // Esperar alguém lembrar de zerar o valor é cobrar duas vezes.
+      const pac = c.cliente_id ? pacoteDoServico(c.cliente_id, s.id) : null;
+      const jaNesta = pac ? itens.filter((i) => i.pacote_id === pac.id).length : 0;
+      if (pac && pac.restam > jaNesta) {
+        item.pacote_id = pac.id; item.valor = 0; item.confirmar_valor = false;
+      }
+      itens.push(item);
     }
   }
 
@@ -230,6 +238,7 @@ export function abrirComanda(id, inicial) {
         <button class="btn btn-sm" id="add-livre">${ico('mais')}Avulso</button>
       </div>
 
+      <div id="pacotes-aviso"></div>
       <div id="itens"></div>
 
       <div class="regua mt mb">${estrela()}</div>
@@ -278,14 +287,21 @@ export function abrirComanda(id, inicial) {
               <th>Serviço</th><th style="width:74px">Qtd</th><th style="width:110px" class="n">Valor</th>
               <th class="n" style="width:96px">Subtotal</th><th style="width:34px"></th>
             </tr></thead><tbody>
-            ${itens.map((it, i) => `<tr>
+            ${itens.map((it, i) => {
+              const pac = it.pacote_id ? db.estado.pacotes.find((x) => x.id === it.pacote_id) : null;
+              const disponivel = it.pacote_id ? null : pacoteParaItem(it);
+              return `<tr>
               <td>${esc(it.nome)}${it.tipo === 'adicional' ? ' <span class="selo">adicional</span>' : ''}${
-                it.confirmar_valor ? ' <span class="selo alerta" title="o valor deste serviço varia">confirmar valor</span>' : ''}</td>
+                it.confirmar_valor ? ' <span class="selo alerta" title="o valor deste serviço varia">confirmar valor</span>' : ''}
+                ${pac ? `<div class="pequeno"><span class="selo ok">pacote</span>
+                  <button class="btn-link" data-pacote="${i}">cobrar à parte</button></div>` : ''}
+                ${disponivel ? `<div class="pequeno"><button class="btn-link" data-pacote="${i}"
+                  >usar o pacote (${disponivel.sobram} de ${disponivel.total})</button></div>` : ''}</td>
               <td><input type="number" min="1" step="1" value="${it.qtd}" data-i="${i}" data-campo="qtd"></td>
               <td><input type="number" min="0" step="0.01" value="${it.valor}" data-i="${i}" data-campo="valor" style="text-align:right"></td>
               <td class="n num">${fmt.brl(it.valor * it.qtd)}</td>
               <td><button class="btn-icone" data-remover="${i}" title="Remover">${ico('fechar')}</button></td>
-            </tr>`).join('')}
+            </tr>`; }).join('')}
           </tbody></table></div>`;
         }
 
@@ -297,6 +313,9 @@ export function abrirComanda(id, inicial) {
         });
         alvo.querySelectorAll('[data-remover]').forEach((b) => {
           b.onclick = () => { itens.splice(+b.dataset.remover, 1); pintarItens(); pintarTotais(); };
+        });
+        alvo.querySelectorAll('[data-pacote]').forEach((b) => {
+          b.onclick = () => { alternarPacote(itens[+b.dataset.pacote]); pintarItens(); pintarTotais(); };
         });
       };
 
@@ -326,6 +345,63 @@ export function abrirComanda(id, inicial) {
           </div>`;
       };
 
+      // ── Pacote ─────────────────────────────────────────────────────────
+      /** A cliente desta comanda, achada pelo nome digitado ou pelo cadastro. */
+      const clienteDaVez = () => {
+        const nome = $('#cli').value.trim();
+        return db.estado.clientes.find((x) => chave(x.nome) === chave(nome))
+          || (c.cliente_id ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
+      };
+
+      /**
+       * Ainda cabe sessão neste pacote, contando o que esta comanda já pegou?
+       *
+       * `restam` já desconta os itens gravados — inclusive os desta comanda, se
+       * ela é uma comanda antiga sendo corrigida. Por isso os itens dela voltam
+       * para a conta antes de descontar o que está na tela agora: sem isso,
+       * abrir e salvar de novo comeria uma sessão a cada vez.
+       */
+      const sobramDoPacote = (p) => {
+        const gravados = db.estado.comanda_itens
+          .filter((i) => i.comanda_id === c.id && i.pacote_id === p.id)
+          .reduce((s, i) => s + Math.max(1, Number(i.qtd) || 1), 0);
+        const naTela = itens
+          .filter((i) => i.pacote_id === p.id)
+          .reduce((s, i) => s + Math.max(1, Number(i.qtd) || 1), 0);
+        return p.restam + gravados - naTela;
+      };
+
+      /** O pacote que cobre este item, se ainda houver sessão nele. */
+      const pacoteParaItem = (it) => {
+        const cli = clienteDaVez();
+        const p = cli && it.servico_id ? pacoteDoServico(cli.id, it.servico_id) : null;
+        if (!p) return null;
+        const sobram = sobramDoPacote(p);
+        return sobram > 0 ? { ...p, sobram } : null;
+      };
+
+      /** Liga ou desliga o pacote num item: sai do pacote, volta a ser cobrado. */
+      const alternarPacote = (it) => {
+        if (it.pacote_id) {
+          const s = catalogo.find((x) => x.id === it.servico_id);
+          it.pacote_id = null;
+          it.valor = Number(s?.preco) || 0;
+          return avisar('Este serviço volta a ser cobrado');
+        }
+        const p = pacoteParaItem(it);
+        if (!p) return avisar('Não há pacote com sessão sobrando para este serviço', 'erro');
+        it.pacote_id = p.id;
+        it.valor = 0;
+        avisar(`Sessão do pacote — sobram ${p.sobram - 1} depois desta`);
+      };
+
+      /** Serviço recém-adicionado já entra descontado, se houver pacote. */
+      const aplicarPacote = (it) => {
+        const p = pacoteParaItem(it);
+        if (p) { it.pacote_id = p.id; it.valor = 0; }
+        return p;
+      };
+
       // Trocou a profissional: a lista de serviços acompanha.
       $('#prof').onchange = () => {
         const sel = $('#add-serv');
@@ -337,14 +413,23 @@ export function abrirComanda(id, inicial) {
         const s = catalogo.find((x) => x.id === e.target.value);
         e.target.value = '';
         if (!s) return;
-        const ja = itens.find((i) => i.servico_id === s.id);
+        const ja = itens.find((i) => i.servico_id === s.id && !i.pacote_id);
+        let doPacote = null;
         if (ja) ja.qtd++;
-        else itens.push({ id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
-                          tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
-                          custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
-                          confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' });
+        else {
+          const novo = { id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
+                         tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
+                         custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
+                         confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' };
+          // Ela já pagou por este serviço: entrar cobrando de novo é o erro que
+          // ninguém percebe na hora — some do valor, não da tela.
+          doPacote = aplicarPacote(novo);
+          if (doPacote) novo.confirmar_valor = false;
+          itens.push(novo);
+        }
         pintarItens(); pintarTotais();
-        if (s.preco_tipo === 'avaliacao') avisar('Serviço sob avaliação — informe o valor combinado');
+        if (doPacote) avisar(`Descontado do pacote — sobram ${doPacote.sobram - 1}`);
+        else if (s.preco_tipo === 'avaliacao') avisar('Serviço sob avaliação — informe o valor combinado');
         else if (s.preco_tipo === 'a_partir') avisar('Valor inicial — ajuste conforme o atendimento');
       };
 
@@ -356,13 +441,28 @@ export function abrirComanda(id, inicial) {
         ultima[ultima.length - 1]?.querySelector('input')?.focus();
       };
 
+      /** Antes de cobrar, a tela diz o que esta cliente já pagou. */
+      const pintarPacotes = () => {
+        const cli = clienteDaVez();
+        const ativos = cli ? pacotesDe(cli.id).filter((p) => p.valido) : [];
+        $('#pacotes-aviso').innerHTML = ativos.length ? `
+          <div class="aviso ok mb">${ico('check')}<div>
+            ${esc(cli.nome.split(' ')[0])} tem pacote:
+            ${ativos.map((p) => `<strong>${esc(p.servico_nome)}</strong> (${p.restam} de ${p.total})`).join(' · ')}.
+            Ao adicionar o serviço, ele já entra descontado.
+          </div></div>` : '';
+      };
+
+      // Digitou o nome da cliente: os pacotes dela aparecem na hora.
+      $('#cli').oninput = () => { pintarPacotes(); pintarItens(); };
+
       veu.querySelectorAll('[data-pg]').forEach((b) => b.onclick = () => {
         veu.querySelectorAll('[data-pg]').forEach((x) => x.classList.remove('ativa'));
         b.classList.add('ativa'); pintarTotais();
       });
       $('#desc').oninput = pintarTotais;
 
-      pintarItens(); pintarTotais();
+      pintarPacotes(); pintarItens(); pintarTotais();
     },
   });
 

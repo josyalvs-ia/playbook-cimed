@@ -17,7 +17,7 @@ const CHAVE_FILA   = 'alento.fila.v1';
 
 export const TABELAS = ['profissionais', 'clientes', 'servicos', 'materiais', 'ficha_tecnica',
                         'estoque_mov', 'comandas', 'comanda_itens', 'caixa', 'config',
-                        'horarios', 'bloqueios', 'agendamentos'];
+                        'horarios', 'bloqueios', 'agendamentos', 'pacotes'];
 
 /** Coleções em memória. As telas leem daqui, sempre. */
 export const estado = Object.fromEntries(TABELAS.map((t) => [t, []]));
@@ -180,6 +180,7 @@ const NUNCA_VAZIO = {
   comandas:      { desconto: 0, total: 0, custo_total: 0, tempo_total: 0 },
   comanda_itens: { qtd: 1, valor: 0, custo: 0, tempo: 0 },
   agendamentos:  { valor: 0 },
+  pacotes:       { sessoes: 1, valor: 0 },
   profissionais: { comissao_pct: 0.5 },
 };
 
@@ -465,6 +466,8 @@ const EXIGENCIAS = [
     serve_para: 'mandar a cliente para o zap de quem faz aquele serviço' },
   { o_que: 'Serviço que só a equipe agenda', tipo: 'coluna', tabela: 'servicos', coluna: 'agenda_online',
     serve_para: 'o serviço aparecer no site com um recado, em vez de horários' },
+  { o_que: 'Pacote de sessões', tipo: 'coluna', tabela: 'comanda_itens', coluna: 'pacote_id',
+    serve_para: 'descontar o atendimento do pacote que a cliente já pagou' },
   { o_que: 'Equipe visível para a cliente', tipo: 'view', nome: 'equipe_publica',
     serve_para: 'mostrar quem atende no site sem expor a comissão' },
   { o_que: 'Conferência dos horários da cliente', tipo: 'funcao', nome: 'situacao_agendamentos',

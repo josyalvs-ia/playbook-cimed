@@ -234,7 +234,14 @@ export function fechamentoProfissional(prof, { de, ate }, p = premissas()) {
   let base = 0;
   for (const c of comandas) {
     for (const i of itensDe(c.id)) {
-      const v = (Number(i.valor) || 0) * (Number(i.qtd) || 1);
+      const qtd = Number(i.qtd) || 1;
+      // Sessão de pacote: a cliente não paga nada hoje, mas o trabalho foi
+      // feito hoje. A comissão segue o trabalho — senão quem atende a última
+      // sessão de um pacote vendido em janeiro trabalha de graça. O preço de
+      // referência é o da tabela, que é o que o pacote representa.
+      const v = i.pacote_id
+        ? (Number(estado.servicos.find((s) => s.id === i.servico_id)?.preco) || 0) * qtd
+        : (Number(i.valor) || 0) * qtd;
       base += v * (i.comissao_pct != null ? Number(i.comissao_pct) : pct);
     }
   }
@@ -248,6 +255,51 @@ export function fechamentoProfissional(prof, { de, ate }, p = premissas()) {
     .reduce((s, l) => s + Number(l.valor), 0);
 
   return { profissional: prof, ...r, comissao, pagos, aReceber: comissao - pagos, comandas };
+}
+
+// ─── Pacotes ───────────────────────────────────────────────────────────────
+/**
+ * Quantas sessões do pacote já foram usadas.
+ *
+ * Não é um número guardado: é a contagem dos itens de comanda que apontam para
+ * ele. Contador salvo precisa de alguém para mantê-lo em dia, e um atendimento
+ * excluído deixaria a conta errada para sempre — assim a sessão volta sozinha.
+ */
+export function usadasDoPacote(pacoteId) {
+  return estado.comanda_itens
+    .filter((i) => i.pacote_id === pacoteId)
+    .reduce((s, i) => s + Math.max(1, Number(i.qtd) || 1), 0);
+}
+
+/** O pacote com o que já se sabe dele: quantas foram, quantas faltam, se vale. */
+export function situacaoPacote(p) {
+  const usadas = usadasDoPacote(p.id);
+  const total = Number(p.sessoes) || 0;
+  const restam = Math.max(0, total - usadas);
+  const vencido = !!p.validade && p.validade < hoje();
+  return { ...p, usadas, total, restam, vencido, valido: p.ativo !== false && restam > 0 && !vencido };
+}
+
+/** Os pacotes de uma cliente, do mais novo para o mais antigo. */
+export function pacotesDe(clienteId) {
+  if (!clienteId) return [];
+  return estado.pacotes
+    .filter((p) => p.cliente_id === clienteId)
+    .map(situacaoPacote)
+    .sort((a, b) => String(b.criado_em || '').localeCompare(String(a.criado_em || '')));
+}
+
+/**
+ * O pacote que cobre este serviço para esta cliente, se houver.
+ *
+ * Vence o que estiver mais perto de acabar: é o que evita deixar sessão para
+ * trás quando ela tem dois pacotes do mesmo serviço.
+ */
+export function pacoteDoServico(clienteId, servicoId) {
+  if (!clienteId || !servicoId) return null;
+  return pacotesDe(clienteId)
+    .filter((p) => p.valido && p.servico_id === servicoId)
+    .sort((a, b) => a.restam - b.restam)[0] || null;
 }
 
 export const taxaMedia = taxaMediaCartao;

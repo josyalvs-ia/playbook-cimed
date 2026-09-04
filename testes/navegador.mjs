@@ -400,7 +400,7 @@ await p2.waitForTimeout(900);
   checagens.push(['agenda: serviço bloqueado até escolher a profissional',
     await p2.locator('.veu [data-serv]').isDisabled()]);
   await p2.fill('[name=cliente_nome]', 'Cliente da Agenda');
-  await p2.click('text=Marcar');
+  await p2.click('.veu .modal-pe .btn-primario');
   await p2.waitForTimeout(300);
   checagens.push(['agenda: recusa sem escolher a profissional',
     nb(await p2.textContent('#toasts')).includes('quem vai atender')]);
@@ -408,7 +408,7 @@ await p2.waitForTimeout(900);
   await p2.waitForTimeout(250);
   await p2.selectOption('.veu [data-serv]', 'manicure');
   await p2.fill('.veu [data-hora]', '10:00');
-  await p2.click('text=Marcar');
+  await p2.click('.veu .modal-pe .btn-primario');
   await p2.waitForTimeout(900);
   const ag = await p2.evaluate(() => globalThis.__DB?.agendamentos || []);
   checagens.push(['agenda: horário gravado', ag.length === 1 && ag[0].cliente_nome === 'Cliente da Agenda']);
@@ -2471,6 +2471,194 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
 
   await p2.fill('#busca', '');
   await p2.waitForTimeout(300);
+}
+
+// ── 50. A agenda não é filha do aviso de bloqueio ──
+// Faltava fechar uma div: o cartão amarelo de "agenda fechada" engolia o resto
+// da tela. Como ele é uma linha flex, a agenda inteira virava a coluna do lado
+// — nomes quebrando uma palavra por linha, hora em cima do valor. E o
+// bloqueio da Julia aparecia dentro da agenda da Laura, como se fosse dela.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  // O dia que está na tela — testes anteriores deixam a agenda noutra data.
+  const diaNaTela = await p2.inputValue('#dia');
+  await p2.evaluate(async (d) => {
+    const db = await import('./js/db.js');
+    await db.salvar('bloqueios', { id: 'bloq-julia', profissional_id: 'p2',
+      inicio: `${d}T13:30:00`, fim: `${d}T15:30:00`, motivo: 'Cílios' });
+    await db.salvar('bloqueios', { id: 'bloq-studio', profissional_id: null,
+      inicio: `${d}T18:00:00`, fim: `${d}T19:00:00`, motivo: 'Reunião' });
+  }, diaNaTela);
+  await p2.waitForTimeout(600);
+  // Redesenha a tela sem sair do dia.
+  await p2.evaluate(() => [...document.querySelectorAll('[data-visao]')]
+    .find((b) => b.dataset.visao === 'dia').click());
+  await p2.waitForTimeout(700);
+
+  checagens.push(['bloqueio: o aviso não engole a agenda',
+    await p2.evaluate(() => !document.querySelector('.aviso.alerta .agenda-colunas'))]);
+  checagens.push(['bloqueio: a agenda continua sendo filha da tela',
+    await p2.evaluate(() => !!document.querySelector('#conteudo > .grade.agenda-colunas'))]);
+
+  // Vendo só a minha agenda: o que a outra fechou não é meu.
+  await p2.evaluate(() => [...document.querySelectorAll('[data-ver]')]
+    .find((b) => b.dataset.ver === 'eu').click());
+  await p2.waitForTimeout(600);
+  const soEu = nb(await p2.textContent('#conteudo'));
+  checagens.push(['bloqueio: em "Só eu" não aparece o da outra profissional',
+    !/Cílios/.test(soEu), soEu.slice(0, 120)]);
+  checagens.push(['bloqueio: o do studio inteiro continua aparecendo',
+    /Reunião/.test(soEu)]);
+
+  // Vendo o studio: aparecem os dois, com o nome de quem fechou.
+  await p2.evaluate(() => [...document.querySelectorAll('[data-ver]')]
+    .find((b) => b.dataset.ver === 'todas').click());
+  await p2.waitForTimeout(600);
+  const todas = nb(await p2.textContent('#conteudo'));
+  checagens.push(['bloqueio: em "Studio" aparecem os dois', /Cílios/.test(todas) && /Reunião/.test(todas)]);
+  checagens.push(['bloqueio: com o nome de quem fechou', /Julia\s+· agenda fechada/.test(todas), todas.slice(0, 160)]);
+
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.remover('bloqueios', 'bloq-julia');
+    await db.remover('bloqueios', 'bloq-studio');
+  });
+  await p2.waitForTimeout(400);
+}
+
+// ── 51. O "+" do alto marca horário quando se está na agenda ──
+// No celular sobra só o sinal de mais. Ele abria sempre um atendimento: ela
+// tocava esperando marcar, caía noutra tela e concluía que estava quebrado.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  checagens.push(['botão +: na agenda ele diz que marca horário',
+    (await p2.getAttribute('#btn-novo', 'title')) === 'Marcar horário']);
+  await p2.click('#btn-novo');
+  await p2.waitForSelector('.veu');
+  checagens.push(['botão +: e abre mesmo a tela de marcar',
+    /Marcar horário/.test(nb(await p2.textContent('.veu .modal-cabeca')))]);
+  checagens.push(['botão +: com o dia que está na tela',
+    await p2.evaluate(() => document.querySelector('.veu [name=data]')?.value
+      === document.querySelector('#dia')?.value)]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  checagens.push(['botão +: fora da agenda ele volta a abrir atendimento',
+    (await p2.getAttribute('#btn-novo', 'title')) === 'Novo atendimento']);
+  await p2.click('#btn-novo');
+  await p2.waitForSelector('.veu #cli');
+  checagens.push(['botão +: e abre mesmo a comanda', true]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+}
+
+// ── 52. Pacote: o que já foi pago não é cobrado de novo ──
+// "Essa cliente fechou um pacote, queria poder descontar o serviço do pacote."
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-pacote', nome: 'Karen Brunialt',
+      telefone: '11984444546', ativo: true });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(900);
+
+  await p2.click('[data-cli="cli-pacote"]');
+  await p2.waitForSelector('.veu #novo-pacote');
+  checagens.push(['pacote: a ficha diz que ela ainda não tem nenhum',
+    /Nenhum pacote/.test(nb(await p2.textContent('.veu')))]);
+
+  await p2.click('.veu #novo-pacote');
+  await p2.waitForSelector('.veu [name=sessoes]');
+  await p2.selectOption('.veu [name=servico_id]', 'manicure');
+  await p2.fill('.veu [name=sessoes]', '4');
+  await p2.fill('.veu [name=valor]', '160');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForSelector('.veu #novo-pacote', { timeout: 8000 });
+  await p2.waitForTimeout(400);
+
+  const pac = await p2.evaluate(() => globalThis.__DB.pacotes?.[0]);
+  checagens.push(['pacote: gravado com as sessões e o serviço',
+    pac && pac.sessoes === 4 && pac.servico_id === 'manicure' && pac.cliente_id === 'cli-pacote',
+    JSON.stringify(pac && [pac.sessoes, pac.servico_id])]);
+  checagens.push(['pacote: o pagamento entrou no caixa',
+    await p2.evaluate(() => globalThis.__DB.caixa.some((l) =>
+      l.categoria === 'Pacote' && Number(l.valor) === 160))]);
+  checagens.push(['pacote: a ficha volta mostrando 4 de 4',
+    /4\s+de\s+4/.test(nb(await p2.textContent('.veu')))]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // Na comanda, o serviço do pacote entra com valor zero.
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Karen Brunialt');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: a comanda avisa que ela tem pacote',
+    /tem pacote/.test(nb(await p2.textContent('.veu #pacotes-aviso')))]);
+
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: o serviço entra com valor zero',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
+  checagens.push(['pacote: e a linha diz que saiu do pacote',
+    /pacote/.test(nb(await p2.textContent('.veu #itens')))]);
+
+  // Dá para voltar atrás e cobrar à parte.
+  await p2.click('.veu [data-pacote="0"]');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: "cobrar à parte" devolve o preço da tabela',
+    Number(await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === 45,
+    await p2.inputValue('.veu [data-i="0"][data-campo=valor]')]);
+  await p2.click('.veu [data-pacote="0"]');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: e dá para voltar a usar o pacote',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
+
+  await p2.click('.veu [data-pg="pix"]');
+  await p2.waitForTimeout(200);
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1200);
+
+  const gravado = await p2.evaluate(() => {
+    const it = globalThis.__DB.comanda_itens.filter((x) => x.pacote_id);
+    return { itens: it.length, valor: it[0]?.valor,
+             comanda: globalThis.__DB.comandas.find((c) => c.id === it[0]?.comanda_id) };
+  });
+  checagens.push(['pacote: o item guarda de qual pacote saiu', gravado.itens === 1]);
+  checagens.push(['pacote: a comanda fecha em zero', gravado.comanda?.total === 0,
+    String(gravado.comanda?.total)]);
+
+  // E a ficha passa a mostrar uma usada.
+  await p2.evaluate(() => { location.hash = '#/clientes'; });
+  await p2.waitForTimeout(800);
+  await p2.click('[data-cli="cli-pacote"]');
+  await p2.waitForSelector('.veu #novo-pacote');
+  const ficha = nb(await p2.textContent('.veu'));
+  checagens.push(['pacote: a ficha mostra 3 de 4 e uma usada',
+    /3\s+de\s+4/.test(ficha) && /1 usada/.test(ficha), ficha.slice(0, 200)]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // A comissão segue o trabalho: a sessão vale o preço da tabela para quem fez.
+  const comissao = await p2.evaluate(async () => {
+    const M = await import('./js/metricas.js');
+    const db = await import('./js/db.js');
+    const p = db.estado.profissionais.find((x) => x.id === 'p2');
+    const hoje = new Date().toISOString().slice(0, 10);
+    return M.fechamentoProfissional(p, { de: hoje, ate: hoje }).comissao;
+  });
+  checagens.push(['pacote: a sessão gera comissão pelo preço de tabela',
+    comissao >= 22.5, String(comissao)]);
 }
 
 await browser.close();

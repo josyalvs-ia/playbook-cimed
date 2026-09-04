@@ -649,3 +649,45 @@ select p.id, d, '09:00', '19:00', '12:00', '13:00'
 from profissionais p, generate_series(2, 6) d
 where p.ativo and p.atende
 on conflict (profissional_id, dia_semana) do nothing;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PACOTES
+--
+-- A cliente fecha dez tratamentos de uma vez, paga na hora e vai usando ao
+-- longo dos meses. Sem isto, o atendimento de quem já pagou era lançado com
+-- desconto na mão — e ninguém sabia quantas sessões ainda faltavam.
+--
+-- Quantas já foram não é uma coluna: é a contagem dos itens de comanda que
+-- apontam para o pacote. Coluna precisaria ser mantida em dia por fora, e um
+-- atendimento excluído deixaria a conta errada para sempre.
+-- ═══════════════════════════════════════════════════════════════════════════
+create table if not exists pacotes (
+  id            uuid primary key default gen_random_uuid(),
+  cliente_id    uuid references clientes(id) on delete cascade,
+  cliente_nome  text not null,
+  servico_id    text references servicos(id) on delete set null,
+  servico_nome  text not null,
+  sessoes       int not null check (sessoes > 0),
+  valor         numeric not null default 0,   -- o que ela pagou pelo pacote
+  validade      date,
+  observacoes   text,
+  ativo         boolean not null default true,
+  criado_em     timestamptz not null default now()
+);
+create index if not exists idx_pacotes_cliente on pacotes (cliente_id);
+
+-- O item de comanda que gastou uma sessão. É por aqui que se conta quantas
+-- foram — e é o que faz a conta voltar sozinha se o atendimento for excluído.
+alter table comanda_itens add column if not exists pacote_id uuid references pacotes(id) on delete set null;
+create index if not exists idx_itens_pacote on comanda_itens (pacote_id);
+
+alter table pacotes add column if not exists atualizado_em timestamptz not null default now();
+create index if not exists idx_pacotes_atualizado on pacotes (atualizado_em);
+drop trigger if exists pacotes_atualizado on pacotes;
+create trigger pacotes_atualizado before update on pacotes
+  for each row execute function public.marcar_atualizacao();
+
+alter table pacotes enable row level security;
+drop policy if exists "equipe" on pacotes;
+create policy "equipe" on pacotes for all to authenticated
+  using (public.e_da_equipe()) with check (public.e_da_equipe());

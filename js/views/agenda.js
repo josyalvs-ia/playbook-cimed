@@ -8,6 +8,7 @@ import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
          chave, uid, linkMapa, retrato } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
+import * as M from '../metricas.js';
 
 let dia = hoje();
 
@@ -212,8 +213,13 @@ export function render(raiz) {
   const lista = doPeriodo(de, ate);
   const total = lista.reduce((s, a) => s + Number(a.valor || 0), 0);
   const horas = horasOcupadas(lista);
+  // Bloqueio tem dona. Em "Só eu", o que a outra fechou não pode aparecer como
+  // se fosse meu — a Laura via a agenda da Julia fechada e entendia que a dela
+  // é que estava. O do studio inteiro continua aparecendo para as duas, porque
+  // esse é mesmo das duas.
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
-    localData(b.inicio) <= ate && localData(b.fim) >= de);
+    localData(b.inicio) <= ate && localData(b.fim) >= de
+    && (!eu || !b.profissional_id || b.profissional_id === eu));
 
   raiz.innerHTML = `
     <div class="flex envolve mb" style="gap:8px">
@@ -237,7 +243,7 @@ export function render(raiz) {
         <button class="btn btn-sm ${dia === hoje() ? 'btn-primario' : ''}" id="hoje">Hoje</button>`}
       <span class="crescer"></span>
       <button class="btn btn-sm" id="bloquear">${ico('relogio')}Bloquear</button>
-      <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Encaixar</button>
+      <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Marcar horário</button>
     </div>
 
     <div class="flex mb" style="gap:10px">
@@ -255,11 +261,14 @@ export function render(raiz) {
           <span class="t3" style="font-size:18px">/ ${lista.length}</span></div></div>
     </div>
 
-    ${bloqueiosHoje.length ? `<div class="aviso alerta mb">${ico('relogio')}<div>
-      ${bloqueiosHoje.map((b) => `<div style="margin-bottom:4px">
-        <strong>${esc(nomeProf(b.profissional_id) || 'Studio inteiro')}</strong>
-        · ${esc(quandoBloqueio(b))}${b.motivo ? ` · ${esc(b.motivo)}` : ''}
-        <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button></div>`).join('')}
+    ${bloqueiosHoje.length ? `<div class="aviso alerta mb">${ico('relogio')}
+      <div class="crescer">
+        ${bloqueiosHoje.map((b) => `<div class="flex-entre bloqueio-linha">
+          <span><strong>${esc(nomeProf(b.profissional_id) || 'Studio inteiro')}</strong>
+            · agenda fechada ${esc(quandoBloqueio(b))}${b.motivo ? ` · ${esc(b.motivo)}` : ''}</span>
+          <button class="btn btn-sm" data-desbloquear="${b.id}">Liberar</button>
+        </div>`).join('')}
+      </div>
     </div>` : ''}
 
     ${({ dia: () => corpoDia(visiveis, lista),
@@ -501,13 +510,16 @@ function diaPorExtenso(d) {
 }
 
 // ─── Marcar ou editar ──────────────────────────────────────────────────────
+/** O dia que está na tela — é nele que o "+" do alto marca. */
+export const diaVisivel = () => dia;
+
 export function abrirAgendamento(id, dataPadrao) {
   const a = id ? db.estado.agendamentos.find((x) => x.id === id) : null;
   const servicos = db.estado.servicos.filter((s) => s.ativo !== false && s.tipo !== 'adicional');
   const profs = atendentes();
 
   abrirModal({
-    titulo: a ? a.cliente_nome : 'Encaixar horário',
+    titulo: a ? a.cliente_nome : 'Marcar horário',
     corpo: a ? fichaAgendamento(a) : formNovo(servicos, profs, dataPadrao),
     acoes: a ? acoesDe(a) : [
       { texto: 'Marcar', classe: 'btn-primario', onClick: (fechar, veu) => salvarNovo(fechar, veu, servicos) },
@@ -760,9 +772,27 @@ function fichaAgendamento(a) {
           .join('<br>')}</td></tr>` : ''}
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
+    ${pacoteDaCliente(a) ? `<div class="aviso ok mt">${ico('check')}<div>
+      Este serviço sai do pacote dela — ${pacoteDaCliente(a).restam} de
+      ${pacoteDaCliente(a).total} ainda por usar. Em "Cliente chegou", a comanda
+      já abre sem cobrar.</div></div>` : ''}
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
       : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('editar')}Editar este horário</button>`}`;
+}
+
+/**
+ * A cliente tem pacote deste serviço?
+ *
+ * Vale a pena dizer aqui, antes de "Cliente chegou": é neste cartão que ela
+ * confere o horário, e é onde a pergunta "essa não é a que fechou o pacote?"
+ * aparece na cabeça de quem atende.
+ */
+function pacoteDaCliente(a) {
+  const cli = a.cliente_id
+    ? db.estado.clientes.find((c) => c.id === a.cliente_id)
+    : db.estado.clientes.find((c) => chave(c.nome) === chave(a.cliente_nome || ''));
+  return cli ? M.pacoteDoServico(cli.id, a.servico_id) : null;
 }
 
 /** Os outros serviços da mesma ida ao studio. */

@@ -1,6 +1,7 @@
 // CLIENTES — ficha, histórico e o que a cliente costuma fazer.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, chave, avisar, abrirModal, confirmar, lerForm, vazio } from '../ui.js';
+import { ico, estrela, esc, fmt, chave, hoje, avisar, abrirModal, confirmar, lerForm, vazio } from '../ui.js';
+import { FORMAS_PAGAMENTO } from '../pricing.js';
 import * as M from '../metricas.js';
 import { abrirComanda } from './comandas.js';
 
@@ -125,6 +126,13 @@ export function abrirCliente(id) {
 
       ${id ? `
         <div class="regua mb">${estrela()}</div>
+        <div class="flex-entre mb">
+          <h3>Pacotes</h3>
+          <button class="btn btn-sm" id="novo-pacote">${ico('mais')}Novo pacote</button>
+        </div>
+        ${listaPacotes(id)}
+
+        <div class="regua mb">${estrela()}</div>
         <h3 class="mb">Histórico</h3>
         ${hist.length ? `<div class="tabela-wrap" style="max-height:280px;overflow-y:auto"><table><tbody>
           ${hist.map((h) => `<tr>
@@ -158,5 +166,141 @@ export function abrirCliente(id) {
           fechar(); avisar('Cliente salva');
         } },
     ],
+
+    aoAbrir: (veu) => {
+      veu.querySelector('#novo-pacote')?.addEventListener('click', () => {
+        // O modal do pacote entra por cima; ao fechar, a ficha volta com o
+        // pacote novo na lista — senão ela salva e acha que não gravou.
+        abrirPacote(c, () => abrirCliente(id));
+      });
+      veu.querySelectorAll('[data-encerrar-pacote]').forEach((b) => b.onclick = async () => {
+        const pac = db.estado.pacotes.find((x) => x.id === b.dataset.encerrarPacote);
+        if (!pac) return;
+        if (await confirmar('Encerrar o pacote?',
+              'Ele para de aparecer nos atendimentos. O que já foi usado continua no histórico.',
+              'Encerrar', false)) {
+          await db.salvar('pacotes', { ...pac, ativo: false });
+          avisar('Pacote encerrado');
+          abrirCliente(id);
+        }
+      });
+    },
+  });
+}
+
+/**
+ * Os pacotes da cliente, com o que já foi e o que falta.
+ *
+ * A pergunta que a Laura faz na cadeira é "quantas ainda faltam?" — então é
+ * isso que fica grande, e não o que ela pagou.
+ */
+function listaPacotes(clienteId) {
+  const pacotes = M.pacotesDe(clienteId);
+  if (!pacotes.length) {
+    return `<div class="aviso">${ico('info')}<div>Nenhum pacote.
+      Quando a cliente fechar um, cadastre aqui: o atendimento passa a ser
+      descontado dele sozinho, sem precisar zerar o valor na mão.</div></div>`;
+  }
+  return `<div class="tabela-wrap mb"><table><tbody>
+    ${pacotes.map((p) => `<tr>
+      <td><strong>${esc(p.servico_nome)}</strong>
+        <div class="pequeno t3">${p.validade ? `vale até ${fmt.data(p.validade)}` : 'sem prazo'}
+          ${p.valor ? ` · ${fmt.brl(p.valor)}` : ''}${p.observacoes ? ` · ${esc(p.observacoes)}` : ''}</div></td>
+      <td class="n" style="width:120px">
+        <strong class="display num" style="font-size:19px">${p.restam}</strong>
+        <span class="t3 pequeno"> de ${p.total}</span>
+        <div class="pequeno ${p.valido ? 't3' : 'erro-c'}">
+          ${p.valido ? `${p.usadas} usada${p.usadas === 1 ? '' : 's'}`
+            : (p.vencido ? 'vencido' : (p.restam ? 'encerrado' : 'terminou'))}</div></td>
+      <td style="width:40px">${p.valido
+        ? `<button class="btn-icone" data-encerrar-pacote="${p.id}" title="Encerrar pacote">${ico('fechar')}</button>`
+        : ''}</td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+/**
+ * Cadastrar um pacote que a cliente fechou.
+ *
+ * O pagamento entra no caixa junto, porque foi hoje que o dinheiro entrou —
+ * mas dá para desmarcar: pacote fechado semana passada já foi lançado, e
+ * lançar de novo inventaria uma receita que não existiu.
+ */
+export function abrirPacote(cliente, aoFechar) {
+  const servicos = db.estado.servicos
+    .filter((s) => s.ativo !== false && s.tipo !== 'adicional');
+
+  abrirModal({
+    titulo: `Pacote de ${cliente.nome}`,
+    corpo: `
+      <label class="campo"><span>Serviço do pacote</span>
+        <select name="servico_id">
+          ${servicos.map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')}
+        </select></label>
+      <div class="linha-campos">
+        <label class="campo"><span>Quantas sessões</span>
+          <input type="number" name="sessoes" min="1" max="60" step="1" value="10" inputmode="numeric"></label>
+        <label class="campo"><span>Valor total pago</span>
+          <input type="number" name="valor" min="0" step="0.01" value="0"></label>
+        <label class="campo"><span>Vale até</span>
+          <input type="date" name="validade">
+          <span class="dica t3">Opcional.</span></label>
+      </div>
+      <label class="campo"><span>Observações</span>
+        <input name="observacoes" placeholder="Ex.: combinado com desconto de 10%"></label>
+
+      <label class="check mt"><input type="checkbox" name="no_caixa" checked>
+        <span>Lançar o pagamento no caixa de hoje</span></label>
+      <div id="pacote-pgto">
+        <div class="campo"><span>Forma de pagamento</span>
+          <div class="pilulas" id="pacote-formas">
+            ${FORMAS_PAGAMENTO.map((f, i) =>
+              `<button type="button" class="pilula ${i === 0 ? 'ativa' : ''}" data-pg="${f.id}">${esc(f.nome)}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <p class="dica t3">Cada atendimento deste serviço passa a sair do pacote,
+        com valor zero na comanda — o dinheiro já entrou aqui.</p>`,
+    acoes: [
+      { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => { f(); aoFechar?.(); } },
+      { texto: 'Salvar pacote', classe: 'btn-primario', onClick: async (fechar, veu) => {
+          const d = lerForm(veu);
+          const s = servicos.find((x) => x.id === d.servico_id);
+          if (!s) return avisar('Escolha o serviço', 'erro');
+          const sessoes = Math.round(Number(d.sessoes) || 0);
+          if (sessoes < 1) return avisar('Quantas sessões o pacote tem?', 'erro');
+
+          const valor = Number(d.valor) || 0;
+          await db.salvar('pacotes', {
+            cliente_id: cliente.id, cliente_nome: cliente.nome,
+            servico_id: s.id, servico_nome: s.nome,
+            sessoes, valor, validade: d.validade || null,
+            observacoes: d.observacoes || null, ativo: true,
+          });
+
+          if (d.no_caixa && valor > 0) {
+            await db.salvar('caixa', {
+              data: hoje(), tipo: 'entrada', categoria: 'Pacote',
+              descricao: `Pacote · ${sessoes}× ${s.nome} · ${cliente.nome}`,
+              valor,
+              forma_pagamento: veu.querySelector('#pacote-formas .ativa')?.dataset.pg || null,
+              profissional_id: db.eu?.id || null,
+            });
+          }
+          fechar();
+          avisar(`Pacote de ${sessoes} sessões cadastrado`);
+          aoFechar?.();
+        } },
+    ],
+    aoAbrir: (veu) => {
+      const check = veu.querySelector('[name=no_caixa]');
+      const bloco = veu.querySelector('#pacote-pgto');
+      const ver = () => { bloco.hidden = !check.checked; };
+      check.onchange = ver; ver();
+      veu.querySelectorAll('#pacote-formas [data-pg]').forEach((b) => b.onclick = () => {
+        veu.querySelectorAll('#pacote-formas [data-pg]').forEach((x) => x.classList.remove('ativa'));
+        b.classList.add('ativa');
+      });
+    },
   });
 }

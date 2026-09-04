@@ -281,9 +281,15 @@ tbody tr { transition: background .18s ease; }
 .principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .topo {
-  height: var(--topo); flex: none;
+  /* `min-height` e não `height`: com a faixa de segurança somada, altura fixa
+     comeria o conteúdo por dentro em vez de descer a barra.
+     No iPhone, com o sistema instalado na tela de início, a hora e a bateria
+     ficam POR CIMA do aplicativo — o título "Agenda" saía embaixo do relógio e
+     o botão de marcar, embaixo da bateria. `env(safe-area-inset-top)` é o
+     quanto o telefone reserva para a própria barra dele. */
+  min-height: calc(var(--topo) + env(safe-area-inset-top)); flex: none;
   display: flex; align-items: center; gap: 14px;
-  padding: 0 26px;
+  padding: env(safe-area-inset-top) 26px 0;
   border-bottom: 1px solid var(--linha);
   background: rgba(46, 51, 34, 0.86);
   backdrop-filter: blur(10px);
@@ -510,6 +516,15 @@ tbody tr { transition: background .18s ease; }
 
 /* Aviso de sincronização travada: sublinhado porque é para tocar. */
 .sync-travado { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Botão que é uma frase, não um bloco: cabe dentro de uma célula de tabela
+   sem empurrar nada, e ainda assim é alvo de dedo. */
+.btn-link {
+  background: none; border: none; padding: 4px 0; color: var(--texto-2);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.btn-link:hover { color: var(--creme); }
 .marca-tipo.desmarcou { background: var(--erro); }
 .marca-tipo.faltou    { background: var(--alerta); }
 
@@ -709,6 +724,11 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
   border-left: 2px solid var(--linha-forte);
 }
 .aviso .ico { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+/* Cada bloqueio numa linha, com o "Liberar" na ponta. No celular o texto vem
+   por cima do botão — lado a lado sobrariam três palavras por linha. */
+.bloqueio-linha { align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.bloqueio-linha:last-child { margin-bottom: 0; }
+@media (max-width: 520px) { .bloqueio-linha { flex-wrap: wrap; } }
 .aviso.alerta { background: var(--alerta-fundo); border-left-color: var(--alerta); color: var(--alerta); }
 .aviso.erro   { background: var(--erro-fundo);   border-left-color: var(--erro);   color: var(--erro); }
 .aviso.ok     { background: var(--ok-fundo);     border-left-color: var(--ok);     color: var(--ok); }
@@ -849,7 +869,7 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 @media (max-width: 860px) {
   .lateral { display: none; }
   .conteudo { padding: 16px 14px 92px; }
-  .topo { padding: 0 14px; }
+  .topo { padding: env(safe-area-inset-top) 14px 0; }
   .topo h1 { font-size: 18px; }
   h1 { font-size: 24px; }
 

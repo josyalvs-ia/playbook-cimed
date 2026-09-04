@@ -44,6 +44,30 @@ function rotaAtual() {
 
 let telaMontada = null;
 
+/**
+ * O "+" do alto da tela faz o que a tela em que se está pede.
+ *
+ * Ele abria sempre um atendimento. Na agenda, quem toca no "+" está querendo
+ * marcar um horário: caía numa tela diferente do que esperava, que ainda por
+ * cima não salva sem serviço e forma de pagamento. No celular o rótulo não
+ * cabe e sobra só o sinal, então o "+" precisa acertar sozinho.
+ */
+async function ajustarBotaoNovo(rota) {
+  const b = document.getElementById('btn-novo');
+  if (!b) return;
+  const naAgenda = rota === 'agenda';
+  const rotulo = naAgenda ? 'Marcar horário' : 'Novo atendimento';
+  b.innerHTML = ico('mais') + `<span class="esconde-mobile">${rotulo}</span>`;
+  b.title = rotulo;
+  b.setAttribute('aria-label', rotulo);
+  b.onclick = async () => {
+    const m = await import(naAgenda ? './views/agenda.js' : './views/comandas.js');
+    // Ela navegou até sexta e tocou no "+": é sexta que tem de vir preenchida.
+    if (naAgenda) m.abrirAgendamento(null, m.diaVisivel?.());
+    else m.abrirComanda();
+  };
+}
+
 async function montarTela() {
   const rota = rotaAtual();
   const tela = TELAS[rota];
@@ -65,6 +89,7 @@ async function montarTela() {
   telaMontada = { rota, mod };
   alvo.innerHTML = '';
   mod.render(alvo);
+  ajustarBotaoNovo(rota);
   window.scrollTo(0, 0);
 }
 
@@ -129,7 +154,7 @@ function desenharCasca() {
             <button class="btn-icone sino" id="btn-sino" title="Novidades" aria-label="Novidades">
               ${ico('sino')}<span class="ponto" id="sino-ponto" hidden></span>
             </button>
-            <button class="btn btn-primario btn-sm" id="btn-nova-comanda">
+            <button class="btn btn-primario btn-sm" id="btn-novo" aria-label="Novo atendimento">
               ${ico('mais')}<span class="esconde-mobile">Novo atendimento</span>
             </button>
           </div>
@@ -151,10 +176,7 @@ function desenharCasca() {
   document.getElementById('btn-mais').onclick = abrirMais;
   document.getElementById('btn-sair').onclick = () => db.sair();
   document.getElementById('btn-sino').onclick = abrirNovidades;
-  document.getElementById('btn-nova-comanda').onclick = async () => {
-    const m = await import('./views/comandas.js');
-    m.abrirComanda();
-  };
+  ajustarBotaoNovo(rotaAtual());
 
   const nome = db.eu?.nome || 'Equipe';
   document.getElementById('nome-eu').textContent = nome;

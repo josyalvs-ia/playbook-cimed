@@ -259,3 +259,39 @@ create index if not exists idx_agendamentos_serie on public.agendamentos (serie_
 -- código da visita é o que junta os três de volta na hora de fechar a comanda.
 alter table public.agendamentos add column if not exists grupo_id uuid;
 create index if not exists idx_agendamentos_grupo on public.agendamentos (grupo_id);
+
+-- ── Pacote: a cliente paga dez sessões de uma vez ──────────────────────────
+-- E vai usando ao longo dos meses. Sem isto, o atendimento de quem já tinha
+-- pagado era lançado com desconto na mão, e ninguém sabia quantas faltavam.
+--
+-- Quantas já foram não é coluna: é a contagem dos itens de comanda que apontam
+-- para o pacote — assim um atendimento excluído devolve a sessão sozinho.
+create table if not exists public.pacotes (
+  id            uuid primary key default gen_random_uuid(),
+  cliente_id    uuid references public.clientes(id) on delete cascade,
+  cliente_nome  text not null,
+  servico_id    text references public.servicos(id) on delete set null,
+  servico_nome  text not null,
+  sessoes       int not null check (sessoes > 0),
+  valor         numeric not null default 0,
+  validade      date,
+  observacoes   text,
+  ativo         boolean not null default true,
+  criado_em     timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+create index if not exists idx_pacotes_cliente on public.pacotes (cliente_id);
+create index if not exists idx_pacotes_atualizado on public.pacotes (atualizado_em);
+
+alter table public.comanda_itens add column if not exists pacote_id uuid
+  references public.pacotes(id) on delete set null;
+create index if not exists idx_itens_pacote on public.comanda_itens (pacote_id);
+
+drop trigger if exists pacotes_atualizado on public.pacotes;
+create trigger pacotes_atualizado before update on public.pacotes
+  for each row execute function public.marcar_atualizacao();
+
+alter table public.pacotes enable row level security;
+drop policy if exists "equipe" on public.pacotes;
+create policy "equipe" on public.pacotes for all to authenticated
+  using (public.e_da_equipe()) with check (public.e_da_equipe());

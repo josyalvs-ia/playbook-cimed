@@ -16,7 +16,7 @@ fechado na agenda. Não depende do Trinks.
 | **Painel** | Quanto entrou hoje e no mês, o que falta comprar, quem sumiu, aniversariantes |
 | **Agenda** | O dia de cada profissional em colunas; folga e férias; o horário vira comanda quando a cliente chega |
 | **Atendimentos** | Comanda: cliente, serviços, pagamento. Ao fechar, cai no caixa e baixa o estoque |
-| **Clientes** | Ficha, telefone, aniversário, alergias, histórico e ritmo de retorno |
+| **Clientes** | Ficha, telefone, aniversário, alergias, histórico, ritmo de retorno e pacotes |
 | **Estoque** | Os 176 insumos da planilha, saldo, mínimo, lista de compras e ficha técnica |
 | **Caixa** | Entradas e saídas, para onde foi o dinheiro, quanto ficou com a maquininha |
 | **Tabela de preços** | O catálogo oficial, editável — muda aqui, muda na comanda e na vitrine |
@@ -50,7 +50,8 @@ fechado na agenda. Não depende do Trinks.
 > da cliente o horário já cancelado, e o carimbo de alteração que faz o app
 > baixar só o que mudou em vez do banco inteiro a cada volta. É também o que
 > marca quais serviços não se marcam sozinhos pelo site — cor exige ver o
-> cabelo antes. Quem está criando o banco agora não precisa — já vem no
+> cabelo antes —, e o pacote de sessões que a cliente paga de uma vez e vai
+> usando. Quem está criando o banco agora não precisa — já vem no
 > `schema.sql`. Rodar duas vezes não faz mal: a escolha de quais serviços
 > abrem no site é delas, e uma segunda rodada não desfaz.
 
@@ -217,6 +218,29 @@ cada premissa e ver o efeito na hora.
 > real com o contador e ajuste as taxas com o extrato da maquininha.
 
 ---
+
+## Pacote de sessões
+
+A cliente fecha dez tratamentos de uma vez, paga na hora e vai usando ao longo
+dos meses. Sem isso, o atendimento de quem já pagou era lançado com desconto na
+mão — e ninguém sabia quantas sessões ainda faltavam.
+
+O pacote é cadastrado na ficha da cliente (**Clientes → a cliente → Pacotes →
+Novo pacote**): qual serviço, quantas sessões, quanto ela pagou e até quando
+vale. O pagamento entra no caixa na hora, e dá para desmarcar isso quando o
+pacote foi fechado antes — lançar de novo inventaria uma receita que não houve.
+
+Daí em diante, cada atendimento daquele serviço **abre com valor zero** e uma
+etiqueta de pacote na comanda. Dá para voltar atrás em qualquer linha ("cobrar
+à parte") e o preço da tabela volta.
+
+Quantas já foram não é um número guardado em lugar nenhum: é a contagem dos
+itens de comanda que apontam para o pacote. Assim, atendimento excluído devolve
+a sessão sozinho, e a conta nunca fica devendo explicação.
+
+A **comissão segue o trabalho, não o pagamento**: a sessão vale o preço de
+tabela para quem atendeu, mesmo com a cliente pagando zero naquele dia. Quem
+faz a última sessão de um pacote vendido em janeiro não trabalha de graça.
 
 ## Baixa automática de estoque
 
