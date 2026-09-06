@@ -146,11 +146,16 @@ Aceite. Depois é só ir ajustando.
 
 ## Publicar na internet
 
-O app é estático — não precisa de servidor nem de build. No Netlify, com o
-repositório conectado, ele já vai ao ar na raiz do site.
+O app é estático — não precisa de servidor nem de build. Está publicado no
+GitHub Pages, servido pela branch de trabalho, com domínio próprio.
 
-- **App da equipe:** `SEU-SITE.netlify.app/`
-- **Página pública:** `SEU-SITE.netlify.app/vitrine.html`
+- **App da equipe:** `alentoostudio.com.br/`
+- **Página pública:** `alentoostudio.com.br/vitrine.html`
+
+O domínio é ligado pelo arquivo `CNAME` na raiz do repositório. Os registros no
+registro.br (zona DNS, modo avançado) são quatro `A` para
+`185.199.108–111.153` no nome vazio, e um `CNAME` de `www` para
+`josyalvs-ia.github.io.` — com o ponto final.
 
 O link que você manda para as clientes é o da **vitrine**. O `index.html` pede
 login e é só para vocês duas.

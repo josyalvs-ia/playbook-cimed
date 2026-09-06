@@ -127,7 +127,7 @@ export function render(raiz) {
       <div class="cartao">
         <div class="cartao-cabeca">${ico('nuvem')}<h3>Os endereços do studio</h3></div>
         <p class="pequeno t2 mb">Toque para copiar. Todos começam com
-          <code>josyalvs-ia.github.io</code> — se aparecer <code>github.com</code>,
+          <code>alentoostudio.com.br</code> — se aparecer <code>github.com</code>,
           é o lugar onde o código mora, não o site.</p>
         <div class="enderecos">
           ${[
