@@ -561,8 +561,16 @@ async function lancarNoCaixa(comanda) {
   });
 }
 
-/** Baixa dos insumos previstos na ficha técnica de cada serviço. */
+/**
+ * Baixa dos insumos previstos na ficha técnica de cada serviço.
+ *
+ * Dá para desligar em Ajustes. A Julia pediu: com a ficha técnica ainda por
+ * afinar, o sistema tirava da prateleira o que não tinha saído, e a lista de
+ * compras mandava repor produto que nem acabou. Estoque errado atrapalha mais
+ * do que estoque nenhum — quem confere a olho pelo menos não é enganada.
+ */
 async function baixarEstoque(comanda, itens) {
+  if ((db.cfg('studio') || {}).baixa_automatica === false) return 0;
   const fichas = db.estado.ficha_tecnica;
   if (!fichas.length) return 0;
 

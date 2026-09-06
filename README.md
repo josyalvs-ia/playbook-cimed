@@ -247,6 +247,27 @@ A **comissão segue o trabalho, não o pagamento**: a sessão vale o preço de
 tabela para quem atendeu, mesmo com a cliente pagando zero naquele dia. Quem
 faz a última sessão de um pacote vendido em janeiro não trabalha de graça.
 
+## Achar horário sem entrar dia a dia
+
+"A cliente quer esmaltação em gel e eu tenho que entrar dia a dia na agenda
+procurando um horário." O sistema já sabe o expediente de cada uma, as folgas e
+o que está marcado — procurar isso na mão é trabalho que a máquina faz melhor.
+
+Nas duas pontas:
+
+- **No app**, dentro de "Marcar horário": escolhida a profissional e a duração,
+  o botão **Procurar horário livre** lista as próximas vagas agrupadas por dia.
+  Tocar numa preenche o dia e a hora. A conta é local, com o que já está no
+  aparelho — funciona sem internet e responde na hora, com a cliente ao
+  telefone.
+- **Na página das clientes**, a tira de dias começa com **"os próximos"**, já
+  escolhida: ela toca no serviço e vê quando cabe, em vez de caçar dia a dia.
+  Quem quer um dia específico continua tocando no dia.
+
+As sugestões saem espaçadas pela duração do serviço e no máximo três por dia:
+9h00 e 9h15 são a mesma oportunidade dita duas vezes, e doze horários de amanhã
+respondem uma pergunta que ninguém fez.
+
 ## Baixa automática de estoque
 
 A planilha trazia os preços dos insumos, mas não quanto de cada um sai por
@@ -257,6 +278,13 @@ insumo ele consome. A partir daí, fechar a comanda desconta sozinho — e o
 custo do serviço passa a ser o custo real da ficha, não uma estimativa.
 
 Comece pelos 5 serviços que vocês mais fazem. O resto vem com o tempo.
+
+**Dá para desligar.** Em **Ajustes → O studio**, a chave *"Dar baixa no estoque
+ao fechar a comanda"*. Enquanto a ficha técnica não estiver afinada, ela tira da
+prateleira o que não saiu — e a lista de compras manda repor produto que nem
+acabou. Estoque errado atrapalha mais do que estoque nenhum: quem confere a olho
+pelo menos não é enganada. Desligada, o saldo só muda por
+**Estoque → Movimentar**.
 
 ---
 

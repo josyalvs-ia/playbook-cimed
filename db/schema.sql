@@ -691,3 +691,57 @@ alter table pacotes enable row level security;
 drop policy if exists "equipe" on pacotes;
 create policy "equipe" on pacotes for all to authenticated
   using (public.e_da_equipe()) with check (public.e_da_equipe());
+
+-- ── Os próximos horários livres, sem entrar dia a dia ──────────────────────
+-- "A cliente quer esmaltação em gel e eu tenho que entrar dia a dia na agenda
+-- procurando um horário" — pedido da Julia. A conta de um dia já existe em
+-- horarios_livres; esta função percorre os próximos dias e devolve as
+-- primeiras vagas de cada um.
+--
+-- Poucas por dia, de vários dias: doze horários de amanhã respondem uma
+-- pergunta que ninguém fez. O que se quer saber é QUANDO cabe.
+create or replace function public.proximos_horarios(
+  p_servico_id text,
+  p_dias    int default 21,
+  p_limite  int default 12,
+  p_por_dia int default 4
+) returns table (quando timestamptz, prof_id uuid, prof_nome text)
+language plpgsql stable security definer set search_path = public as $$
+declare
+  v_hoje  date := (now() at time zone public.fuso())::date;
+  v_i     int  := 0;
+  v_n     int  := 0;
+  v_dia   int;
+  v_dur   int;
+  v_ultimo timestamptz;
+  r       record;
+begin
+  -- Espaçar as sugestões pela duração do serviço: 9h00 e 9h15 são a mesma
+  -- oportunidade dita duas vezes. Quem procura quer opções diferentes.
+  select greatest(15, round(coalesce(s.tempo, 1) * 60)::int) into v_dur
+    from servicos s where s.id = p_servico_id;
+  v_dur := coalesce(v_dur, 60);
+
+  while v_i < least(greatest(p_dias, 1), 60) and v_n < p_limite loop
+    v_dia := 0;
+    v_ultimo := null;
+    for r in
+      select h.quando, h.prof_id, h.prof_nome
+      from public.horarios_livres(p_servico_id, v_hoje + v_i) h
+      order by h.quando
+    loop
+      if v_ultimo is not null and r.quando < v_ultimo + make_interval(mins => v_dur) then
+        continue;
+      end if;
+      quando := r.quando; prof_id := r.prof_id; prof_nome := r.prof_nome;
+      return next;
+      v_ultimo := r.quando;
+      v_n := v_n + 1;
+      v_dia := v_dia + 1;
+      exit when v_dia >= greatest(p_por_dia, 1) or v_n >= p_limite;
+    end loop;
+    v_i := v_i + 1;
+  end loop;
+end $$;
+
+grant execute on function public.proximos_horarios(text, int, int, int) to anon, authenticated;

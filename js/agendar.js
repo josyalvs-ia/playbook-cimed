@@ -7,9 +7,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { esc, fmt, avisar, precoTexto, linkMapa, retrato, destaque, icoDestaque,
-         familiaDe, noDestaque, RECADO_AGENDA } from './ui.js';
+         estrela, familiaDe, noDestaque, RECADO_AGENDA } from './ui.js';
 
 const DIAS_A_FRENTE = 45;
+/** Marca a aba dos próximos livres. Não é uma data, e é de propósito. */
+const PROXIMOS = 'proximos';
 const GUARDADOS = 'alento.meus-horarios';
 
 /**
@@ -278,7 +280,10 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
       const d = new Date(hoje); d.setDate(hoje.getDate() + i);
       dias.push(d);
     }
-    if (!escolha.dia) escolha.dia = iso(dias[0]);
+    // Começa em "próximos livres": a pergunta da cliente é "quando tem?", não
+    // "o que tem na quinta?". Era ela quem tinha de caçar dia a dia — e a
+    // Julia, do outro lado do balcão, fazia a mesma caça no app.
+    if (!escolha.dia) escolha.dia = PROXIMOS;
 
     document.getElementById('ag-corpo').innerHTML = `
       <button class="ag-voltar" id="voltar">&larr; Trocar serviço</button>
@@ -287,6 +292,12 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
         <span>${fmt.horas(escolha.servico.tempo)} · ${esc(precoTexto(escolha.servico))}</span>
       </div>
       <div class="ag-dias" id="dias">
+        <button class="ag-dia ag-dia-proximos ${escolha.dia === PROXIMOS ? 'atual' : ''}"
+                data-dia="${PROXIMOS}">
+          <span class="sem">os</span>
+          <span class="num">${estrela()}</span>
+          <span class="mes">próximos</span>
+        </button>
         ${dias.map((d) => `
           <button class="ag-dia ${iso(d) === escolha.dia ? 'atual' : ''}" data-dia="${iso(d)}">
             <span class="sem">${d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
@@ -318,14 +329,62 @@ export async function iniciarAgendamento({ sb, servicos, categorias, studio, equ
 
   async function buscarHorarios() {
     const alvo = raiz.querySelector('#ag-horarios');
-    const { data, error } = await sb.rpc('horarios_livres', {
-      p_servico_id: escolha.servico.id, p_data: escolha.dia,
-    });
+    const proximos = escolha.dia === PROXIMOS;
+    const { data, error } = proximos
+      ? await sb.rpc('proximos_horarios',
+          { p_servico_id: escolha.servico.id, p_dias: DIAS_A_FRENTE, p_limite: 12, p_por_dia: 3 })
+      : await sb.rpc('horarios_livres',
+          { p_servico_id: escolha.servico.id, p_data: escolha.dia });
     if (error) {
+      // Banco ainda sem a função dos próximos: em vez de deixar a cliente na
+      // mão, cai no dia de hoje, que sempre existiu.
+      if (proximos) { escolha.dia = iso(new Date()); return passoHorario(); }
       alvo.innerHTML = `<div class="aviso erro">Não consegui carregar os horários. Tente de novo.</div>`;
       return;
     }
     livres = data || [];
+
+    // Os próximos livres atravessam dias, então o dia precisa aparecer em
+    // cada bloco — "9h" sem data não diz nada quando a lista vai até semana
+    // que vem.
+    if (proximos) {
+      if (!livres.length) {
+        alvo.innerHTML = `<div class="ag-vazio">
+          <p>Sem horário livre nas próximas semanas.</p>
+          <p class="pequeno">${zapDe(escolha.servico)
+            ? `<a href="https://wa.me/55${zapDe(escolha.servico)}" target="_blank" rel="noopener">Fale com a gente</a> que a gente dá um jeito.`
+            : 'Fale com a gente que a gente dá um jeito.'}</p>
+        </div>`;
+        return;
+      }
+      const porDia = new Map();
+      for (const h of livres) {
+        const d = new Date(h.quando).toLocaleDateString('pt-BR',
+          { weekday: 'long', day: '2-digit', month: 'long' });
+        if (!porDia.has(d)) porDia.set(d, []);
+        porDia.get(d).push(h);
+      }
+      alvo.innerHTML = [...porDia].map(([dia, itens]) => `
+        <div class="ag-turno">
+          <div class="ag-turno-titulo">${esc(dia)}</div>
+          <div class="ag-horas">
+            ${itens.map((h) => `
+              <button class="ag-hora" data-quando="${esc(h.quando)}" data-prof="${esc(h.prof_id)}"
+                      data-prof-nome="${esc(h.prof_nome)}">
+                ${retrato(quemE(h.prof_id) || { nome: h.prof_nome }, { tam: 26, cls: 'ag-hora-foto' })}
+                <b>${hora(h.quando)}</b><span>${esc(h.prof_nome)}</span>
+              </button>`).join('')}
+          </div>
+        </div>`).join('') + `<p class="ag-nota-livres">Quer outro dia? Toque num
+          dia acima para ver todos os horários dele.</p>`;
+
+      alvo.querySelectorAll('[data-quando]').forEach((b) => b.onclick = () => {
+        escolha.horario = { quando: b.dataset.quando, prof_id: b.dataset.prof,
+                            prof_nome: b.dataset.profNome };
+        etapa = 3; pintar();
+      });
+      return;
+    }
     if (!livres.length) {
       alvo.innerHTML = `<div class="ag-vazio">
         <p>Nenhum horário livre neste dia.</p>

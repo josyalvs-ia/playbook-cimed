@@ -102,12 +102,13 @@ export function createClient(){
       updateUser: async (d) => { globalThis.__SENHA_NOVA = d.password; return { error: null }; },
     },
     rpc: async (nome, args) => {
-      if (nome === 'horarios_livres') {
+      // As duas funções de horário livre partem do mesmo dia de mentira.
+      const livresDoDia = (servicoId, data) => {
         // Como no banco de verdade: serviço fora do agendamento online não
         // tem horário nenhum a oferecer, nem para quem chamar a função direto.
-        const s = (memoria.servicos || []).find((x) => x.id === args.p_servico_id);
-        if (s && s.agenda_online === false) return { data: [], error: null };
-        const base = new Date(args.p_data + 'T09:00:00');
+        const s = (memoria.servicos || []).find((x) => x.id === servicoId);
+        if (s && s.agenda_online === false) return [];
+        const base = new Date(data + 'T09:00:00');
         // Horário cancelado volta a ficar livre, como no banco de verdade.
         const tomados = (memoria.agendamentos || [])
           .filter(a => a.status !== 'cancelado').map(a => a.inicio);
@@ -117,7 +118,27 @@ export function createClient(){
           if (tomados.includes(d.toISOString())) continue;
           out.push({ quando: d.toISOString(), prof_id: 'p1', prof_nome: 'Laura' });
         }
-        return { data: out, error: null };
+        return out;
+      };
+      if (nome === 'horarios_livres') {
+        return { data: livresDoDia(args.p_servico_id, args.p_data), error: null };
+      }
+      if (nome === 'proximos_horarios') {
+        // Banco que ainda não rodou a atualização: a função não existe.
+        if (globalThis.__SEM_PROXIMOS) {
+          return { data: null, error: { code: '42883',
+            message: 'Could not find the function public.proximos_horarios' } };
+        }
+        const out = [];
+        const hoje = new Date();
+        for (let i = 0; i < (args.p_dias || 21) && out.length < (args.p_limite || 12); i++) {
+          const d = new Date(hoje); d.setDate(hoje.getDate() + i);
+          const dia = d.getFullYear() + '-'
+            + String(d.getMonth() + 1).padStart(2, '0') + '-'
+            + String(d.getDate()).padStart(2, '0');
+          out.push(...livresDoDia(args.p_servico_id, dia).slice(0, args.p_por_dia || 3));
+        }
+        return { data: out.slice(0, args.p_limite || 12), error: null };
       }
       if (nome === 'criar_agendamento') {
         const s = (memoria.servicos || []).find((x) => x.id === args.p_servico_id);
@@ -2659,6 +2680,249 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   });
   checagens.push(['pacote: a sessão gera comissão pelo preço de tabela',
     comissao >= 22.5, String(comissao)]);
+}
+
+// ── 53. Achar horário livre sem entrar dia a dia ──────────────────────────
+// "A cliente quer esmaltação em gel e eu tenho que entrar dia a dia na agenda
+// procurando um horário" — pedido da Julia, para as duas pontas.
+{
+  // ── A cliente, na vitrine ──
+  const ctxL = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxL.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pl = await ctxL.newPage();
+  pl.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
+  await pl.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pl.waitForTimeout(700);
+  await pl.click('#btn-agendar');
+  await pl.waitForSelector('[data-serv]', { timeout: 6000 });
+  await pl.click('[data-serv="manicure"]');
+  await pl.waitForSelector('.ag-hora', { timeout: 6000 });
+
+  checagens.push(['próximos: a tira começa com "os próximos", não com um dia',
+    await pl.evaluate(() => document.querySelector('#dias')?.firstElementChild
+      ?.classList.contains('ag-dia-proximos'))]);
+  checagens.push(['próximos: já vem escolhida, sem ela ter que caçar dia',
+    await pl.evaluate(() => document.querySelector('.ag-dia-proximos')?.classList.contains('atual'))]);
+
+  // Os horários vêm de dias diferentes, e cada bloco diz de que dia é.
+  const blocos = await pl.evaluate(() => [...document.querySelectorAll('.ag-turno-titulo')]
+    .map((t) => t.textContent.trim()));
+  checagens.push(['próximos: os blocos são dias, não "manhã/tarde"',
+    blocos.length > 1 && blocos.every((t) => /-feira|sábado|domingo/i.test(t)),
+    blocos.slice(0, 3).join(' · ')]);
+  checagens.push(['próximos: e são dias diferentes entre si',
+    new Set(blocos).size === blocos.length]);
+
+  // Tocar num dia da tira volta para a lista completa daquele dia.
+  await pl.evaluate(() => [...document.querySelectorAll('[data-dia]')]
+    .find((b) => b.dataset.dia !== 'proximos').click());
+  await pl.waitForTimeout(900);
+  const porTurno = await pl.evaluate(() => [...document.querySelectorAll('.ag-turno-titulo')]
+    .map((t) => t.textContent.trim()));
+  checagens.push(['próximos: escolher um dia volta a separar manhã e tarde',
+    porTurno.some((t) => /Manhã|Tarde/.test(t)), porTurno.join(' · ')]);
+
+  // Marcar por ali funciona igual.
+  await pl.evaluate(() => document.querySelector('.ag-dia-proximos').click());
+  await pl.waitForSelector('.ag-hora', { timeout: 6000 });
+  await pl.locator('.ag-hora').first().click();
+  await pl.waitForTimeout(500);
+  checagens.push(['próximos: dá para marcar direto por ali',
+    await pl.locator('#ag-nome').count() > 0]);
+
+  // Banco sem a função nova: cai no dia de hoje em vez de deixar a cliente na mão.
+  // A marca é posta DEPOIS do reload — recarregar a página zera as variáveis.
+  await pl.reload({ waitUntil: 'networkidle' });
+  await pl.waitForTimeout(700);
+  await pl.evaluate(() => { globalThis.__SEM_PROXIMOS = true; });
+  await pl.click('#btn-agendar');
+  await pl.waitForSelector('[data-serv]', { timeout: 6000 });
+  await pl.click('[data-serv="manicure"]');
+  await pl.waitForSelector('.ag-hora', { timeout: 8000 });
+  checagens.push(['próximos: banco desatualizado não quebra a página',
+    await pl.locator('.ag-hora').count() > 0]);
+  checagens.push(['próximos: sem a função, ela cai no dia de hoje',
+    await pl.evaluate(() => !document.querySelector('.ag-dia-proximos')?.classList.contains('atual'))]);
+  await ctxL.close();
+
+  // ── A equipe, no app ──
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [data-prof]');
+
+  checagens.push(['livre: o botão só aparece depois de saber quem e quanto tempo',
+    await p2.evaluate(() => document.querySelector('.veu [data-buscar-livre]').hidden)]);
+
+  await p2.selectOption('.veu [data-prof]', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu [data-serv]', 'manicure');
+  await p2.waitForTimeout(400);
+  checagens.push(['livre: com profissional e serviço, o botão aparece',
+    await p2.evaluate(() => !document.querySelector('.veu [data-buscar-livre]').hidden)]);
+
+  await p2.click('.veu [data-buscar-livre]');
+  await p2.waitForTimeout(500);
+  const vagas = await p2.evaluate(() => ({
+    dias: document.querySelectorAll('.veu .livres-dia').length,
+    horas: [...document.querySelectorAll('.veu [data-livre]')].map((b) => b.dataset.livreHora),
+    primeiroDia: document.querySelector('.veu [data-livre]')?.dataset.livre,
+  }));
+  checagens.push(['livre: acha vagas em mais de um dia', vagas.dias > 1, String(vagas.dias)]);
+  checagens.push(['livre: sem repetir a mesma oportunidade de 15 em 15 minutos',
+    new Set(vagas.horas).size >= 2 && !(vagas.horas[0] === '09:00' && vagas.horas[1] === '09:15'),
+    vagas.horas.slice(0, 4).join(' · ')]);
+
+  // Escolher uma vaga preenche dia e hora do formulário.
+  await p2.click('.veu [data-livre]');
+  await p2.waitForTimeout(400);
+  const preenchido = await p2.evaluate(() => ({
+    data: document.querySelector('.veu [name=data]').value,
+    hora: document.querySelector('.veu [data-hora]').value,
+  }));
+  checagens.push(['livre: escolher a vaga preenche o dia e a hora',
+    preenchido.data === vagas.primeiroDia && preenchido.hora === vagas.horas[0],
+    JSON.stringify(preenchido)]);
+
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+}
+
+// ── 54. Cadastrar a cliente sem sair do agendamento ───────────────────────
+// "Preciso sair do agendamento, ir em cadastrar cliente, cadastrar, sair de lá
+// e voltar pro agendamento" — pedido da Julia. O nome que ainda não existe
+// vira ficha junto com o horário.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [name=cliente_nome]');
+
+  await p2.fill('.veu [name=cliente_nome]', 'Bianca Novata');
+  await p2.dispatchEvent('.veu [name=cliente_nome]', 'input');
+  await p2.waitForTimeout(300);
+  checagens.push(['cadastro: nome novo abre os campos da ficha',
+    await p2.evaluate(() => !document.querySelector('.veu #cliente-nova').hidden)]);
+
+  await p2.fill('.veu [name=cliente_telefone]', '(11) 97777-1234');
+  await p2.fill('.veu [name=cliente_alergias]', 'alergia a acetona');
+  await p2.selectOption('.veu [data-prof]', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu [data-serv]', 'manicure');
+  await p2.fill('.veu [data-hora]', '15:00');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1200);
+
+  const ficha = await p2.evaluate(() =>
+    globalThis.__DB.clientes.find((c) => c.nome === 'Bianca Novata'));
+  checagens.push(['cadastro: a ficha foi criada junto com o horário',
+    !!ficha && ficha.telefone === '11977771234' && ficha.alergias === 'alergia a acetona',
+    JSON.stringify(ficha && [ficha.telefone, ficha.alergias])]);
+  checagens.push(['cadastro: e o horário fica ligado à ficha dela',
+    await p2.evaluate(() => {
+      const c = globalThis.__DB.clientes.find((x) => x.nome === 'Bianca Novata');
+      return globalThis.__DB.agendamentos.some((a) => a.cliente_id === c.id);
+    })]);
+
+  // Cliente de casa: em vez dos campos de ficha, o que já se sabe dela.
+  await p2.click('#novo');
+  await p2.waitForSelector('.veu [name=cliente_nome]');
+  await p2.fill('.veu [name=cliente_nome]', 'Bianca Novata');
+  await p2.dispatchEvent('.veu [name=cliente_nome]', 'input');
+  await p2.waitForTimeout(400);
+  const conhecida = await p2.evaluate(() => ({
+    escondeNova: document.querySelector('.veu #cliente-nova').hidden,
+    texto: document.querySelector('.veu #cliente-conhecida').textContent.trim(),
+    telefone: document.querySelector('.veu [name=cliente_telefone]').value,
+  }));
+  checagens.push(['cadastro: cliente de casa não pede ficha de novo',
+    conhecida.escondeNova && /já tem ficha/.test(conhecida.texto), conhecida.texto]);
+  checagens.push(['cadastro: e a alergia dela aparece antes do atendimento',
+    /acetona/.test(conhecida.texto)]);
+  checagens.push(['cadastro: o telefone dela vem preenchido',
+    conhecida.telefone === '(11) 97777-1234', conhecida.telefone]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+}
+
+// ── 55. Desligar a baixa automática de estoque ────────────────────────────
+// "Qualquer procedimento que eu faço ele dá baixa em todos os produtos, e nem
+// tudo eu uso pra tudo" — pedido da Julia. Estoque errado atrapalha mais que
+// estoque nenhum: quem confere a olho pelo menos não é enganada.
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('ficha_tecnica', { id: 'ft-teste', servico_id: 'manicure',
+      material_id: (db.estado.materiais[0] || {}).id, qtd: 2 });
+    location.hash = '#/ajustes';
+  });
+  await p2.waitForTimeout(900);
+  checagens.push(['estoque: a chave existe em Ajustes e vem ligada',
+    await p2.evaluate(() => document.querySelector('[name=baixa_automatica]')?.checked === true)]);
+
+  await p2.evaluate(() => { document.querySelector('[name=baixa_automatica]').checked = false; });
+  await p2.click('#salvar-studio');
+  await p2.waitForTimeout(900);
+  checagens.push(['estoque: desligada, fica guardada',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return (db.cfg('studio') || {}).baixa_automatica === false;
+    })]);
+
+  const antes = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const m = db.estado.materiais[0];
+    return { id: m.id, estoque: Number(m.estoque) || 0, movs: db.estado.estoque_mov.length };
+  });
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Teste Sem Baixa');
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu [data-pg="pix"]');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+
+  const depoisSem = await p2.evaluate(async (id) => {
+    const db = await import('./js/db.js');
+    const m = db.estado.materiais.find((x) => x.id === id);
+    return { estoque: Number(m.estoque) || 0, movs: db.estado.estoque_mov.length };
+  }, antes.id);
+  checagens.push(['estoque: comanda fechada não tira nada da prateleira',
+    depoisSem.estoque === antes.estoque && depoisSem.movs === antes.movs,
+    `${antes.estoque} → ${depoisSem.estoque}`]);
+  checagens.push(['estoque: e a tela não promete baixa que não houve',
+    !/insumo\(s\) baixado/.test(nb(await p2.textContent('#toasts')))]);
+
+  // Religada, volta a baixar.
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(900);
+  await p2.evaluate(() => { document.querySelector('[name=baixa_automatica]').checked = true; });
+  await p2.click('#salvar-studio');
+  await p2.waitForTimeout(900);
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Teste Com Baixa');
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu [data-pg="pix"]');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+  const depoisCom = await p2.evaluate(async (id) => {
+    const db = await import('./js/db.js');
+    return Number(db.estado.materiais.find((x) => x.id === id).estoque) || 0;
+  }, antes.id);
+  checagens.push(['estoque: religada, a baixa volta a acontecer',
+    depoisCom < antes.estoque, `${antes.estoque} → ${depoisCom}`]);
 }
 
 await browser.close();

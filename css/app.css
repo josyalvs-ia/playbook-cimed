@@ -525,6 +525,15 @@ tbody tr { transition: background .18s ease; }
   text-decoration: underline; text-underline-offset: 3px;
 }
 .btn-link:hover { color: var(--creme); }
+
+/* ── Horários livres achados pelo sistema ──────────────────────────────────*/
+/* Agrupados por dia: a pergunta é "quando cabe?", e a resposta se lê de cima
+   para baixo, não numa fileira só de horas soltas. */
+.livres { margin-top: 10px; max-height: 260px; overflow-y: auto; }
+.livres-dia { margin-bottom: 10px; }
+.livres-dia .rotulo { margin-bottom: 5px; }
+.livres-horas { display: flex; flex-wrap: wrap; gap: 6px; }
+.livres-horas .pilula { padding: 7px 13px; min-height: 36px; font-variant-numeric: tabular-nums; }
 .marca-tipo.desmarcou { background: var(--erro); }
 .marca-tipo.faltou    { background: var(--alerta); }
 

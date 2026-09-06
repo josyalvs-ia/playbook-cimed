@@ -164,6 +164,70 @@ function choqueCom(profissional_id, inicio, dur, ignorar) {
     && new Date(x.fim || x.inicio) > inicio);
 }
 
+/** O expediente de uma profissional num dia, se houver. */
+function expedienteDe(profissional_id, data) {
+  const dow = new Date(data + 'T12:00:00').getDay();
+  return db.estado.horarios.find((h) =>
+    h.profissional_id === profissional_id && Number(h.dia_semana) === dow && h.ativo !== false);
+}
+
+/** A agenda está fechada nesse pedaço de tempo? Folga, férias, curso. */
+function bloqueioEm(profissional_id, inicio, fim) {
+  return db.estado.bloqueios.find((b) =>
+    (!b.profissional_id || b.profissional_id === profissional_id)
+    && new Date(b.inicio) < fim && new Date(b.fim) > inicio);
+}
+
+/**
+ * Os próximos horários livres de uma profissional para um serviço.
+ *
+ * "A cliente quer esmaltação em gel e eu tenho que entrar dia a dia na agenda
+ * procurando um buraco" — pedido da Julia. O sistema já sabe o expediente, as
+ * folgas e o que está marcado; procurar isso na mão é trabalho que a máquina
+ * faz melhor.
+ *
+ * A conta é local, com o que já está no aparelho: funciona sem internet e
+ * responde na hora, enquanto a cliente está no telefone.
+ */
+export function proximosLivres(profissional_id, dur,
+  { dias = 21, limite = 12, porDia = 4, passo = 15 } = {}) {
+  const achados = [];
+  const agora = new Date();
+  for (let i = 0; i < dias && achados.length < limite; i++) {
+    let noDia = 0;
+    const data = somarDias(hoje(), i);
+    const exp = expedienteDe(profissional_id, data);
+    if (!exp) continue;
+
+    const inicioDia = new Date(`${data}T${exp.abre}`);
+    const fimDia = new Date(`${data}T${exp.fecha}`);
+    const pausa = exp.pausa_inicio && exp.pausa_fim
+      ? [new Date(`${data}T${exp.pausa_inicio}`), new Date(`${data}T${exp.pausa_fim}`)]
+      : null;
+
+    let ultimo = null;
+    for (let t = new Date(inicioDia); achados.length < limite; t = new Date(t.getTime() + passo * 60000)) {
+      const fim = new Date(t.getTime() + dur * 60000);
+      if (fim > fimDia) break;
+      // Horário que já passou não é vaga. Meia hora de folga para quem está
+      // com a cliente no telefone agora.
+      if (t < new Date(agora.getTime() + 30 * 60000)) continue;
+      if (pausa && t < pausa[1] && fim > pausa[0]) continue;
+      if (bloqueioEm(profissional_id, t, fim)) continue;
+      if (choqueCom(profissional_id, t, dur)) continue;
+      // 9h00 e 9h15 são a mesma oportunidade dita duas vezes: as sugestões do
+      // mesmo dia ficam espaçadas pela duração do serviço.
+      if (ultimo && t.getTime() - ultimo < dur * 60000) continue;
+      achados.push(t);
+      ultimo = t.getTime();
+      // Poucos por dia, de vários dias: "amanhã às 9, 10, 11, 12…" responde
+      // uma pergunta que ninguém fez. O que ela quer saber é quando cabe.
+      if (++noDia >= porDia) break;
+    }
+  }
+  return achados;
+}
+
 /**
  * Bateu com outro horário: pergunta em vez de recusar.
  *
@@ -624,6 +688,34 @@ export function abrirAgendamento(id, dataPadrao) {
         // se reorganizam a partir dela.
         campoHora.oninput = () => { campoHora.dataset.tocada = '1'; recalcular(); };
         linha.querySelector('[data-remover]').onclick = () => { linha.remove(); recalcular(); };
+
+        // Procurar horário livre: só faz sentido depois de saber com quem e
+        // por quanto tempo — sem isso não há o que procurar.
+        const botao = linha.querySelector('[data-buscar-livre]');
+        const alvo = linha.querySelector('[data-livres]');
+        const verBotao = () => {
+          botao.hidden = !(selProf.value && Number(campoDur.value) > 0);
+          if (botao.hidden) alvo.innerHTML = '';
+        };
+        botao.onclick = () => {
+          const vagas = proximosLivres(selProf.value, Number(campoDur.value));
+          alvo.innerHTML = listaDeLivres(vagas, Number(campoDur.value));
+          alvo.querySelectorAll('[data-livre]').forEach((b) => b.onclick = () => {
+            // O dia é do agendamento inteiro; a hora, desta linha.
+            veu.querySelector('[name=data]').value = b.dataset.livre;
+            campoHora.value = b.dataset.livreHora;
+            campoHora.dataset.tocada = '1';
+            alvo.innerHTML = '';
+            recalcular(); mostrarRepeticao();
+            avisar(`${fmt.data(b.dataset.livre)} às ${b.dataset.livreHora}`);
+          });
+        };
+        [selProf, selServico, campoDur].forEach((c) => {
+          c.addEventListener('change', verBotao);
+          c.addEventListener('input', verBotao);
+        });
+        verBotao();
+
         filtrarServicos(linha);
       };
 
@@ -640,6 +732,31 @@ export function abrirAgendamento(id, dataPadrao) {
       };
 
       veu.querySelector('[name=data]').onchange = () => { recalcular(); mostrarRepeticao(); };
+
+      // Enquanto digita o nome, a tela já diz se é cliente de casa ou nova —
+      // e o telefone dela vem junto, sem ninguém ter que procurar.
+      const campoNome = veu.querySelector('[name=cliente_nome]');
+      const campoTel = veu.querySelector('[name=cliente_telefone]');
+      const verCliente = () => {
+        const nome = campoNome.value.trim();
+        const ja = nome && db.estado.clientes.find((c) => chave(c.nome) === chave(nome));
+        veu.querySelector('#cliente-nova').hidden = !nome || !!ja;
+        const cartao = veu.querySelector('#cliente-conhecida');
+        cartao.hidden = !ja;
+        if (ja) {
+          const f = M.fichaCliente(ja);
+          cartao.querySelector('div').innerHTML =
+            `<strong>${esc(ja.nome)}</strong> já tem ficha`
+            + (f.visitas ? ` · ${f.visitas} visita${f.visitas === 1 ? '' : 's'}` : '')
+            + (ja.alergias ? ` · <span class="alerta-c">${esc(ja.alergias)}</span>` : '');
+          // Telefone em branco recebe o que já está cadastrado; digitado à mão,
+          // manda quem está digitando.
+          if (!campoTel.value && ja.telefone) campoTel.value = fmt.telefone(ja.telefone);
+        }
+      };
+      campoNome.oninput = verCliente;
+      campoNome.onchange = verCliente;
+      verCliente();
 
       // Dizer quantas vezes e até quando: "repetir" sem número na tela é um
       // salto no escuro — ela precisa saber que vai marcar 13 horários.
@@ -674,6 +791,24 @@ function formNovo(servicos, profs, dataPadrao) {
       </datalist></label>
     <label class="campo"><span>WhatsApp</span>
       <input name="cliente_telefone" type="tel" placeholder="(11) 99999-9999"></label>
+
+    <!-- "Preciso sair do agendamento, ir em cadastrar cliente, cadastrar, sair
+         de lá e voltar" — pedido da Julia. Nome que ainda não existe vira
+         ficha aqui mesmo, com o que dá para perguntar no telefone. -->
+    <div id="cliente-nova" hidden>
+      <div class="aviso ok">${ico('mais')}<div><strong>Cliente nova.</strong>
+        A ficha dela é criada junto com o horário — não precisa cadastrar
+        antes.</div></div>
+      <div class="linha-campos" style="margin-top:10px">
+        <label class="campo"><span>Aniversário</span>
+          <input type="date" name="cliente_nascimento">
+          <span class="dica t3">Opcional.</span></label>
+        <label class="campo"><span>Alergias / cuidados</span>
+          <input name="cliente_alergias" placeholder="Ex.: alergia a acetona"></label>
+      </div>
+    </div>
+    <div id="cliente-conhecida" class="aviso" hidden>${ico('check')}<div></div></div>
+
     <label class="campo"><span>Dia</span>
       <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
 
@@ -744,7 +879,37 @@ function linhaServico(profs) {
           <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
           <span class="dica t3" data-quando></span></label>
       </div>
+      <!-- "Tenho que entrar dia a dia na agenda procurando um buraco" — o
+           sistema já sabe o expediente, as folgas e o que está marcado. -->
+      <button type="button" class="btn btn-sm btn-fantasma" data-buscar-livre hidden
+        style="margin-top:2px">${ico('busca')}Procurar horário livre</button>
+      <div data-livres></div>
     </div>`;
+}
+
+/** Os horários livres achados, agrupados por dia, prontos para escolher. */
+function listaDeLivres(vagas, dur) {
+  if (!vagas.length) {
+    return `<div class="aviso mt">${ico('info')}<div>Nenhum horário livre nas
+      próximas três semanas com essa duração. Dá para encaixar num horário
+      ocupado — é só escrever a hora à mão.</div></div>`;
+  }
+  const porDia = new Map();
+  for (const v of vagas) {
+    const d = localData(v);
+    if (!porDia.has(d)) porDia.set(d, []);
+    porDia.get(d).push(v);
+  }
+  return `<div class="livres">
+    ${[...porDia].map(([data, horas]) => `
+      <div class="livres-dia">
+        <div class="rotulo">${esc(diaPorExtenso(data))}</div>
+        <div class="livres-horas">
+          ${horas.map((h) => `<button type="button" class="pilula" data-livre="${data}"
+            data-livre-hora="${relogio(h.getTime())}">${relogio(h.getTime())}</button>`).join('')}
+        </div>
+      </div>`).join('')}
+  </div>`;
 }
 
 function fichaAgendamento(a) {
@@ -953,6 +1118,22 @@ async function salvarNovo(fechar, veu, servicos) {
   const encaixe = choque ? await pedirEncaixe(choque, choque.profissional_id) : false;
   if (choque && !encaixe) return;
 
+  // A ficha da cliente nasce aqui, junto com o horário. Sem isto ela existia
+  // só como um nome escrito no agendamento, e a ficha só aparecia no dia em
+  // que chegasse ao studio.
+  const telefone = (d.cliente_telefone || '').replace(/\D/g, '') || null;
+  const achada = db.estado.clientes.find((c) => chave(c.nome) === chave(d.cliente_nome));
+  const cliente = achada || await db.salvar('clientes', {
+    nome: d.cliente_nome, telefone,
+    nascimento: d.cliente_nascimento || null,
+    alergias: d.cliente_alergias || null,
+    ativo: true,
+  });
+  // Cliente de casa que passou um telefone novo: vale atualizar a ficha.
+  if (achada && telefone && achada.telefone !== telefone) {
+    await db.salvar('clientes', { ...achada, telefone });
+  }
+
   const datas = datasDaSerie(d.data, passoDe(d.repetir, d.repetir_dias), Number(d.repetir_ate));
   const serie_id = datas.length > 1 ? uid() : null;
 
@@ -970,8 +1151,9 @@ async function salvarNovo(fechar, veu, servicos) {
         id: uid(),
         profissional_id: prof,
         servico_id: s.id, servico_nome: s.nome,
+        cliente_id: cliente?.id || null,
         cliente_nome: d.cliente_nome,
-        cliente_telefone: (d.cliente_telefone || '').replace(/\D/g, '') || null,
+        cliente_telefone: telefone,
         inicio: ini.toISOString(),
         fim: new Date(ini.getTime() + dur * 60000).toISOString(),
         duracao_min: dur,

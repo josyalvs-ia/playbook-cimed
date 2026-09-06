@@ -34,6 +34,17 @@ export function render(raiz) {
           <input name="trinks" value="${esc(s.trinks || '')}" placeholder="https://www.trinks.com/...">
           <span class="dica t3">O agendamento agora acontece no próprio site. Este link só é
             usado se o banco estiver fora do ar — deixe em branco se já saiu do Trinks.</span></label>
+        <!-- A Julia pediu para desligar: "qualquer procedimento que eu faço ele
+             dá baixa em todos os produtos, e nem tudo eu uso pra tudo". Ficha
+             técnica meia-boca tira do estoque o que não saiu da prateleira, e
+             aí a lista de compras manda repor o que ainda tem. -->
+        <label class="check mt"><input type="checkbox" name="baixa_automatica"
+          ${s.baixa_automatica === false ? '' : 'checked'}>
+          <span>Dar baixa no estoque ao fechar a comanda</span></label>
+        <span class="dica t3" style="display:block;margin:-4px 0 12px">Desligado, o
+          estoque só muda quando alguém lançar à mão em Estoque &rarr; Movimentar.
+          Ligado, sai da prateleira o que a ficha técnica de cada serviço disser.</span>
+
         <button class="btn btn-primario" id="salvar-studio">Salvar</button>
       </div>
 

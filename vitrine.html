@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://alentoostudio.com.br/vitrine.html">
-<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-09-06.1">
+<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-09-06.2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,10 +26,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-09-06.1">
+<link rel="stylesheet" href="css/app.css?v=2026-09-06.2">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-09-06.1"></script>
+<script src="config.js?v=2026-09-06.2"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -212,6 +212,13 @@
   .ag-dia .num { font-family: var(--display); font-size: 21px; font-weight: 700; }
   .ag-dia.atual { background: var(--creme); border-color: var(--creme); color: var(--verde); }
   .ag-dia.atual .sem, .ag-dia.atual .mes { color: rgba(46,51,34,.62); }
+  /* A primeira ficha da tira não é um dia: é "me mostre quando tem". Vem
+     antes porque é a pergunta que a cliente faz primeiro. */
+  .ag-dia-proximos { width: 74px; border-style: dashed; }
+  .ag-dia-proximos .num { display: flex; align-items: center; justify-content: center;
+                          height: 26px; }
+  .ag-dia-proximos .num svg { width: 17px; height: 17px; }
+  .ag-nota-livres { font-size: 12.5px; color: var(--texto-3); margin-top: 4px; }
 
   .ag-turno { margin-bottom: 20px; }
   .ag-turno-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
