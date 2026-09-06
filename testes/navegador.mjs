@@ -2925,6 +2925,104 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     depoisCom < antes.estoque, `${antes.estoque} → ${depoisCom}`]);
 }
 
+// ── 56. Cortesia: atendimento que não foi cobrado ─────────────────────────
+// "Hoje eu atendi minha irmã, fui fechar a comanda dela, é cortesia, e eu não
+// consigo fechar" — pedido da Julia. Cortesia não é forma de pagamento, é a
+// ausência de uma: fica registrado, o material sai do estoque, e nada entra
+// no caixa.
+{
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  const antes = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const m = db.estado.materiais[0];
+    return { id: m.id, estoque: Number(m.estoque) || 0,
+             caixa: globalThis.__DB.caixa.length };
+  });
+
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Irmã da Julia');
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(300);
+
+  checagens.push(['cortesia: a opção existe junto com as formas de pagamento',
+    await p2.locator('.veu [data-pg="cortesia"]').count() === 1]);
+
+  await p2.click('.veu [data-pg="cortesia"]');
+  await p2.waitForTimeout(400);
+  const totais = nb(await p2.textContent('.veu #totais'));
+  checagens.push(['cortesia: o total a cobrar vai a zero', /R\$\s*0,00/.test(totais), totais.slice(0, 140)]);
+  checagens.push(['cortesia: e a tela explica o que vai acontecer',
+    /Nada a cobrar/.test(totais) && /nada entra no caixa/.test(totais)]);
+  checagens.push(['cortesia: o serviço continua valendo o que vale',
+    /R\$\s*45,00/.test(totais), totais.slice(0, 140)]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+
+  const fechada = await p2.evaluate(() =>
+    globalThis.__DB.comandas.find((c) => c.cliente_nome === 'Irmã da Julia'));
+  checagens.push(['cortesia: a comanda fecha, que era o que travava',
+    fechada?.status === 'fechada' && fechada?.total === 0,
+    JSON.stringify(fechada && [fechada.status, fechada.total])]);
+  checagens.push(['cortesia: nada entrou no caixa',
+    await p2.evaluate((id) => !globalThis.__DB.caixa.some((l) => l.comanda_id === id),
+      fechada.id)]);
+  checagens.push(['cortesia: o caixa não ganhou linha nenhuma',
+    await p2.evaluate(() => globalThis.__DB.caixa.length) === antes.caixa,
+    String(antes.caixa)]);
+
+  const depois = await p2.evaluate(async (id) => {
+    const db = await import('./js/db.js');
+    return Number(db.estado.materiais.find((x) => x.id === id).estoque) || 0;
+  }, antes.id);
+  checagens.push(['cortesia: mas o material saiu do estoque, porque saiu mesmo',
+    depois < antes.estoque, `${antes.estoque} → ${depois}`]);
+
+  const comissao = await p2.evaluate(async (id) => {
+    const M = await import('./js/metricas.js');
+    const db = await import('./js/db.js');
+    const c = globalThis.__DB.comandas.find((x) => x.id === id);
+    const p = db.estado.profissionais.find((x) => x.id === 'p2');
+    return M.fechamentoProfissional(p, { de: c.data, ate: c.data }).comandas
+      .filter((x) => x.forma_pagamento === 'cortesia').length;
+  }, fechada.id);
+  checagens.push(['cortesia: o atendimento continua no histórico dela', comissao === 1]);
+
+  // Comanda que era cobrada e vira cortesia: a entrada antiga sai do caixa.
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Virou Cortesia');
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu [data-pg="pix"]');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+  const paga = await p2.evaluate(() =>
+    globalThis.__DB.comandas.find((c) => c.cliente_nome === 'Virou Cortesia'));
+  checagens.push(['cortesia: antes de virar cortesia, a entrada existe no caixa',
+    await p2.evaluate((id) => globalThis.__DB.caixa.some((l) => l.comanda_id === id), paga.id)]);
+
+  await p2.evaluate((id) => document.querySelector(`[data-comanda="${id}"]`).click(), paga.id);
+  await p2.waitForSelector('.veu [data-pg="cortesia"]');
+  await p2.click('.veu [data-pg="cortesia"]');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu .modal-pe .btn-fantasma');
+  await p2.waitForTimeout(1300);
+  checagens.push(['cortesia: virou cortesia, a entrada some do caixa',
+    await p2.evaluate((id) => !globalThis.__DB.caixa.some((l) => l.comanda_id === id), paga.id)]);
+  checagens.push(['cortesia: e a comanda continua fechada, zerada',
+    await p2.evaluate((id) => {
+      const c = globalThis.__DB.comandas.find((x) => x.id === id);
+      return c.status === 'fechada' && c.total === 0;
+    }, paga.id)]);
+}
+
 await browser.close();
 
 let falhas = 0;

@@ -6,7 +6,7 @@
 
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato, dataLocal } from '../ui.js';
-import { FORMAS_PAGAMENTO } from '../pricing.js';
+import { FORMAS_PAGAMENTO, ehCortesia } from '../pricing.js';
 import { resumo, taxaDe, premissas, pacoteDoServico, pacotesDe } from '../metricas.js';
 
 let filtro = { periodo: 'hoje', de: hoje(), ate: hoje(), profissional: '', status: '' };
@@ -322,7 +322,11 @@ export function abrirComanda(id, inicial) {
       const pintarTotais = () => {
         const bruto = itens.reduce((s, i) => s + i.valor * i.qtd, 0);
         const desconto = Number($('#desc').value) || 0;
-        const total = Math.max(0, bruto - desconto);
+        // Cortesia: os serviços continuam valendo o que valem — é o que a
+        // cliente ganhou, e é o que o relatório precisa saber. O que vai a
+        // zero é o que se cobra dela.
+        const cortesia = ehCortesia(veu.querySelector('.pilula.ativa')?.dataset.pg);
+        const total = cortesia ? 0 : Math.max(0, bruto - desconto);
         const custo = itens.reduce((s, i) => s + (Number(i.custo) || 0) * i.qtd, 0);
         const tempo = itens.reduce((s, i) => s + (Number(i.tempo) || 0) * i.qtd, 0);
         const p = premissas();
@@ -333,11 +337,16 @@ export function abrirComanda(id, inicial) {
         $('#totais').innerHTML = `
           <div class="cartao" style="background:var(--fundo);padding:14px">
             <div class="flex-entre"><span class="t2">Serviços</span><span class="num">${fmt.brl(bruto)}</span></div>
-            ${desconto ? `<div class="flex-entre"><span class="t2">Desconto</span><span class="num erro-c">− ${fmt.brl(desconto)}</span></div>` : ''}
+            ${cortesia ? `<div class="flex-entre"><span class="t2">Cortesia</span>
+              <span class="num erro-c">− ${fmt.brl(bruto)}</span></div>`
+            : desconto ? `<div class="flex-entre"><span class="t2">Desconto</span><span class="num erro-c">− ${fmt.brl(desconto)}</span></div>` : ''}
             <div class="flex-entre" style="margin:8px 0;padding-top:8px;border-top:1px solid var(--linha)">
               <strong style="font-size:17px">Total a cobrar</strong>
               <strong class="display num" style="font-size:24px">${fmt.brl(total)}</strong>
             </div>
+            ${cortesia ? `<div class="aviso ok" style="margin:8px 0">${ico('check')}<div>
+              Nada a cobrar. O atendimento fica registrado, os materiais saem do
+              estoque, e nada entra no caixa.</div></div>` : ''}
             <div class="pequeno t3">
               ${forma ? `Taxa ${fmt.brl(taxa)} · ` : ''}Imposto ${fmt.brl(imposto)} ·
               Material ${fmt.brl(custo)} · ${fmt.horas(tempo)} de cadeira
@@ -491,6 +500,7 @@ export function abrirComanda(id, inicial) {
 
     const bruto = itens.reduce((s, i) => s + i.valor * i.qtd, 0);
     const desconto = Number($('#desc').value) || 0;
+    const cortesia = ehCortesia(forma);
 
     // Corrigir um dado de uma comanda já fechada não desfaz o pagamento.
     //
@@ -509,7 +519,7 @@ export function abrirComanda(id, inicial) {
       forma_pagamento: forma || null,
       desconto,
       observacoes: $('#obs').value.trim() || null,
-      total: Math.max(0, bruto - desconto),
+      total: cortesia ? 0 : Math.max(0, bruto - desconto),
       custo_total: itens.reduce((s, i) => s + (Number(i.custo) || 0) * i.qtd, 0),
       tempo_total: itens.reduce((s, i) => s + (Number(i.tempo) || 0) * i.qtd, 0),
       status: fechando ? 'fechada' : 'aberta',
@@ -530,18 +540,32 @@ export function abrirComanda(id, inicial) {
       // mudaram, a entrada é reescrita — é a mesma linha, achada pelo id da
       // comanda. O estoque, esse não: os insumos já saíram da prateleira
       // quando a comanda fechou, e baixar de novo faria falta que não existe.
-      await lancarNoCaixa(comanda);
+      //
+      // Cortesia não entra no caixa: dinheiro que não entrou não é entrada de
+      // zero real, é entrada nenhuma. E se a comanda ERA cobrada e virou
+      // cortesia, a linha antiga sai.
+      if (cortesia) await tirarDoCaixa(comanda.id);
+      else await lancarNoCaixa(comanda);
       if (fechada) {
-        avisar(`Comanda atualizada — ${fmt.brl(comanda.total)}`);
+        avisar(cortesia ? 'Comanda atualizada — cortesia'
+                        : `Comanda atualizada — ${fmt.brl(comanda.total)}`);
       } else {
         const baixados = await baixarEstoque(comanda, itens);
-        avisar(`Comanda fechada — ${fmt.brl(comanda.total)}${baixados ? ` · ${baixados} insumo(s) baixado(s)` : ''}`);
+        const quanto = cortesia ? 'cortesia' : fmt.brl(comanda.total);
+        avisar(`Comanda fechada — ${quanto}${baixados ? ` · ${baixados} insumo(s) baixado(s)` : ''}`);
       }
     } else {
       avisar('Comanda salva em aberto');
     }
 
     fecharModal_();
+  }
+}
+
+/** Tira do caixa a entrada desta comanda, se houver. */
+async function tirarDoCaixa(comandaId) {
+  for (const l of db.estado.caixa.filter((x) => x.comanda_id === comandaId)) {
+    await db.remover('caixa', l.id);
   }
 }
 

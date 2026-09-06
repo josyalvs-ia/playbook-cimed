@@ -233,6 +233,10 @@ export function fechamentoProfissional(prof, { de, ate }, p = premissas()) {
   // A comissão pode ser definida item a item; quando não for, vale a da profissional.
   let base = 0;
   for (const c of comandas) {
+    // Cortesia não gera comissão: não há o que dividir de um dinheiro que não
+    // entrou. O atendimento continua no histórico e no tempo de cadeira — é
+    // só a divisão do que foi recebido que não acontece.
+    if (c.forma_pagamento === 'cortesia') continue;
     for (const i of itensDe(c.id)) {
       const qtd = Number(i.qtd) || 1;
       // Sessão de pacote: a cliente não paga nada hoje, mas o trabalho foi

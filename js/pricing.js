@@ -124,4 +124,11 @@ export const FORMAS_PAGAMENTO = [
   { id: 'dinheiro', nome: 'Dinheiro' },
   { id: 'debito',   nome: 'Débito' },
   { id: 'credito',  nome: 'Crédito à vista' },
+  // Cortesia não é forma de pagamento — é a ausência de uma. Mora aqui porque
+  // é onde quem fecha a comanda procura: "como ela pagou?" "não pagou".
+  // Sem isto, a Julia atendia a irmã e ficava sem como fechar o atendimento.
+  { id: 'cortesia', nome: 'Cortesia' },
 ];
+
+/** Atendimento que não foi cobrado. */
+export const ehCortesia = (forma) => forma === 'cortesia';

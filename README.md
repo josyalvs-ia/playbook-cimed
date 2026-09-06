@@ -268,6 +268,21 @@ As sugestões saem espaçadas pela duração do serviço e no máximo três por 
 9h00 e 9h15 são a mesma oportunidade dita duas vezes, e doze horários de amanhã
 respondem uma pergunta que ninguém fez.
 
+## Cortesia
+
+A irmã, a amiga, a cliente que ganhou o retoque. Em **Formas de pagamento**, a
+opção **Cortesia**: o total a cobrar vai a zero, a comanda fecha normalmente, os
+materiais saem do estoque — porque saíram mesmo — e **nada entra no caixa**.
+Dinheiro que não entrou não é entrada de R$ 0,00; é entrada nenhuma.
+
+O serviço continua valendo o preço de tabela na comanda: é o que a cliente
+ganhou, e é o que o relatório precisa saber. E cortesia não gera comissão — não
+há o que dividir de um dinheiro que não entrou. O atendimento continua no
+histórico da cliente e no tempo de cadeira do dia.
+
+Comanda que já estava paga e vira cortesia tem a entrada antiga removida do
+caixa.
+
 ## Baixa automática de estoque
 
 A planilha trazia os preços dos insumos, mas não quanto de cada um sai por
