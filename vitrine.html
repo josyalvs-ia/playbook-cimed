@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://alentoostudio.com.br/vitrine.html">
-<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-09-07.2">
+<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-09-07.3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,10 +26,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-09-07.2">
+<link rel="stylesheet" href="css/app.css?v=2026-09-07.3">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-09-07.2"></script>
+<script src="config.js?v=2026-09-07.3"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -219,6 +219,9 @@
                           height: 26px; }
   .ag-dia-proximos .num svg { width: 17px; height: 17px; }
   .ag-nota-livres { font-size: 12.5px; color: var(--texto-3); margin-top: 4px; }
+  /* A letrinha do fim de uma seção: vale para todos os itens dela. */
+  .secao-nota { font-size: 12.5px; color: var(--texto-3); margin-top: 12px;
+                padding-top: 10px; border-top: 1px solid var(--linha); line-height: 1.5; }
 
   .ag-turno { margin-bottom: 20px; }
   .ag-turno-titulo { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
@@ -349,7 +352,8 @@
 <div id="toasts"></div>
 
 <script type="module">
-import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO } from './js/data/servicos.js';
+import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO,
+         PACOTES_PADRAO, PACOTES_NOTA } from './js/data/servicos.js';
 import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa,
          destaque, icoDestaque, familiaDe, noDestaque, retrato } from './js/ui.js';
 import { iniciarAgendamento, meusHorarios, desmarcar, conferirMeusHorarios,
@@ -423,6 +427,10 @@ for (const s of servicos) {
   porCat.get(s.categoria).push(s);
 }
 
+// Os pacotes vêm do que o studio salvou; sem nada salvo, valem os do arquivo.
+const pacotes = (Array.isArray(studio.pacotes) ? studio.pacotes : PACOTES_PADRAO)
+  .filter((k) => k && k.nome && Number(k.sessoes) > 0);
+
 const zap = String(studio.whatsapp || '').replace(/\D/g, '');
 const trinks = studio.trinks || '';
 
@@ -445,6 +453,27 @@ const secoesDaTabela = [
   ...[...porCat.entries()]
     .filter(([id]) => !CATEGORIAS_SERVICO.some((c) => c.id === id))
     .map(([id, itens]) => ({ fam: familiaDe(id), html: grupo(id, itens, id) })),
+  // Os pacotes do studio: várias sessões pagas de uma vez, mais barato que
+  // avulso. Entram no mesmo destaque dos combos — para quem olha, é a mesma
+  // pergunta: "sai mais em conta fechando junto?"
+  ...(pacotes.length ? [{ fam: 'combos', html: `<section class="secao" data-familia="combos">
+      <div class="secao-titulo">
+        <span class="secao-marca">${icoDestaque('combos')}</span>
+        <span>Pacotes</span></div>
+      ${pacotes.map((k) => {
+        const serv = servicos.find((x) => x.id === k.servico_id);
+        const porSessao = Number(k.sessoes) > 0 ? Number(k.valor) / Number(k.sessoes) : 0;
+        const avulso = Number(serv?.preco) || 0;
+        return `<div class="preco-linha">
+          <span class="nome">${esc(k.nome)}
+            <span class="obs">${fmt.brl(porSessao)} por sessão${
+              avulso > porSessao ? ` · ${fmt.brl(avulso)} avulsa` : ''}</span></span>
+          <span class="valor">${fmt.brl(k.valor)}</span>
+        </div>`;
+      }).join('')}
+      <p class="secao-nota">${esc(PACOTES_NOTA)}</p>
+    </section>` }] : []),
+
   // O combo é de unha, e o destaque dele vale mais perto dos serviços que o
   // compõem do que no rodapé da tabela.
   { fam: 'combos', html: `<section class="secao" data-familia="combos">

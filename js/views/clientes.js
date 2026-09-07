@@ -231,9 +231,19 @@ export function abrirPacote(cliente, aoFechar) {
   const servicos = db.estado.servicos
     .filter((s) => s.ativo !== false && s.tipo !== 'adicional');
 
+  const catalogo = db.pacotesCatalogo();
+
   abrirModal({
     titulo: `Pacote de ${cliente.nome}`,
     corpo: `
+      ${catalogo.length ? `<label class="campo"><span>Qual pacote ela fechou?</span>
+        <select name="modelo" id="modelo-pacote">
+          ${catalogo.map((k) => `<option value="${esc(k.id)}">${esc(k.nome)} — ${fmt.brl(k.valor)}</option>`).join('')}
+          <option value="">Outro, combinado à parte…</option>
+        </select>
+        <span class="dica t3">Escolhendo um da lista, o resto vem preenchido.
+          A lista é editada em Tabela de preços &rarr; Pacotes.</span></label>` : ''}
+
       <label class="campo"><span>Serviço do pacote</span>
         <select name="servico_id">
           ${servicos.map((s) => `<option value="${s.id}">${esc(s.nome)}</option>`).join('')}
@@ -294,6 +304,22 @@ export function abrirPacote(cliente, aoFechar) {
         } },
     ],
     aoAbrir: (veu) => {
+      // Escolher o pacote da lista preenche serviço, sessões e valor: ela não
+      // precisa lembrar de cor que o cronograma médio são 4 sessões por 540.
+      const modelo = veu.querySelector('#modelo-pacote');
+      if (modelo) {
+        const aplicar = () => {
+          const k = catalogo.find((x) => x.id === modelo.value);
+          if (!k) return;
+          const sel = veu.querySelector('[name=servico_id]');
+          if ([...sel.options].some((o) => o.value === k.servico_id)) sel.value = k.servico_id;
+          veu.querySelector('[name=sessoes]').value = k.sessoes;
+          veu.querySelector('[name=valor]').value = k.valor;
+        };
+        modelo.onchange = aplicar;
+        aplicar();
+      }
+
       const check = veu.querySelector('[name=no_caixa]');
       const bloco = veu.querySelector('#pacote-pgto');
       const ver = () => { bloco.hidden = !check.checked; };

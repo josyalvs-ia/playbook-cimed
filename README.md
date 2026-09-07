@@ -224,6 +224,24 @@ cada premissa e ver o efeito na hora.
 
 ---
 
+## Pacotes
+
+Há duas metades, e elas se encontram na comanda.
+
+**O catálogo** — os pacotes que o studio vende — fica em **Tabela de preços →
+Pacotes**: nome, qual serviço cada sessão consome, quantas sessões e o valor
+total. A tela mostra o preço por sessão e quanto isso economiza em relação ao
+avulso, que é a conta que se faz de cabeça no balcão. Eles aparecem na página
+das clientes, no destaque de Combos.
+
+A lista mora dentro da configuração do studio, **não numa tabela nova** — de
+propósito. É o que permite criar um pacote numa terça à noite sem ninguém rodar
+SQL no Supabase. Sem nada salvo, valem os cinco que a Laura montou, que estão
+no arquivo `js/data/servicos.js`.
+
+**O pacote de uma cliente** — o que ela comprou — é a outra metade, descrita
+abaixo.
+
 ## Pacote de sessões
 
 A cliente fecha dez tratamentos de uma vez, paga na hora e vai usando ao longo

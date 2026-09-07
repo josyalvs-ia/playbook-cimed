@@ -2,7 +2,7 @@
 // e o que a comanda oferece.
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, avisar, abrirModal, confirmar, lerForm, chave, vazio, precoTexto,
-         RECADO_AGENDA } from '../ui.js';
+         icoDestaque, RECADO_AGENDA } from '../ui.js';
 import { REGRAS } from '../data/servicos.js';
 import { precoTecnico } from '../pricing.js';
 import { premissas } from '../metricas.js';
@@ -22,6 +22,7 @@ export function render(raiz) {
     porCat.get(s.categoria).push(s);
   }
   const nomeCat = (id) => cats.find((c) => c.id === id)?.nome || id;
+  const pacotes = db.pacotesCatalogo();
 
   raiz.innerHTML = `
     <div class="flex-entre mb envolve">
@@ -83,6 +84,36 @@ export function render(raiz) {
         </tbody></table></div>
       </div>` : ''}
 
+    <!-- Pacotes: a cliente paga várias sessões de uma vez e vai usando. Fica
+         aqui, junto dos preços, porque é onde se procura por preço. -->
+    <div class="cartao mb">
+      <div class="cartao-cabeca">${icoDestaque('combos')}<h3>Pacotes</h3>
+        <button class="btn btn-sm" id="novo-pacote">${ico('mais')}Pacote</button></div>
+      <p class="pequeno t2 mb">Aparecem na página das clientes e ficam prontos para
+        vender na ficha de cada uma. Ao usar, o sistema desconta a sessão sozinho.</p>
+      ${pacotes.length ? `<div class="tabela-wrap"><table><thead><tr>
+        <th>Pacote</th><th class="n">Sessões</th><th class="n">Valor</th>
+        <th class="n">Por sessão</th><th>Desconta de</th><th></th>
+      </tr></thead><tbody>
+        ${pacotes.map((k) => {
+          const serv = db.estado.servicos.find((x) => x.id === k.servico_id);
+          const porSessao = Number(k.sessoes) > 0 ? Number(k.valor) / Number(k.sessoes) : 0;
+          const avulso = Number(serv?.preco) || 0;
+          return `<tr>
+            <td><strong>${esc(k.nome)}</strong></td>
+            <td class="n num">${esc(String(k.sessoes))}</td>
+            <td class="n num"><strong>${fmt.brl(k.valor)}</strong></td>
+            <td class="n num t2">${fmt.brl(porSessao)}
+              ${avulso > porSessao ? `<div class="pequeno ok-c">${fmt.brl(avulso - porSessao)} a menos</div>` : ''}</td>
+            <td class="pequeno ${serv ? 't2' : 'erro-c'}">${serv ? esc(serv.nome)
+              : 'serviço não encontrado — edite o pacote'}</td>
+            <td style="width:34px"><button class="btn-icone" data-pacote="${esc(k.id)}">${ico('editar')}</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>` : `<div class="aviso">${ico('info')}<div>Nenhum pacote.
+        Toque em "Pacote" para criar o primeiro.</div></div>`}
+    </div>
+
     <div class="cartao">
       <div class="cartao-cabeca">${ico('info')}<h3>Regras da tabela</h3></div>
       <div class="grade c3">
@@ -102,6 +133,91 @@ export function render(raiz) {
   raiz.querySelector('#novo').onclick = () => abrirServico();
   raiz.querySelector('#novo2')?.addEventListener('click', () => abrirServico());
   raiz.querySelectorAll('[data-serv]').forEach((b) => b.onclick = () => abrirServico(b.dataset.serv));
+  raiz.querySelector('#novo-pacote').onclick = () => abrirPacoteCatalogo(null, () => render(raiz));
+  raiz.querySelectorAll('[data-pacote]').forEach((b) =>
+    b.onclick = () => abrirPacoteCatalogo(b.dataset.pacote, () => render(raiz)));
+}
+
+/**
+ * Criar ou mudar um pacote do catálogo.
+ *
+ * Elas fazem isto sozinhas: a lista vive na configuração do studio, não numa
+ * tabela nova — ninguém precisa rodar nada no banco para a Laura montar um
+ * pacote novo numa terça à noite.
+ */
+export function abrirPacoteCatalogo(id, aoFechar) {
+  const lista = db.pacotesCatalogo();
+  const k = id ? lista.find((x) => x.id === id) : null;
+  const servicos = db.estado.servicos
+    .filter((x) => x.ativo !== false && x.tipo !== 'adicional');
+
+  abrirModal({
+    titulo: k ? k.nome : 'Novo pacote',
+    corpo: `
+      <label class="campo"><span>Nome do pacote</span>
+        <input name="nome" value="${esc(k?.nome || '')}" required
+               placeholder="Ex.: 4 sessões de terapia capilar"></label>
+      <label class="campo"><span>Cada sessão é qual serviço?</span>
+        <select name="servico_id">
+          ${servicos.map((x) => `<option value="${esc(x.id)}" ${k?.servico_id === x.id ? 'selected' : ''}
+            >${esc(x.nome)}</option>`).join('')}
+        </select>
+        <span class="dica t3">É por aqui que o sistema sabe qual atendimento
+          descontar do pacote quando a cliente chegar.</span></label>
+      <div class="linha-campos">
+        <label class="campo"><span>Quantas sessões</span>
+          <input type="number" name="sessoes" min="1" max="60" step="1" inputmode="numeric"
+                 value="${esc(String(k?.sessoes ?? 4))}"></label>
+        <label class="campo"><span>Valor total</span>
+          <input type="number" name="valor" min="0" step="0.01"
+                 value="${esc(String(k?.valor ?? 0))}"></label>
+      </div>
+      <p class="dica t3" id="por-sessao"></p>`,
+    acoes: [
+      ...(k ? [{ texto: ico('lixo'), classe: 'btn-perigo', onClick: async (f) => {
+          if (!await confirmar('Apagar este pacote?',
+                'Ele sai da página das clientes e da lista de venda. Os pacotes que '
+              + 'clientes já compraram continuam valendo.', 'Apagar')) return;
+          await db.setPacotesCatalogo(lista.filter((x) => x.id !== k.id));
+          f(); avisar('Pacote apagado'); aoFechar?.();
+        } }] : []),
+      { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => f() },
+      { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
+          const d = lerForm(veu);
+          if (!d.nome) return avisar('Dê um nome ao pacote', 'erro');
+          const sessoes = Math.round(Number(d.sessoes) || 0);
+          if (sessoes < 1) return avisar('Quantas sessões o pacote tem?', 'erro');
+          if (!servicos.some((x) => x.id === d.servico_id)) return avisar('Escolha o serviço', 'erro');
+
+          const novo = { id: k?.id || ('pac-' + chave(d.nome).replace(/[^a-z0-9]+/g, '-').slice(0, 32)
+                                      + '-' + Math.random().toString(36).slice(2, 5)),
+                         nome: d.nome, servico_id: d.servico_id,
+                         sessoes, valor: Number(d.valor) || 0 };
+          const atual = db.pacotesCatalogo();
+          const i = atual.findIndex((x) => x.id === novo.id);
+          const salvar = i >= 0 ? atual.map((x, j) => (j === i ? novo : x)) : [...atual, novo];
+          await db.setPacotesCatalogo(salvar);
+          fechar(); avisar('Pacote salvo'); aoFechar?.();
+        } },
+    ],
+    aoAbrir: (veu) => {
+      // O preço por sessão é a conta que ela faz de cabeça — e é o que a
+      // cliente compara com o avulso.
+      const ver = () => {
+        const d = lerForm(veu);
+        const n = Math.round(Number(d.sessoes) || 0);
+        const v = Number(d.valor) || 0;
+        const serv = servicos.find((x) => x.id === d.servico_id);
+        const avulso = Number(serv?.preco) || 0;
+        veu.querySelector('#por-sessao').textContent = n > 0 && v > 0
+          ? `${fmt.brl(v / n)} por sessão`
+            + (avulso > v / n ? ` · ${fmt.brl(avulso - v / n)} a menos que o avulso (${fmt.brl(avulso)})` : '')
+          : '';
+      };
+      veu.querySelectorAll('[name]').forEach((c) => { c.oninput = ver; c.onchange = ver; });
+      ver();
+    },
+  });
 }
 
 export function abrirServico(id) {

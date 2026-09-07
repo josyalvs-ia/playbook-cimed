@@ -12,6 +12,29 @@
 // Tudo é editável dentro do app, em Precificação.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Os pacotes do studio, como a Laura montou.
+ *
+ * Pacote é a cliente pagando várias sessões de uma vez, mais barato que
+ * avulso, e usando ao longo dos meses. Cada um aponta para o serviço que
+ * consome — é por ele que o sistema sabe descontar do pacote quando ela chega.
+ *
+ * Isto aqui é só o ponto de partida: elas editam a lista em Tabela de preços →
+ * Pacotes, e a partir da primeira alteração vale o que elas salvaram. O mesmo
+ * caminho dos avisos de "Boas de saber".
+ */
+export const PACOTES_PADRAO = [
+  { id: 'pac-terapia-4',  nome: '4 sessões de terapia capilar',  servico_id: 'cab-sessao-terapia', sessoes: 4, valor: 980 },
+  { id: 'pac-terapia-8',  nome: '8 sessões de terapia capilar',  servico_id: 'cab-sessao-terapia', sessoes: 8, valor: 1840 },
+  { id: 'pac-crono-curto', nome: 'Cronograma 4 sessões de tratamento — cabelo curto', servico_id: 'cab-trat-curto', sessoes: 4, valor: 500 },
+  { id: 'pac-crono-medio', nome: 'Cronograma 4 sessões de tratamento — cabelo médio', servico_id: 'cab-trat-medio', sessoes: 4, valor: 540 },
+  { id: 'pac-crono-longo', nome: 'Cronograma 4 sessões de tratamento — cabelo longo', servico_id: 'cab-trat-longo', sessoes: 4, valor: 580 },
+];
+
+/** O que vale para todos os pacotes, e o que a cliente lê na página. */
+export const PACOTES_NOTA = 'Incluem escova/finalização. Consulte nossa equipe para '
+  + 'mais informações e condições especiais.';
+
 export const CATEGORIAS_SERVICO = [
   { id: 'maos',        nome: 'Mãos',                        ordem: 1 },
   { id: 'pes',         nome: 'Pés',                         ordem: 2 },

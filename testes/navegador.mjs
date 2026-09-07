@@ -3234,6 +3234,118 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     }) === servicosAntes]);
 }
 
+// ── 59. Os pacotes da Laura, cadastrados por elas ─────────────────────────
+// "Pra mim não aparece como usar pacote... e na aba das clientes só tem os
+// pacotes de unha." O catálogo de pacotes é delas: criam, mudam e apagam sem
+// ninguém rodar nada no banco.
+{
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(900);
+  const tabela = nb(await p2.textContent('#conteudo'));
+  checagens.push(['pacotes: a tabela de preços tem a seção de pacotes',
+    /Pacotes/.test(tabela)]);
+  checagens.push(['pacotes: os cinco da Laura já vêm prontos',
+    /4 sessões de terapia capilar/.test(tabela)
+    && /Cronograma 4 sessões de tratamento — cabelo longo/.test(tabela), '']);
+  checagens.push(['pacotes: mostra o preço por sessão, que é a conta que ela faz',
+    /R\$\s*245,00/.test(tabela), '']);
+
+  // Criar um pacote novo, sem SQL e sem ninguém.
+  await p2.click('#novo-pacote');
+  await p2.waitForSelector('.veu [name=sessoes]');
+  await p2.fill('.veu [name=nome]', 'Pacote de teste da Laura');
+  await p2.selectOption('.veu [name=servico_id]', 'cab-trat-curto');
+  await p2.fill('.veu [name=sessoes]', '3');
+  await p2.fill('.veu [name=valor]', '300');
+  await p2.dispatchEvent('.veu [name=valor]', 'input');
+  await p2.waitForTimeout(300);
+  checagens.push(['pacotes: a tela confirma o valor por sessão antes de salvar',
+    /R\$\s*100,00 por sessão/.test(nb(await p2.textContent('.veu #por-sessao'))),
+    nb(await p2.textContent('.veu #por-sessao'))]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1000);
+  checagens.push(['pacotes: o pacote novo entra na tabela',
+    /Pacote de teste da Laura/.test(nb(await p2.textContent('#conteudo')))]);
+  checagens.push(['pacotes: e fica guardado na configuração do studio, sem tabela nova',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return (db.cfg('studio')?.pacotes || []).some((k) => k.nome === 'Pacote de teste da Laura');
+    })]);
+
+  // Vender para uma cliente: escolher da lista preenche tudo.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-terapia', nome: 'Cliente da Terapia', ativo: true });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(900);
+  await p2.click('[data-cli="cli-terapia"]');
+  await p2.waitForSelector('.veu #novo-pacote');
+  await p2.click('.veu #novo-pacote');
+  await p2.waitForSelector('.veu #modelo-pacote');
+  await p2.selectOption('.veu #modelo-pacote', 'pac-terapia-4');
+  await p2.waitForTimeout(300);
+  const preenchido = await p2.evaluate(() => ({
+    servico: document.querySelector('.veu [name=servico_id]').value,
+    sessoes: document.querySelector('.veu [name=sessoes]').value,
+    valor: document.querySelector('.veu [name=valor]').value,
+  }));
+  checagens.push(['pacotes: escolher da lista preenche serviço, sessões e valor',
+    preenchido.servico === 'cab-sessao-terapia' && preenchido.sessoes === '4'
+    && Number(preenchido.valor) === 980, JSON.stringify(preenchido)]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForSelector('.veu #novo-pacote', { timeout: 8000 });
+  await p2.waitForTimeout(400);
+  checagens.push(['pacotes: vendido, aparece na ficha dela como 4 de 4',
+    /4\s+de\s+4/.test(nb(await p2.textContent('.veu')))]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // E o atendimento desconta do pacote sozinho.
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Cliente da Terapia');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(400);
+  await p2.selectOption('.veu #prof', 'p1');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'cab-sessao-terapia');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacotes: a sessão de terapia entra zerada, descontada do pacote',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // ── E na página das clientes ──
+  const ctxP = await browser.newContext({ serviceWorkers: 'block' });
+  await ctxP.route('**/esm.sh/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE }));
+  const pp = await ctxP.newPage();
+  pp.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
+  await pp.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pp.waitForTimeout(900);
+  const publica = nb(await pp.textContent('#vitrine'));
+  checagens.push(['pacotes: a cliente vê os pacotes de cabelo na tabela',
+    /8 sessões de terapia capilar/.test(publica)]);
+  checagens.push(['pacotes: com o valor por sessão ao lado',
+    /230,00 por sessão/.test(publica), '']);
+  checagens.push(['pacotes: e o recado da equipe embaixo',
+    /condições especiais/.test(publica)]);
+
+  await pp.click('[data-familia="combos"]');
+  await pp.waitForTimeout(500);
+  const emCombos = await pp.evaluate(() => [...document.querySelectorAll('.secao[data-familia]')]
+    .filter((x) => !x.hidden)
+    .map((x) => x.querySelector('.secao-titulo span:last-child')?.textContent.trim() || ''));
+  checagens.push(['pacotes: ficam no destaque de combos, junto do que já havia',
+    emCombos.includes('Pacotes'), emCombos.join(' · ')]);
+  await ctxP.close();
+}
+
 await browser.close();
 
 let falhas = 0;

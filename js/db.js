@@ -9,7 +9,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { avisar, uid } from './ui.js';
-import { CATEGORIAS_SERVICO } from './data/servicos.js';
+import { CATEGORIAS_SERVICO, PACOTES_PADRAO } from './data/servicos.js';
 
 const CHAVE_CONFIG = 'alento.supabase';
 const CHAVE_CACHE  = 'alento.cache.v1';
@@ -695,6 +695,25 @@ export function categorias() {
 export function cfg(chave, padrao = null) {
   const r = estado.config.find((c) => c.chave === chave);
   return r ? r.valor : padrao;
+}
+
+/**
+ * O catálogo de pacotes do studio.
+ *
+ * Mora dentro de `studio`, no `config`, e não numa tabela nova — assim elas
+ * criam e mudam pacote sozinhas, sem ninguém rodar SQL no Supabase, e a página
+ * das clientes já enxerga (a vitrine lê `studio` sem login).
+ *
+ * Sem nada salvo, valem os que a Laura montou, que estão no arquivo.
+ */
+export function pacotesCatalogo() {
+  const lista = (cfg('studio') || {}).pacotes;
+  return Array.isArray(lista) ? lista : PACOTES_PADRAO;
+}
+
+export async function setPacotesCatalogo(lista) {
+  const s = cfg('studio') || {};
+  await setCfg('studio', { ...s, pacotes: lista });
 }
 
 export async function setCfg(chave, valor) {
