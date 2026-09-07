@@ -3023,6 +3023,72 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     }, paga.id)]);
 }
 
+// ── 57. O que ainda não subiu não some da tela ────────────────────────────
+// A Laura cadastrou os pacotes dela e eles sumiram: "nem no meu sistema nem no
+// das clientes". A carga completa trocava a coleção inteira pela do servidor,
+// e o que estava na fila desaparecia da tela — ainda que continuasse guardado
+// no aparelho para subir depois. Sumir sem dizer nada é o pior que o sistema
+// pode fazer: ela não sabe se digitou errado, se salvou, ou se foi comido.
+{
+  // O servidor recusa esta tabela: o serviço vai para a fila.
+  await p2.evaluate(() => {
+    globalThis.__RECUSAR = { tabela: 'servicos',
+      erro: { code: 'PGRST204', message: "Could not find the 'combo_de' column of 'servicos'" } };
+  });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('servicos', { id: 'pacote-laura', nome: 'Pacote 4 escovas',
+      categoria: 'combos', tipo: 'servico', preco: 400, custo: 0, tempo: 1,
+      profissional: 'cabelo', ativo: true });
+  });
+  await p2.waitForTimeout(600);
+  checagens.push(['fila: o serviço recusado fica guardado no aparelho',
+    await p2.evaluate(() =>
+      JSON.parse(localStorage.getItem('alento.fila.v1') || '[]')
+        .some((o) => o.dados?.id === 'pacote-laura'))]);
+  checagens.push(['fila: e aparece na tela mesmo sem ter subido',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.estado.servicos.some((x) => x.id === 'pacote-laura');
+    })]);
+
+  // A carga completa do servidor não pode apagá-lo da tela.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.recarregar();
+  });
+  await p2.waitForTimeout(700);
+  checagens.push(['fila: a carga completa do servidor não o apaga da tela',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.estado.servicos.some((x) => x.id === 'pacote-laura');
+    })]);
+
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(900);
+  checagens.push(['fila: e continua visível na tabela de preços',
+    /Pacote 4 escovas/.test(nb(await p2.textContent('#conteudo')))]);
+
+  // Servidor volta a aceitar: sobe e some da fila, sem sumir da tela.
+  await p2.evaluate(() => { globalThis.__RECUSAR = null; });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.drenarFila();
+  });
+  await p2.waitForTimeout(900);
+  checagens.push(['fila: quando o servidor aceita, ele chega lá',
+    await p2.evaluate(() => globalThis.__DB.servicos.some((x) => x.id === 'pacote-laura'))]);
+  checagens.push(['fila: e a fila esvazia',
+    await p2.evaluate(() =>
+      !JSON.parse(localStorage.getItem('alento.fila.v1') || '[]')
+        .some((o) => o.dados?.id === 'pacote-laura'))]);
+  checagens.push(['fila: sem ter sumido da tela em momento algum',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.estado.servicos.some((x) => x.id === 'pacote-laura');
+    })]);
+}
+
 await browser.close();
 
 let falhas = 0;

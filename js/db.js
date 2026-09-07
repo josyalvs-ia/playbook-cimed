@@ -250,6 +250,37 @@ export async function drenarFila() {
  * Carga completa. Usada na primeira abertura e quando se pede "recarregar".
  * Depois disso, quem trabalha é `sincronizar()`.
  */
+/**
+ * O que ainda não subiu continua na tela.
+ *
+ * A carga completa troca a coleção inteira pela do servidor. O que estava na
+ * fila — porque a rede caiu, ou porque o servidor recusou — sumia da tela
+ * nesse instante, ainda que continuasse guardado no aparelho e fosse subir
+ * depois. A Laura cadastrou os pacotes dela e eles desapareceram: nem no
+ * sistema dela, nem na página das clientes.
+ *
+ * Sumir sem dizer nada é o pior comportamento possível: ela não tem como
+ * saber se digitou errado, se salvou, ou se o sistema comeu. Agora a fila é
+ * reaplicada por cima do que veio do servidor — o que ela escreveu fica à
+ * vista até chegar de verdade do outro lado.
+ */
+function aplicarFila() {
+  const fila = lerFila();
+  if (!fila.length) return;
+  for (const op of fila) {
+    const t = op.tabela;
+    if (!estado[t]) continue;
+    if (op.acao === 'upsert' && op.dados) {
+      const chaveDe = (x) => x.id ?? x.chave;
+      const i = estado[t].findIndex((x) => chaveDe(x) === chaveDe(op.dados));
+      if (i >= 0) estado[t][i] = { ...estado[t][i], ...op.dados };
+      else estado[t].push(op.dados);
+    } else if (op.acao === 'remover') {
+      estado[t] = estado[t].filter((x) => x.id !== op.id);
+    }
+  }
+}
+
 export async function recarregar() {
   if (!cliente) return;
   const resultados = await Promise.all(TABELAS.map((t) => cliente.from(t).select('*')));
@@ -260,6 +291,7 @@ export async function recarregar() {
     if (JSON.stringify(estado[t]) !== JSON.stringify(data)) mudou = true;
     estado[t] = data;
   });
+  aplicarFila();
   marcarSincronizado();
   ordenar();
   salvarCache();
@@ -320,6 +352,10 @@ export async function sincronizar() {
   });
 
   if (semCarimbo) { semCarimbo = false; return (await recarregar()) ? 1 : 0; }
+
+  // Mesmo cuidado da carga completa: a linha que veio do servidor não pode
+  // desfazer a alteração que ainda está esperando para subir.
+  if (chegaram) aplicarFila();
 
   marcarSincronizado(marco);
   if (chegaram) { ordenar(); salvarCache(); notificar(); }
