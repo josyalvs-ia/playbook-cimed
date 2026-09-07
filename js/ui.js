@@ -163,13 +163,25 @@ export function fotoReduzida(arquivo, { lado = 256, qualidade = 0.82 } = {}) {
  * O rosto de quem atende, com a inicial como reserva. Serve tanto para a
  * equipe dentro do sistema quanto para a cliente escolhendo com quem marcar.
  */
+/**
+ * A inicial do avatar, de um nome que pode não existir.
+ *
+ * `nome[0]` numa string vazia é `undefined`, e `.toUpperCase()` nele derruba a
+ * tela inteira. Uma linha estranha — vinda de um backup, de uma importação, de
+ * um cadastro antigo — não pode apagar a lista de clientes.
+ */
+export const inicial = (nome) => (String(nome ?? '').trim()[0] || '?').toUpperCase();
+
+/** O primeiro nome, para falar com a cliente pelo nome dela. */
+export const primeiroNome = (nome) => String(nome ?? '').trim().split(/\s+/)[0] || '';
+
 export function retrato(prof, { tam = 40, cls = '' } = {}) {
   const nome = prof?.nome || '?';
   const estilo = `width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.4)}px`;
   return prof?.foto
     ? `<img class="retrato ${cls}" src="${esc(prof.foto)}" alt="${esc(nome)}" style="${estilo}">`
     : `<span class="retrato sem-foto ${cls}" style="${estilo}" aria-hidden="true"
-        >${esc(nome[0].toUpperCase())}</span>`;
+        >${esc(inicial(nome))}</span>`;
 }
 
 /**

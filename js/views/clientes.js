@@ -1,6 +1,7 @@
 // CLIENTES — ficha, histórico e o que a cliente costuma fazer.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, chave, hoje, avisar, abrirModal, confirmar, lerForm, vazio } from '../ui.js';
+import { ico, estrela, esc, fmt, chave, hoje, avisar, abrirModal, confirmar, lerForm, vazio,
+         inicial } from '../ui.js';
 import { FORMAS_PAGAMENTO } from '../pricing.js';
 import * as M from '../metricas.js';
 import { abrirComanda } from './comandas.js';
@@ -61,7 +62,7 @@ export function render(raiz) {
         </tr></thead><tbody>
         ${lista.map(({ c, f }) => `<tr data-cli="${c.id}" style="cursor:pointer">
           <td><div class="flex" style="gap:9px">
-            <span class="avatar verde">${esc(c.nome[0].toUpperCase())}</span>
+            <span class="avatar verde">${esc(inicial(c.nome))}</span>
             <span><strong>${esc(c.nome)}</strong>
               ${c.alergias ? '<div class="pequeno erro-c">⚠ ' + esc(c.alergias) + '</div>' : ''}</span>
           </div></td>

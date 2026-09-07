@@ -5,7 +5,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid, precoTexto, retrato, dataLocal } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, confirmar, vazio, chave, uid,
+         precoTexto, retrato, dataLocal, primeiroNome } from '../ui.js';
 import { FORMAS_PAGAMENTO, ehCortesia } from '../pricing.js';
 import { resumo, taxaDe, premissas, pacoteDoServico, pacotesDe } from '../metricas.js';
 
@@ -456,7 +457,7 @@ export function abrirComanda(id, inicial) {
         const ativos = cli ? pacotesDe(cli.id).filter((p) => p.valido) : [];
         $('#pacotes-aviso').innerHTML = ativos.length ? `
           <div class="aviso ok mb">${ico('check')}<div>
-            ${esc(cli.nome.split(' ')[0])} tem pacote:
+            ${esc(primeiroNome(cli.nome))} tem pacote:
             ${ativos.map((p) => `<strong>${esc(p.servico_nome)}</strong> (${p.restam} de ${p.total})`).join(' · ')}.
             Ao adicionar o serviço, ele já entra descontado.
           </div></div>` : '';

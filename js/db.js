@@ -96,10 +96,37 @@ export async function sessaoAtual() {
 }
 
 // ─── Cache local ───────────────────────────────────────────────────────────
-function salvarCache() {
-  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify(estado)); }
-  catch { /* cota estourada: o cache é dispensável, seguimos sem ele */ }
+let avisouCota = false;
+
+/**
+ * Guardar no aparelho pode falhar — e falhar calado é o que não pode.
+ *
+ * O localStorage tem cota, e ela estoura: fotos da equipe, um ano de
+ * atendimentos, e de repente `setItem` lança. O cache é dispensável; a FILA
+ * não é — ela é a única cópia do que ainda não subiu. Quando falta espaço, o
+ * cache é sacrificado para a fila caber, e se nem assim couber, alguém precisa
+ * ficar sabendo em vez de perder o que escreveu.
+ */
+function gravarLocal(chave, valor) {
+  try { localStorage.setItem(chave, valor); return true; } catch {}
+  // Abre espaço jogando fora o que dá para reconstruir do servidor.
+  try {
+    localStorage.removeItem(CHAVE_CACHE);
+    localStorage.setItem(chave, valor);
+    return true;
+  } catch {}
+  if (!avisouCota) {
+    avisouCota = true;
+    console.error('Alento — memória do aparelho cheia ao gravar', chave);
+    if (chave === CHAVE_FILA) {
+      avisar('A memória deste aparelho encheu e não consegui guardar o que falta '
+           + 'subir. Fique nesta tela até o aviso de sincronização sumir.', 'erro');
+    }
+  }
+  return false;
 }
+
+function salvarCache() { gravarLocal(CHAVE_CACHE, JSON.stringify(estado)); }
 
 function carregarCache() {
   try {
@@ -113,8 +140,58 @@ function carregarCache() {
 function lerFila() {
   try { return JSON.parse(localStorage.getItem(CHAVE_FILA) || '[]'); } catch { return []; }
 }
-function gravarFila(f) { localStorage.setItem(CHAVE_FILA, JSON.stringify(f)); }
+function gravarFila(f) { gravarLocal(CHAVE_FILA, JSON.stringify(f)); }
 export function pendentes() { return lerFila().length; }
+
+/** Como cada tabela se chama para quem usa o sistema. */
+const NOME_TABELA = {
+  profissionais: 'profissional', clientes: 'cliente', servicos: 'serviço',
+  materiais: 'insumo', ficha_tecnica: 'ficha técnica', estoque_mov: 'movimento de estoque',
+  comandas: 'atendimento', comanda_itens: 'item do atendimento', caixa: 'lançamento do caixa',
+  config: 'ajuste', horarios: 'horário de funcionamento', bloqueios: 'bloqueio de agenda',
+  agendamentos: 'horário marcado', pacotes: 'pacote',
+};
+
+/**
+ * O que está preso na fila, em português.
+ *
+ * Um número — "3 não subiram" — não diz o que ficou para trás. Sabendo que é o
+ * pacote da Karen, dá para conferir e resolver; sem saber, resta desconfiar de
+ * tudo.
+ */
+export function listaPendentes() {
+  return lerFila().map((op, i) => {
+    const d = op.dados || {};
+    const rotulo = d.nome || d.cliente_nome || d.descricao || d.servico_nome
+                || d.chave || d.motivo || op.id || d.id || '—';
+    return { i, tabela: op.tabela, acao: op.acao, quando: op.ts,
+             o_que: NOME_TABELA[op.tabela] || op.tabela, rotulo: String(rotulo) };
+  });
+}
+
+/**
+ * Desiste de uma alteração que o servidor nunca vai aceitar.
+ *
+ * Existe porque a alternativa é pior: sem isto, uma linha que o banco recusa
+ * para sempre fica na fila e na tela até alguém limpar o navegador — e todo o
+ * resto fica atrás dela, com o aviso vermelho aceso sem parar.
+ */
+export function descartarPendente(i) {
+  const f = lerFila();
+  const op = f[i];
+  if (!op) return;
+  f.splice(i, 1);
+  gravarFila(f);
+  // Sai da tela junto: mantê-lo visível seria prometer uma gravação que já não
+  // vai acontecer.
+  if (op.acao === 'upsert' && estado[op.tabela]) {
+    const chaveDe = (x) => x.id ?? x.chave;
+    estado[op.tabela] = estado[op.tabela].filter((x) => chaveDe(x) !== chaveDe(op.dados || {}));
+    salvarCache();
+  }
+  if (!f.length) ultimoErro = null;
+  notificar();
+}
 
 /**
  * Por que a última tentativa de subir não deu certo.
@@ -144,6 +221,13 @@ function explicar(erro, tabela) {
     return { curto: 'Este lançamento depende de um cadastro que ainda não subiu.',
              comoResolver: 'Toque em "Tentar de novo": a fila sobe na ordem em que foi '
                          + 'criada e isto se resolve sozinho.' };
+  }
+  // Duas pessoas marcando ao mesmo tempo, de aparelhos diferentes: o aviso de
+  // choque do app não vê o que a outra acabou de fazer, mas o banco vê.
+  if (erro?.code === '23P01' || /exclusion|conflicting key|sem_choque/i.test(msg)) {
+    return { curto: 'Este horário foi ocupado por outra pessoa antes de este subir.',
+             comoResolver: 'Abra o horário no aparelho, mude a hora e salve de novo — '
+                         + 'ou descarte esta alteração na lista abaixo.' };
   }
   if (erro?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
     return { curto: 'O banco recusou a gravação nesta conta.',
@@ -212,8 +296,30 @@ function enfileirar(op, erro, { silencioso = false } = {}) {
   notificar();
 }
 
-/** Sobe tudo o que ficou pendente. Chamado ao carregar e ao voltar a rede. */
-export async function drenarFila() {
+let drenando = null;
+
+/**
+ * Sobe tudo o que ficou pendente. Chamado ao carregar e ao voltar a rede.
+ *
+ * Uma de cada vez, e nunca sobrescrevendo o que chegou no meio do caminho.
+ * A drenagem lia a fila no começo e a regravava no fim: o que fosse salvo
+ * durante a ida ao servidor — e há três gatilhos que a disparam, o relógio, o
+ * voltar para a aba e o próprio salvar — era apagado por uma lista lida antes
+ * de ele existir. O registro sumia do aparelho sem nunca ter subido.
+ */
+let redrenar = false;
+export function drenarFila() {
+  // Chamou no meio de uma drenagem: o que acabou de entrar não fica esperando
+  // o próximo ciclo do relógio — assim que esta terminar, roda de novo.
+  if (drenando) { redrenar = true; return drenando; }
+  drenando = drenarAgora().finally(() => {
+    drenando = null;
+    if (redrenar) { redrenar = false; drenarFila(); }
+  });
+  return drenando;
+}
+
+async function drenarAgora() {
   if (!cliente || !navigator.onLine) return;
   let f = lerFila();
   if (!f.length) return;
@@ -236,7 +342,9 @@ export async function drenarFila() {
       }
     }
   }
-  gravarFila(restante);
+  // O que entrou na fila enquanto isto rodava fica no fim, intacto.
+  const agora = lerFila();
+  gravarFila([...restante, ...agora.slice(f.length)]);
   if (f.length !== restante.length) {
     avisar(`${f.length - restante.length} alteração(ões) sincronizada(s)`);
     if (!restante.length) ultimoErro = null;
@@ -283,19 +391,36 @@ function aplicarFila() {
 
 export async function recarregar() {
   if (!cliente) return;
-  const resultados = await Promise.all(TABELAS.map((t) => cliente.from(t).select('*')));
+  let resultados;
+  try {
+    resultados = await Promise.all(TABELAS.map((t) => cliente.from(t).select('*')));
+  } catch (e) {
+    console.error('Alento — não consegui recarregar do servidor:', e);
+    return false;
+  }
+
   let mudou = false;
+  let vieram = 0;
   TABELAS.forEach((t, i) => {
     const { data, error } = resultados[i];
-    if (error || !data) return;
+    if (error || !data) return;   // tabela que este banco ainda não tem
+    vieram++;
     if (JSON.stringify(estado[t]) !== JSON.stringify(data)) mudou = true;
     estado[t] = data;
   });
   aplicarFila();
-  marcarSincronizado();
-  ordenar();
-  salvarCache();
-  if (mudou) notificar();
+
+  // Carimbar "conferido agora" sem ter trazido nada é mentir para o próprio
+  // sistema: a conferida seguinte pede só o que mudou DEPOIS deste instante, e
+  // tudo o que a outra salvou na janela perdida nunca mais é buscado.
+  if (vieram) {
+    marcarSincronizado();
+    ordenar();
+    salvarCache();
+    if (mudou) notificar();
+  } else {
+    console.error('Alento — o servidor não devolveu nenhuma tabela.');
+  }
   return mudou;
 }
 
@@ -419,7 +544,11 @@ async function subirDepois(tabela, r) {
     if (error) throw error;
     // O servidor devolve a linha com o que ele preencheu (carimbos, padrões).
     // Só vale sobrescrever se ninguém mexeu nela nesse meio-tempo.
-    const j = estado[tabela].findIndex((x) => x.id === r.id);
+    // `config` é a exceção: identifica-se pela chave, não por id. Comparar por
+    // um id que não existe faz `undefined === undefined` casar com a primeira
+    // linha da tabela — a errada.
+    const chaveDe = (x) => x.id ?? x.chave;
+    const j = estado[tabela].findIndex((x) => chaveDe(x) === chaveDe(r));
     if (j >= 0 && JSON.stringify(estado[tabela][j]) === JSON.stringify(r)) {
       estado[tabela][j] = data;
       salvarCache();
@@ -460,6 +589,15 @@ export async function salvarLote(tabela, registros) {
 export async function remover(tabela, id) {
   estado[tabela] = estado[tabela].filter((x) => x.id !== id);
   salvarCache(); notificar();
+
+  // Gravação desta linha que ainda esperava para subir morre aqui. Sem isto, a
+  // fila recriava no servidor, minutos depois, exatamente o que acabou de ser
+  // apagado — e ele voltava para a tela na conferida seguinte.
+  const fila = lerFila();
+  const semEle = fila.filter((o) => !(o.tabela === tabela && o.acao === 'upsert'
+    && (o.dados?.id ?? o.dados?.chave) === id));
+  if (semEle.length !== fila.length) gravarFila(semEle);
+
   apagarDepois(tabela, id);
 }
 

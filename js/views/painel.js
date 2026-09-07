@@ -1,6 +1,6 @@
 // PAINEL — o que importa saber ao abrir o studio de manhã.
 import * as db from '../db.js';
-import { ico, estrela, esc, fmt, hoje, mesAtual, animarNumeros, icoDestaque } from '../ui.js';
+import { ico, estrela, esc, fmt, hoje, mesAtual, animarNumeros, icoDestaque, primeiroNome } from '../ui.js';
 import * as M from '../metricas.js';
 import { irPara } from '../app.js';
 
@@ -83,7 +83,7 @@ export function render(raiz) {
                 </span>
                 ${zap(c) ? `<a class="btn btn-sm btn-primario" target="_blank" rel="noopener"
                   href="https://wa.me/55${zap(c)}?text=${encodeURIComponent(
-                    `Feliz aniversário, ${c.nome.split(' ')[0]}! Que seu dia seja lindo. Com carinho, Alento Studio de Beleza.`)}"
+                    `Feliz aniversário, ${primeiroNome(c.nome)}! Que seu dia seja lindo. Com carinho, Alento Studio de Beleza.`)}"
                   >${ico('whatsapp')} Parabenizar</a>` : ''}
               </div>`;
             }).join('')}

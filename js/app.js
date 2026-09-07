@@ -5,8 +5,8 @@
 import { VERSAO } from './versao.js';
 import * as db from './db.js';
 import * as nov from './novidades.js';
-import { ico, estrela, esc, avisar, abrirModal, fecharModal, ceuEstrelado, retrato,
-         destaque, icoDestaque } from './ui.js';
+import { ico, estrela, esc, avisar, abrirModal, fecharModal, confirmar, ceuEstrelado,
+         retrato, destaque, icoDestaque } from './ui.js';
 
 const raizApp = document.getElementById('app');
 
@@ -376,9 +376,20 @@ function abrirPendencias() {
       </div>
       <p class="t2 pequeno mt">
         São <strong>${db.pendentes()}</strong> alteração(ões) guardadas neste aparelho.
-        Elas não se perderam — mas também não estão no servidor, então
-        <strong>somem quando você entrar de outro lugar</strong>. Resolvido o motivo
-        acima, toque em "Tentar de novo" e elas sobem.</p>
+        Elas continuam à vista aqui, mas <strong>ainda não estão no servidor</strong> —
+        então a outra pessoa não as enxerga, e a página das clientes também não.
+        Resolvido o motivo acima, toque em "Tentar de novo" e elas sobem.</p>
+
+      <div class="tabela-wrap mt"><table><tbody>
+        ${db.listaPendentes().map((p) => `<tr>
+          <td><strong>${esc(p.rotulo)}</strong>
+            <div class="pequeno t3">${esc(p.acao === 'remover' ? 'exclusão de ' : '')}${esc(p.o_que)}${
+              p.quando ? ' · ' + new Date(p.quando).toLocaleString('pt-BR') : ''}</div></td>
+          <td style="width:96px" class="n">
+            <button class="btn-link" data-descartar="${p.i}">descartar</button></td>
+        </tr>`).join('')}
+      </tbody></table></div>
+
       <p class="pequeno t3 mt">Última recusa: ${esc(e?.tabela || '—')},
         ${e?.quando ? new Date(e.quando).toLocaleString('pt-BR') : '—'}.</p>`,
     acoes: [
@@ -389,6 +400,24 @@ function abrirPendencias() {
         else avisar('Ainda não subiu. O motivo continua o mesmo.', 'erro');
       } },
     ],
+    aoAbrir: (veu, fechar) => {
+      // Desistir de uma alteração que o servidor nunca vai aceitar. Sem esta
+      // saída, uma linha recusada para sempre trava o aviso vermelho aceso e
+      // fica na tela até alguém limpar o navegador.
+      veu.querySelectorAll('[data-descartar]').forEach((b) => b.onclick = async () => {
+        const item = db.listaPendentes()[+b.dataset.descartar];
+        if (!item) return;
+        if (!await confirmar('Descartar esta alteração?',
+              `"${item.rotulo}" (${item.o_que}) sai da fila e do sistema. `
+            + 'Isso não dá para desfazer — se ainda precisar dela, cadastre de novo.',
+              'Descartar')) return;
+        db.descartarPendente(item.i);
+        atualizarStatusSync();
+        fechar();
+        avisar('Alteração descartada');
+        if (db.pendentes()) abrirPendencias();
+      });
+    },
   });
 }
 

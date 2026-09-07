@@ -335,6 +335,29 @@ dia e hora. Um toque em vez de automático.
 
 ---
 
+## Quando algo não sobe
+
+O sistema é local-first: a tela grava primeiro no aparelho e sobe depois. Isso
+deixa tudo instantâneo mesmo com o wi-fi do salão, mas cria uma pergunta que o
+sistema precisa responder sozinho — **o que fazer com o que ainda não subiu?**
+
+As regras, todas com teste:
+
+- **O que não subiu continua na tela.** A carga completa troca a coleção pela do
+  servidor; a fila é reaplicada por cima. Foi assim que os pacotes da Laura
+  sumiram: cadastrados, guardados, e invisíveis no instante seguinte.
+- **Nada é apagado por uma lista velha.** Duas drenagens não rodam ao mesmo
+  tempo, e o que entra na fila durante uma subida não é sobrescrito por ela.
+- **Apagar cancela a subida pendente.** Sem isso, a fila recriava no servidor,
+  minutos depois, o que tinha acabado de ser excluído.
+- **Recarga que não trouxe nada não carimba "conferido".** Carimbar levaria a
+  conferida seguinte a pular a janela inteira em que a outra pessoa trabalhou.
+- **A fila cabe no aparelho.** Se a memória encher, o cache é sacrificado para a
+  fila caber — e, se nem assim, aparece um aviso em vez do silêncio.
+- **Dá para ver e descartar o que travou.** O rodapé mostra "N não subiram — ver
+  motivo"; o painel lista cada um pelo nome e oferece descartar, para uma linha
+  que o banco nunca vai aceitar não travar tudo para sempre.
+
 ## Quando a internet cai
 
 O app continua funcionando: as telas leem de uma cópia local e o que você

@@ -48,6 +48,11 @@ function query(nome){
     // alguém a espera. Montando a resposta já no select, um gt() vindo depois
     // na mesma linha chegava tarde demais e era simplesmente ignorado.
     _resposta(){
+      // Servidor que não responde nenhuma tabela: o app não pode concluir que
+      // conferiu tudo e seguir em frente.
+      if (globalThis.__SEM_TABELAS) {
+        return { data: null, error: { message: 'servidor indisponível' } };
+      }
       const some = globalThis.__SEM_COLUNA;
       if (some && String(this._cols || '').split(',').map((x) => x.trim()).includes(some)) {
         return { data: null, error: { code: 'PGRST204',
@@ -892,8 +897,15 @@ await p2.waitForTimeout(700);
   const painel = nb(await p2.textContent('.modal'));
   checagens.push(['recusa: o painel explica o motivo', /coluna/i.test(painel)]);
   checagens.push(['recusa: o painel ensina o caminho', /SQL Editor/i.test(painel)]);
-  checagens.push(['recusa: avisa que some ao entrar de outro lugar',
-    /somem quando você entrar de outro lugar/i.test(painel)]);
+  // A promessa mudou junto com o comportamento: o que não subiu não some mais
+  // deste aparelho, mas continua invisível para a outra pessoa e para as
+  // clientes — e é isso que o painel precisa dizer, sem prometer demais.
+  checagens.push(['recusa: avisa que ainda não está no servidor',
+    /ainda não estão no servidor/i.test(painel), painel.slice(0, 200)]);
+  checagens.push(['recusa: e que a outra pessoa não enxerga',
+    /a outra pessoa não as enxerga/i.test(painel)]);
+  checagens.push(['recusa: mostra qual registro está preso, pelo nome',
+    /Teste da Recusa/.test(painel), painel.slice(0, 240)]);
   await p2.screenshot({ path: '/tmp/shot-recusa.png' });
 
   // Resolvido o motivo, "Tentar de novo" sobe tudo.
@@ -3087,6 +3099,139 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
       const db = await import('./js/db.js');
       return db.estado.servicos.some((x) => x.id === 'pacote-laura');
     })]);
+}
+
+// ── 58. Revisão da camada de dados: nada some calado ──────────────────────
+// Depois do sumiço dos pacotes da Laura, a mesma família de erro foi caçada no
+// resto da camada. Cada checagem aqui é um caminho pelo qual um dado podia se
+// perder sem ninguém ficar sabendo.
+{
+  // ── Apagar algo que ainda não subiu não pode ressuscitar depois ──
+  await p2.evaluate(() => {
+    globalThis.__RECUSAR = { tabela: 'materiais',
+      erro: { code: 'PGRST204', message: "Could not find the 'x' column of 'materiais'" } };
+  });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('materiais', { id: 'mat-fantasma', nome: 'Insumo fantasma',
+      categoria: 'teste', estoque: 1, estoque_minimo: 0, ativo: true });
+  });
+  await p2.waitForTimeout(500);
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.remover('materiais', 'mat-fantasma');
+  });
+  await p2.waitForTimeout(400);
+  checagens.push(['revisão: apagar tira também a gravação que esperava na fila',
+    await p2.evaluate(() =>
+      !JSON.parse(localStorage.getItem('alento.fila.v1') || '[]')
+        .some((o) => o.dados?.id === 'mat-fantasma'))]);
+
+  await p2.evaluate(() => { globalThis.__RECUSAR = null; });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.drenarFila();
+  });
+  await p2.waitForTimeout(700);
+  checagens.push(['revisão: e ele não reaparece no servidor depois',
+    await p2.evaluate(() => !globalThis.__DB.materiais.some((x) => x.id === 'mat-fantasma'))]);
+
+  // ── A fila é vista por dentro, e dá para desistir do que trava ──
+  await p2.evaluate(() => {
+    globalThis.__RECUSAR = { tabela: 'servicos',
+      erro: { code: '23P01', message: 'conflicting key value violates exclusion constraint' } };
+  });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('servicos', { id: 'travado-1', nome: 'Serviço travado',
+      categoria: 'combos', tipo: 'servico', preco: 10, custo: 0, tempo: 1, ativo: true });
+  });
+  await p2.waitForTimeout(600);
+
+  const preso = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return db.listaPendentes().map((x) => ({ rotulo: x.rotulo, o_que: x.o_que }));
+  });
+  checagens.push(['revisão: a fila diz o que está presa, com nome e tipo',
+    preso.some((x) => x.rotulo === 'Serviço travado' && x.o_que === 'serviço'),
+    JSON.stringify(preso)]);
+
+  checagens.push(['revisão: e o motivo do choque é explicado em português',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return /ocupado por outra pessoa/.test(db.ultimoErro?.curto || '');
+    })]);
+
+  // O painel de pendências mostra a lista e o botão de descartar.
+  await p2.evaluate(() => document.getElementById('status-sync').click());
+  await p2.waitForTimeout(500);
+  const painel = nb(await p2.textContent('.veu'));
+  checagens.push(['revisão: o painel mostra o item preso pelo nome',
+    /Serviço travado/.test(painel), painel.slice(0, 160)]);
+  checagens.push(['revisão: e oferece descartar', await p2.locator('.veu [data-descartar]').count() > 0]);
+
+  await p2.click('.veu [data-descartar]');
+  await p2.waitForTimeout(400);
+  await p2.click('.veu .modal-pe .btn-perigo');
+  await p2.waitForTimeout(700);
+  checagens.push(['revisão: descartado, sai da fila',
+    await p2.evaluate(() =>
+      !JSON.parse(localStorage.getItem('alento.fila.v1') || '[]')
+        .some((o) => o.dados?.id === 'travado-1'))]);
+  checagens.push(['revisão: e sai da tela junto, sem prometer o que não vai acontecer',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return !db.estado.servicos.some((x) => x.id === 'travado-1');
+    })]);
+  await p2.evaluate(() => { globalThis.__RECUSAR = null; });
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]')?.click());
+  await p2.waitForTimeout(300);
+
+  // ── Carga completa que não trouxe nada não pode dizer que conferiu ──
+  const marcaAntes = await p2.evaluate(() => localStorage.getItem('alento.sincronizado.v1'));
+  await p2.evaluate(() => { globalThis.__SEM_TABELAS = true; });
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.recarregar();
+  });
+  await p2.waitForTimeout(600);
+  checagens.push(['revisão: recarga vazia não carimba "conferido agora"',
+    (await p2.evaluate(() => localStorage.getItem('alento.sincronizado.v1'))) === marcaAntes]);
+  await p2.evaluate(() => { globalThis.__SEM_TABELAS = false; });
+
+  // ── Nome estranho não derruba a tela de clientes ──
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'sem-nome', nome: '', ativo: true });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(900);
+  checagens.push(['revisão: cliente sem nome não derruba a lista',
+    await p2.locator('#conteudo table').count() > 0]);
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.remover('clientes', 'sem-nome');
+  });
+  await p2.waitForTimeout(400);
+
+  // ── "Cancelar" na instalação de dados cancela mesmo ──
+  await p2.evaluate(() => { location.hash = '#/ajustes'; });
+  await p2.waitForTimeout(900);
+  const servicosAntes = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return db.estado.servicos.length;
+  });
+  await p2.click('#seed');
+  await p2.waitForTimeout(400);
+  checagens.push(['revisão: a instalação oferece três caminhos, não sim ou não',
+    await p2.locator('.veu .modal-pe button').count() === 3]);
+  await p2.click('.veu .modal-pe .btn-fantasma');
+  await p2.waitForTimeout(900);
+  checagens.push(['revisão: e "Cancelar" não instala nada',
+    await p2.evaluate(async () => {
+      const db = await import('./js/db.js');
+      return db.estado.servicos.length;
+    }) === servicosAntes]);
 }
 
 await browser.close();

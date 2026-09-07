@@ -305,12 +305,30 @@ export function render(raiz) {
     avisar('Dados atualizados');
   };
 
-  raiz.querySelector('#seed').onclick = async () => {
-    const forcar = await confirmar('Instalar dados iniciais',
-      'Serviços e insumos que já existem são preservados. Quer também restaurar os que você alterou para o valor original da planilha?',
-      'Sim, restaurar tudo', false);
-    const s = await import('../seed.js');
-    await s.instalar({ forcar });
+  // Três caminhos, e "Cancelar" cancela mesmo.
+  //
+  // Era uma pergunta de sim ou não: quem clicasse em "Cancelar" instalava do
+  // mesmo jeito, só que sem sobrescrever — e serviço que elas tinham apagado
+  // voltava para a tabela sem ninguém ter pedido.
+  raiz.querySelector('#seed').onclick = () => {
+    abrirModal({
+      titulo: 'Instalar dados iniciais',
+      corpo: `<p class="t2">Isto repõe os serviços e insumos da planilha original.</p>
+        <div class="aviso alerta mt">${ico('alerta')}<div>Serviço que vocês apagaram
+          volta para a tabela. O que vocês criaram não é tocado.</div></div>`,
+      acoes: [
+        { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => f() },
+        { texto: 'Repor só o que falta', classe: 'btn', onClick: async (f) => {
+            f(); const s = await import('../seed.js'); await s.instalar({ forcar: false });
+          } },
+        { texto: 'Restaurar tudo', classe: 'btn-perigo', onClick: async (f) => {
+            if (!await confirmar('Restaurar tudo?',
+                  'Os preços e tempos que vocês ajustaram voltam ao valor da planilha '
+                + 'original. Isso não dá para desfazer.', 'Restaurar')) return;
+            f(); const s = await import('../seed.js'); await s.instalar({ forcar: true });
+          } },
+      ],
+    });
   };
 
   raiz.querySelector('#trocar').onclick = async () => {

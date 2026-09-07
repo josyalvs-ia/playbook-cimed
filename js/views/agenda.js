@@ -6,7 +6,7 @@
 
 import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
-         chave, uid, linkMapa, retrato } from '../ui.js';
+         chave, uid, linkMapa, retrato, primeiroNome } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
 import * as M from '../metricas.js';
 
@@ -555,7 +555,7 @@ const nomeProf = (id) => db.estado.profissionais.find((p) => p.id === id)?.nome;
 function mensagemConfirmacao(a) {
   const studio = db.cfg('studio') || {};
   const linhas = [
-    `Oi, ${a.cliente_nome.split(' ')[0]}! Passando para confirmar seu horário de `
+    `Oi, ${primeiroNome(a.cliente_nome)}! Passando para confirmar seu horário de `
       + `${a.servico_nome} ${diaPorExtenso(localData(a.inicio))} às ${localHora(a.inicio)}.`,
   ];
   if (studio.endereco) {
