@@ -206,6 +206,27 @@ export function abrirComanda(id, inicial) {
   const catalogo = db.estado.servicos.filter((s) => s.ativo !== false);
   const fechada = c.status === 'fechada';
 
+  /**
+   * Qual cliente é esta, pelo nome digitado.
+   *
+   * Exato primeiro. Depois, começo do nome: quem digita "Maria" com uma só
+   * Maria Silva cadastrada está falando dela — e era isso que fazia o sistema
+   * não achar o pacote e ainda criar uma segunda ficha na hora de gravar.
+   * Com mais de uma parecida, não adivinha: a tela pede o nome exato.
+   *
+   * A MESMA conta vale para a tela e para a gravação. Duas regras diferentes
+   * era o que criava cliente repetida.
+   */
+  const acharCliente = (nome) => {
+    const k = chave(String(nome || '').trim());
+    if (!k) return null;
+    const exata = db.estado.clientes.find((x) => chave(x.nome) === k);
+    if (exata) return exata;
+    if (k.length < 3) return null;
+    const comecam = db.estado.clientes.filter((x) => chave(x.nome).startsWith(k));
+    return comecam.length === 1 ? comecam[0] : null;
+  };
+
   const fechar = abrirModal({
     largo: true,
     titulo: existente ? 'Atendimento' : 'Novo atendimento',
@@ -290,14 +311,29 @@ export function abrirComanda(id, inicial) {
             </tr></thead><tbody>
             ${itens.map((it, i) => {
               const pac = it.pacote_id ? db.estado.pacotes.find((x) => x.id === it.pacote_id) : null;
-              const disponivel = it.pacote_id ? null : pacoteParaItem(it);
+              const certo = it.pacote_id ? null : pacoteParaItem(it);
+              // Outros pacotes dela que não são deste serviço. Aparecem porque
+              // o pacote da Laura "inclui escova/finalização": o que ela lança
+              // na comanda nem sempre é o serviço com que o pacote foi
+              // cadastrado — e sem esta saída ela fica sem nenhuma.
+              const outros = it.pacote_id ? [] : pacotesUsaveis().filter((p) => p !== certo);
               return `<tr>
               <td>${esc(it.nome)}${it.tipo === 'adicional' ? ' <span class="selo">adicional</span>' : ''}${
                 it.confirmar_valor ? ' <span class="selo alerta" title="o valor deste serviço varia">confirmar valor</span>' : ''}
-                ${pac ? `<div class="pequeno"><span class="selo ok">pacote</span>
-                  <button class="btn-link" data-pacote="${i}">cobrar à parte</button></div>` : ''}
-                ${disponivel ? `<div class="pequeno"><button class="btn-link" data-pacote="${i}"
-                  >usar o pacote (${disponivel.sobram} de ${disponivel.total})</button></div>` : ''}</td>
+                ${pac ? `<div class="pequeno"><span class="selo ok">pacote${
+                  pac.servico_nome ? ' · ' + esc(pac.servico_nome) : ''}</span>
+                  <button class="btn-link" data-cobrar="${i}">cobrar à parte</button></div>` : ''}
+                ${certo ? `<div class="pequeno"><button class="btn-link" data-usar="${i}"
+                  data-pac="${esc(certo.id)}">descontar do pacote (${certo.sobram} de ${certo.total})</button></div>` : ''}
+                ${!pac && !certo && outros.length ? `<div class="pequeno">
+                  <button class="btn-link" data-escolher="${i}">descontar de um pacote dela…</button></div>` : ''}
+                ${escolhendo === i ? `<div class="escolhe-pacote">
+                  <div class="pequeno t3 mb">Qual pacote usar para <strong>${esc(it.nome)}</strong>?</div>
+                  ${pacotesUsaveis().map((p) => `<button type="button" class="pilula"
+                    data-usar="${i}" data-pac="${esc(p.id)}">${esc(p.servico_nome)}
+                    <span class="t3">· ${p.sobram} de ${p.total}</span></button>`).join('')}
+                  <button type="button" class="btn-link" data-cancelar-escolha>cancelar</button>
+                </div>` : ''}</td>
               <td><input type="number" min="1" step="1" value="${it.qtd}" data-i="${i}" data-campo="qtd"></td>
               <td><input type="number" min="0" step="0.01" value="${it.valor}" data-i="${i}" data-campo="valor" style="text-align:right"></td>
               <td class="n num">${fmt.brl(it.valor * it.qtd)}</td>
@@ -315,8 +351,22 @@ export function abrirComanda(id, inicial) {
         alvo.querySelectorAll('[data-remover]').forEach((b) => {
           b.onclick = () => { itens.splice(+b.dataset.remover, 1); pintarItens(); pintarTotais(); };
         });
-        alvo.querySelectorAll('[data-pacote]').forEach((b) => {
-          b.onclick = () => { alternarPacote(itens[+b.dataset.pacote]); pintarItens(); pintarTotais(); };
+        alvo.querySelectorAll('[data-cobrar]').forEach((b) => {
+          b.onclick = () => { cobrarAParte(itens[+b.dataset.cobrar]); pintarItens(); pintarTotais(); };
+        });
+        alvo.querySelectorAll('[data-usar]').forEach((b) => {
+          b.onclick = () => {
+            const p = pacotesUsaveis().find((x) => x.id === b.dataset.pac);
+            if (!p) return avisar('Este pacote não tem mais sessão sobrando', 'erro');
+            usarPacote(itens[+b.dataset.usar], p);
+            pintarItens(); pintarTotais(); pintarCliente();
+          };
+        });
+        alvo.querySelectorAll('[data-escolher]').forEach((b) => {
+          b.onclick = () => { escolhendo = +b.dataset.escolher; pintarItens(); };
+        });
+        alvo.querySelector('[data-cancelar-escolha]')?.addEventListener('click', () => {
+          escolhendo = null; pintarItens();
         });
       };
 
@@ -357,11 +407,8 @@ export function abrirComanda(id, inicial) {
 
       // ── Pacote ─────────────────────────────────────────────────────────
       /** A cliente desta comanda, achada pelo nome digitado ou pelo cadastro. */
-      const clienteDaVez = () => {
-        const nome = $('#cli').value.trim();
-        return db.estado.clientes.find((x) => chave(x.nome) === chave(nome))
-          || (c.cliente_id ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
-      };
+      const clienteDaVez = () => acharCliente($('#cli').value)
+        || (c.cliente_id ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
 
       /**
        * Ainda cabe sessão neste pacote, contando o que esta comanda já pegou?
@@ -381,28 +428,37 @@ export function abrirComanda(id, inicial) {
         return p.restam + gravados - naTela;
       };
 
-      /** O pacote que cobre este item, se ainda houver sessão nele. */
-      const pacoteParaItem = (it) => {
+      /** Os pacotes dela, com o que ainda sobra contando esta comanda. */
+      const pacotesDaCliente = () => {
         const cli = clienteDaVez();
-        const p = cli && it.servico_id ? pacoteDoServico(cli.id, it.servico_id) : null;
-        if (!p) return null;
-        const sobram = sobramDoPacote(p);
-        return sobram > 0 ? { ...p, sobram } : null;
+        if (!cli) return [];
+        return pacotesDe(cli.id).map((p) => ({ ...p, sobram: sobramDoPacote(p) }));
       };
 
-      /** Liga ou desliga o pacote num item: sai do pacote, volta a ser cobrado. */
-      const alternarPacote = (it) => {
-        if (it.pacote_id) {
-          const s = catalogo.find((x) => x.id === it.servico_id);
-          it.pacote_id = null;
-          it.valor = Number(s?.preco) || 0;
-          return avisar('Este serviço volta a ser cobrado');
-        }
-        const p = pacoteParaItem(it);
-        if (!p) return avisar('Não há pacote com sessão sobrando para este serviço', 'erro');
+      /** Os que dá para usar agora: válidos e com sessão sobrando. */
+      const pacotesUsaveis = () => pacotesDaCliente().filter((p) => p.valido && p.sobram > 0);
+
+      /** O pacote que cobre este item, se ainda houver sessão nele. */
+      const pacoteParaItem = (it) =>
+        (it.servico_id ? pacotesUsaveis().find((p) => p.servico_id === it.servico_id) : null) || null;
+
+      /** Qual item está com a lista de pacotes aberta. */
+      let escolhendo = null;
+
+      /** Desconta este item de um pacote — mesmo que seja de outro serviço. */
+      const usarPacote = (it, p) => {
         it.pacote_id = p.id;
         it.valor = 0;
+        escolhendo = null;
         avisar(`Sessão do pacote — sobram ${p.sobram - 1} depois desta`);
+      };
+
+      /** Volta a cobrar: o item sai do pacote e recupera o preço da tabela. */
+      const cobrarAParte = (it) => {
+        const s = catalogo.find((x) => x.id === it.servico_id);
+        it.pacote_id = null;
+        it.valor = Number(s?.preco) || 0;
+        avisar('Este serviço volta a ser cobrado');
       };
 
       /** Serviço recém-adicionado já entra descontado, se houver pacote. */
@@ -451,20 +507,71 @@ export function abrirComanda(id, inicial) {
         ultima[ultima.length - 1]?.querySelector('input')?.focus();
       };
 
-      /** Antes de cobrar, a tela diz o que esta cliente já pagou. */
-      const pintarPacotes = () => {
+      /**
+       * O que o sistema reconheceu desta cliente — sempre, mesmo quando é nada.
+       *
+       * Antes só aparecia alguma coisa quando havia pacote ativo. Quando não
+       * havia, a tela ficava muda: a Laura cadastrou o pacote, abriu a comanda
+       * e não viu opção nenhuma de descontar — sem jeito de saber se o pacote
+       * não existia, se a cliente não tinha sido reconhecida, ou se o sistema
+       * é que não sabia fazer aquilo. Silêncio não é resposta.
+       */
+      const pintarCliente = () => {
+        const nome = $('#cli').value.trim();
         const cli = clienteDaVez();
-        const ativos = cli ? pacotesDe(cli.id).filter((p) => p.valido) : [];
-        $('#pacotes-aviso').innerHTML = ativos.length ? `
-          <div class="aviso ok mb">${ico('check')}<div>
-            ${esc(primeiroNome(cli.nome))} tem pacote:
-            ${ativos.map((p) => `<strong>${esc(p.servico_nome)}</strong> (${p.restam} de ${p.total})`).join(' · ')}.
-            Ao adicionar o serviço, ele já entra descontado.
-          </div></div>` : '';
+        const alvo = $('#pacotes-aviso');
+        if (!nome) { alvo.innerHTML = ''; return; }
+
+        if (!cli) {
+          alvo.innerHTML = `<div class="aviso mb">${ico('mais')}<div>
+            <strong>Cliente nova.</strong> A ficha é criada ao fechar o atendimento.
+            Se ela já é de casa, escolha o nome exato na lista do campo acima — é
+            pelo nome que encontro os pacotes dela.</div></div>`;
+          return;
+        }
+
+        const todos = pacotesDaCliente();
+        const usaveis = todos.filter((p) => p.valido && p.sobram > 0);
+        if (usaveis.length) {
+          alvo.innerHTML = `<div class="aviso ok mb">${ico('check')}<div>
+            <strong>${esc(primeiroNome(cli.nome))}</strong> tem pacote:
+            ${usaveis.map((p) => `${esc(p.servico_nome)} (${p.sobram} de ${p.total})`).join(' · ')}.
+            O serviço do pacote já entra descontado; os outros têm o botão
+            "descontar de um pacote dela".</div></div>`;
+          return;
+        }
+
+        // Tem ficha, mas nenhum pacote utilizável: dizer POR QUÊ.
+        const gastos = todos.filter((p) => p.ativo !== false && !p.vencido && p.sobram <= 0);
+        const vencidos = todos.filter((p) => p.vencido);
+        const motivo = gastos.length ? `O pacote dela já foi todo usado (${gastos[0].total} de ${gastos[0].total}).`
+          : vencidos.length ? `O pacote dela venceu em ${fmt.data(vencidos[0].validade)}.`
+          : 'Ela ainda não tem pacote. Para vender um: Clientes → abra a ficha dela → Pacotes.';
+        alvo.innerHTML = `<div class="aviso mb">${ico('info')}<div>
+          <strong>${esc(primeiroNome(cli.nome))}</strong> — ficha encontrada. ${esc(motivo)}</div></div>`;
       };
 
-      // Digitou o nome da cliente: os pacotes dela aparecem na hora.
-      $('#cli').oninput = () => { pintarPacotes(); pintarItens(); };
+      /**
+       * Digitou o nome da cliente: o que se sabe dela aparece na hora.
+       *
+       * A lista de itens só é redesenhada quando a CLIENTE muda de verdade.
+       * Redesenhar a cada evento do campo arrancava do DOM, no meio do toque,
+       * justamente o botão de descontar do pacote: sair do campo dispara
+       * `change`, o `change` redesenhava, e o toque morria no elemento que
+       * tinha acabado de deixar de existir. Tocava e não acontecia nada.
+       */
+      let clienteVista = clienteDaVez()?.id || null;
+      const aoMexerNoNome = () => {
+        const agora = clienteDaVez()?.id || null;
+        pintarCliente();
+        if (agora !== clienteVista) {
+          clienteVista = agora;
+          escolhendo = null;
+          pintarItens();
+        }
+      };
+      $('#cli').oninput = aoMexerNoNome;
+      $('#cli').onchange = aoMexerNoNome;
 
       veu.querySelectorAll('[data-pg]').forEach((b) => b.onclick = () => {
         veu.querySelectorAll('[data-pg]').forEach((x) => x.classList.remove('ativa'));
@@ -472,7 +579,7 @@ export function abrirComanda(id, inicial) {
       });
       $('#desc').oninput = pintarTotais;
 
-      pintarPacotes(); pintarItens(); pintarTotais();
+      pintarCliente(); pintarItens(); pintarTotais();
     },
   });
 
@@ -494,7 +601,8 @@ export function abrirComanda(id, inicial) {
     // Cliente: acha pelo nome ou cadastra na hora.
     let clienteId = null;
     if (nomeCliente) {
-      const achado = db.estado.clientes.find((x) => chave(x.nome) === chave(nomeCliente));
+      const achado = acharCliente(nomeCliente) || (c.cliente_id
+        ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
       clienteId = achado ? achado.id
         : (await db.salvar('clientes', { nome: nomeCliente, ativo: true })).id;
     }

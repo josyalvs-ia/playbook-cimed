@@ -2647,12 +2647,12 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     /pacote/.test(nb(await p2.textContent('.veu #itens')))]);
 
   // Dá para voltar atrás e cobrar à parte.
-  await p2.click('.veu [data-pacote="0"]');
+  await p2.click('.veu [data-cobrar="0"]');
   await p2.waitForTimeout(400);
   checagens.push(['pacote: "cobrar à parte" devolve o preço da tabela',
     Number(await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === 45,
     await p2.inputValue('.veu [data-i="0"][data-campo=valor]')]);
-  await p2.click('.veu [data-pacote="0"]');
+  await p2.click('.veu [data-usar="0"]');
   await p2.waitForTimeout(400);
   checagens.push(['pacote: e dá para voltar a usar o pacote',
     (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
@@ -3344,6 +3344,108 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['pacotes: ficam no destaque de combos, junto do que já havia',
     emCombos.includes('Pacotes'), emCombos.join(' · ')]);
   await ctxP.close();
+}
+
+// ── 60. Descontar do pacote: nunca ficar sem caminho ──────────────────────
+// "Achei onde cadastrar, mas na hora de fechar a comanda não existe a
+// possibilidade de colocar como descontar do pacote" — Laura. O sistema ficava
+// MUDO quando o pacote não casava sozinho: sem opção e sem explicação, não há
+// como saber se o problema é o pacote, a cliente, ou o sistema.
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-pac-2', nome: 'Rafaela Bittencourt', ativo: true });
+    await db.salvar('pacotes', { id: 'pac-rafa', cliente_id: 'cli-pac-2',
+      cliente_nome: 'Rafaela Bittencourt', servico_id: 'cab-sessao-terapia',
+      servico_nome: 'Sessão de terapia capilar', sessoes: 4, valor: 980, ativo: true });
+    location.hash = '#/comandas';
+  });
+  await p2.waitForTimeout(900);
+
+  // ── Cliente escrita pela metade: o sistema reconhece e diz que reconheceu ──
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Rafaela');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(400);
+  const reconhecida = nb(await p2.textContent('.veu #pacotes-aviso'));
+  checagens.push(['pacote: nome pela metade acha a ficha certa',
+    /Rafaela/.test(reconhecida) && /tem pacote/.test(reconhecida), reconhecida.slice(0, 120)]);
+
+  // ── O serviço do pacote entra descontado ──
+  await p2.selectOption('.veu #prof', 'p1');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'cab-sessao-terapia');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: o serviço do pacote entra zerado',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
+
+  // ── E um serviço DIFERENTE também pode sair do pacote, à mão ──
+  await p2.selectOption('.veu #add-serv', 'cab-trat-medio');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: outro serviço oferece descontar de um pacote dela',
+    await p2.locator('.veu [data-escolher]').count() > 0]);
+
+  await p2.click('.veu [data-escolher]');
+  await p2.waitForTimeout(300);
+  checagens.push(['pacote: a escolha abre na própria linha, sem fechar a comanda',
+    await p2.locator('.veu .escolhe-pacote').count() > 0
+    && await p2.locator('.veu #cli').count() > 0]);
+
+  await p2.click('.veu .escolhe-pacote .pilula');
+  await p2.waitForTimeout(400);
+  checagens.push(['pacote: escolhido à mão, o segundo serviço também zera',
+    (await p2.inputValue('.veu [data-i="1"][data-campo=valor]')) === '0']);
+  checagens.push(['pacote: e a linha mostra de qual pacote saiu',
+    /pacote · Sessão de terapia capilar/.test(nb(await p2.textContent('.veu #itens')))]);
+
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // ── Cliente sem pacote: em vez de silêncio, o motivo ──
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'sem-pac', nome: 'Vanda Sem Pacote', ativo: true });
+  });
+  await p2.waitForTimeout(400);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Vanda Sem Pacote');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(400);
+  const semPacote = nb(await p2.textContent('.veu #pacotes-aviso'));
+  checagens.push(['pacote: cliente conhecida sem pacote útil ganha explicação',
+    /ficha encontrada/.test(semPacote), semPacote.slice(0, 140)]);
+
+  // ── Nome que não existe: diz que é nova e como achar a de casa ──
+  await p2.fill('.veu #cli', 'Zzz Desconhecida');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(400);
+  const nova = nb(await p2.textContent('.veu #pacotes-aviso'));
+  checagens.push(['pacote: nome desconhecido avisa que é cliente nova',
+    /Cliente nova/.test(nova) && /nome exato/.test(nova), nova.slice(0, 140)]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
+  await p2.waitForTimeout(300);
+
+  // ── Nome pela metade não cria cliente repetida ao gravar ──
+  const antesClientes = await p2.evaluate(() => globalThis.__DB.clientes.length);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Rafaela');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.selectOption('.veu #prof', 'p1');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'cab-sessao-terapia');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu [data-pg="pix"]');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+  checagens.push(['pacote: gravar com o nome pela metade não cria ficha repetida',
+    await p2.evaluate(() => globalThis.__DB.clientes.length) === antesClientes,
+    String(antesClientes)]);
+  checagens.push(['pacote: e o atendimento fica na ficha que já existia',
+    await p2.evaluate(() => globalThis.__DB.comandas.some((c) =>
+      c.cliente_nome === 'Rafaela' && c.cliente_id === 'cli-pac-2'))]);
 }
 
 await browser.close();
