@@ -24,7 +24,9 @@ export function itensDe(comandaId) {
 
 /** Taxa efetiva de recebimento por forma de pagamento. */
 export function taxaDe(forma, p = premissas()) {
-  return { pix: p.taxa_pix, dinheiro: 0, debito: p.taxa_debito, credito: p.taxa_credito }[forma] ?? 0;
+  return { pix: p.taxa_pix, dinheiro: 0, debito: p.taxa_debito,
+           credito: p.taxa_credito, parcelado: p.taxa_parcelado,
+           cortesia: 0 }[forma] ?? 0;
 }
 
 /**

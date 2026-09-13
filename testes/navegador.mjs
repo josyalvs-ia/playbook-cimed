@@ -305,7 +305,17 @@ await p2.waitForTimeout(700);
 const preco = nb(await p2.textContent('#conteudo'));
 checagens.push(['precificação: custo fixo R$ 1.530', preco.includes('1.530')]);
 checagens.push(['precificação: custo por atendimento R$ 12,75', preco.includes('12,75')]);
-checagens.push(['precificação: taxa média 1,08%', preco.includes('1,08%')]);
+// A taxa média sai das premissas, e elas mudam — quando o crédito parcelado
+// entrou, este número mudou junto. Conferir contra a conta, e não contra um
+// número copiado, é o que faz o teste continuar dizendo a verdade depois.
+{
+  const esperada = await p2.evaluate(async () => {
+    const { taxaMediaCartao } = await import('./js/pricing.js');
+    const M = await import('./js/metricas.js');
+    return (taxaMediaCartao(M.premissas()) * 100).toFixed(2).replace('.', ',') + '%';
+  });
+  checagens.push([`precificação: taxa média ${esperada}`, preco.includes(esperada), esperada]);
+}
 checagens.push(['precificação: conta os 58 itens', preco.includes('de 58 serviços')]);
 
 // ── 6. Fluxo real: fechar uma comanda ──
@@ -3446,6 +3456,125 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['pacote: e o atendimento fica na ficha que já existia',
     await p2.evaluate(() => globalThis.__DB.comandas.some((c) =>
       c.cliente_nome === 'Rafaela' && c.cliente_id === 'cli-pac-2'))]);
+}
+
+// ── 61. Atendido não é intocável ──────────────────────────────────────────
+// "Já aconteceu de colocar como débito, crédito, depois eu falo 'putz, não
+// foi', e eu não consigo editar um agendamento que já está finalizado" —
+// Laura. Terminado o atendimento, a agenda não tinha mais caminho de volta
+// para o dinheiro: o cartão do horário só dizia "concluído".
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const hoje = new Date();
+    const dia = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0')
+              + '-' + String(hoje.getDate()).padStart(2, '0');
+    await db.salvar('clientes', { id: 'cli-corrigir', nome: 'Bruna Corrigir', ativo: true });
+    await db.salvar('agendamentos', { id: 'ag-corrigir', profissional_id: 'p2',
+      servico_id: 'manicure', servico_nome: 'Manicure', cliente_id: 'cli-corrigir',
+      cliente_nome: 'Bruna Corrigir', inicio: `${dia}T16:00:00`, fim: `${dia}T17:00:00`,
+      duracao_min: 60, valor: 45, status: 'confirmado', origem: 'studio' });
+    location.hash = '#/agenda';
+  });
+  await p2.waitForTimeout(900);
+  await p2.evaluate(() => { document.querySelector('#dia').value =
+    globalThis.__DB.agendamentos.find((a) => a.id === 'ag-corrigir').inicio.slice(0, 10);
+    document.querySelector('#dia').dispatchEvent(new Event('change')); });
+  await p2.waitForTimeout(700);
+
+  // Cliente chegou → vira comanda, e o horário guarda em qual.
+  await p2.click('[data-agend="ag-corrigir"]');
+  await p2.waitForSelector('.veu');
+  await p2.click('text=Cliente chegou');
+  await p2.waitForSelector('.veu #cli', { timeout: 8000 });
+  await p2.click('.veu [data-pg="credito"]');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1400);
+
+  const elo = await p2.evaluate(() => {
+    const a = globalThis.__DB.agendamentos.find((x) => x.id === 'ag-corrigir');
+    const c = globalThis.__DB.comandas.find((x) => x.id === a.comanda_id);
+    return { status: a.status, comanda_id: a.comanda_id, forma: c?.forma_pagamento };
+  });
+  checagens.push(['corrigir: o horário guarda em qual atendimento virou',
+    elo.status === 'concluido' && !!elo.comanda_id && elo.forma === 'credito',
+    JSON.stringify(elo)]);
+
+  // O cartão do horário concluído mostra o pagamento e o caminho de volta.
+  await p2.click('[data-agend="ag-corrigir"]');
+  await p2.waitForSelector('.veu');
+  const ficha = nb(await p2.textContent('.veu'));
+  checagens.push(['corrigir: o cartão diz como foi pago', /Crédito à vista/.test(ficha), ficha.slice(0, 200)]);
+  checagens.push(['corrigir: e oferece abrir o atendimento',
+    /Abrir o atendimento/.test(ficha)]);
+  checagens.push(['corrigir: e continua dando para corrigir o horário',
+    /Corrigir o horário/.test(ficha)]);
+
+  // Abrir o atendimento e trocar a forma de pagamento.
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForSelector('.veu [data-pg="debito"]', { timeout: 8000 });
+  await p2.click('.veu [data-pg="debito"]');
+  await p2.click('.veu .modal-pe .btn-fantasma');
+  await p2.waitForTimeout(1400);
+  checagens.push(['corrigir: a forma de pagamento é corrigida depois de finalizado',
+    await p2.evaluate(() => {
+      const a = globalThis.__DB.agendamentos.find((x) => x.id === 'ag-corrigir');
+      return globalThis.__DB.comandas.find((x) => x.id === a.comanda_id)?.forma_pagamento === 'debito';
+    })]);
+  checagens.push(['corrigir: e o atendimento continua fechado, sem reabrir',
+    await p2.evaluate(() => {
+      const a = globalThis.__DB.agendamentos.find((x) => x.id === 'ag-corrigir');
+      return globalThis.__DB.comandas.find((x) => x.id === a.comanda_id)?.status === 'fechada';
+    })]);
+}
+
+// ── 62. Crédito parcelado ─────────────────────────────────────────────────
+// "Só tem crédito à vista. Se desse pra colocar crédito parcelado também é uma
+// opção, porque depois a gente consegue ver quantas clientes parcelaram" —
+// Laura. Taxa própria, bem maior, e é informação que muda decisão.
+{
+  await p2.evaluate(() => { location.hash = '#/comandas'; });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  checagens.push(['parcelado: a opção existe junto das outras',
+    await p2.locator('.veu [data-pg="parcelado"]').count() === 1]);
+
+  await p2.fill('.veu #cli', 'Cliente Parcelou');
+  await p2.selectOption('.veu #prof', 'p2');
+  await p2.waitForTimeout(250);
+  await p2.selectOption('.veu #add-serv', 'manicure');
+  await p2.waitForTimeout(300);
+  await p2.click('.veu [data-pg="parcelado"]');
+  await p2.waitForTimeout(400);
+  checagens.push(['parcelado: a taxa aparece nos totais, e é maior que a do à vista',
+    /Taxa/.test(nb(await p2.textContent('.veu #totais')))]);
+
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(1300);
+  checagens.push(['parcelado: a comanda guarda a forma escolhida',
+    await p2.evaluate(() => globalThis.__DB.comandas.some((c) =>
+      c.cliente_nome === 'Cliente Parcelou' && c.forma_pagamento === 'parcelado'))]);
+
+  // É por isso que ela pediu: a conta de quantas parcelaram.
+  await p2.evaluate(() => { location.hash = '#/caixa'; });
+  await p2.waitForTimeout(1000);
+  const caixa = nb(await p2.textContent('#conteudo'));
+  checagens.push(['parcelado: o caixa separa quantas clientes parcelaram',
+    /Crédito parcelado/.test(caixa), caixa.slice(0, 200)]);
+
+  // E a taxa da maquininha considera o parcelado no piso técnico.
+  const taxas = await p2.evaluate(async () => {
+    const { taxaMediaCartao } = await import('./js/pricing.js');
+    const M = await import('./js/metricas.js');
+    const p = M.premissas();
+    return { parcelado: M.taxaDe('parcelado', p), avista: M.taxaDe('credito', p),
+             media: taxaMediaCartao(p) };
+  });
+  checagens.push(['parcelado: tem taxa própria, maior que a do crédito à vista',
+    taxas.parcelado > taxas.avista, JSON.stringify(taxas)]);
+  checagens.push(['parcelado: e entra na taxa média que forma o piso técnico',
+    taxas.media > 0 && Number.isFinite(taxas.media), String(taxas.media)]);
 }
 
 await browser.close();

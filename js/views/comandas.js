@@ -171,7 +171,9 @@ export function abrirComanda(id, inicial) {
   const existente = id ? db.estado.comandas.find((c) => c.id === id) : null;
   const c = existente
     ? { ...existente }
-    : { id: uid(), data: inicial?.data || hoje(), status: 'aberta', desconto: 0,
+    // O id pode vir de fora: a agenda cria o elo antes de abrir a comanda, para
+    // o horário concluído saber depois em qual atendimento virou.
+    : { id: inicial?.id || uid(), data: inicial?.data || hoje(), status: 'aberta', desconto: 0,
         cliente_nome: inicial?.cliente_nome || null,
         cliente_id: inicial?.cliente_id || null,
         // Em branco de propósito. Vir com alguém já escolhido faz a comanda

@@ -19,9 +19,10 @@ export function custoFixoPorAtendimento(p) {
 
 /** Taxa de cartão média ponderada pelo mix de recebimento. */
 export function taxaMediaCartao(p) {
-  return p.taxa_pix * p.mix_pix
-       + p.taxa_debito * p.mix_debito
-       + p.taxa_credito * p.mix_credito;
+  return Number(p.taxa_pix || 0) * Number(p.mix_pix || 0)
+       + Number(p.taxa_debito || 0) * Number(p.mix_debito || 0)
+       + Number(p.taxa_credito || 0) * Number(p.mix_credito || 0)
+       + Number(p.taxa_parcelado || 0) * Number(p.mix_parcelado || 0);
 }
 
 /**
@@ -124,11 +125,18 @@ export const FORMAS_PAGAMENTO = [
   { id: 'dinheiro', nome: 'Dinheiro' },
   { id: 'debito',   nome: 'Débito' },
   { id: 'credito',  nome: 'Crédito à vista' },
+  // Parcelado tem taxa própria, bem maior, e é informação que muda decisão:
+  // "quantas clientes parcelaram?" só se responde se estiver separado.
+  { id: 'parcelado', nome: 'Crédito parcelado' },
   // Cortesia não é forma de pagamento — é a ausência de uma. Mora aqui porque
   // é onde quem fecha a comanda procura: "como ela pagou?" "não pagou".
   // Sem isto, a Julia atendia a irmã e ficava sem como fechar o atendimento.
   { id: 'cortesia', nome: 'Cortesia' },
 ];
+
+/** O nome que a pessoa vê, a partir do id guardado na comanda. */
+export const nomeFormaPagamento = (id) =>
+  FORMAS_PAGAMENTO.find((f) => f.id === id)?.nome || (id ? String(id) : 'não informado');
 
 /** Atendimento que não foi cobrado. */
 export const ehCortesia = (forma) => forma === 'cortesia';

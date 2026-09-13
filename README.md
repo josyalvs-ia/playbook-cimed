@@ -18,7 +18,7 @@ fechado na agenda. Não depende do Trinks.
 | **Atendimentos** | Comanda: cliente, serviços, pagamento. Ao fechar, cai no caixa e baixa o estoque |
 | **Clientes** | Ficha, telefone, aniversário, alergias, histórico, ritmo de retorno e pacotes |
 | **Estoque** | Os 176 insumos da planilha, saldo, mínimo, lista de compras e ficha técnica |
-| **Caixa** | Entradas e saídas, para onde foi o dinheiro, quanto ficou com a maquininha |
+| **Caixa** | Entradas e saídas, para onde foi o dinheiro, quanto ficou com a maquininha, quantas pagaram à vista e quantas parcelaram |
 | **Tabela de preços** | O catálogo oficial, editável — muda aqui, muda na comanda e na vitrine |
 | **Precificação** | A planilha 2026 viva: mexeu numa premissa, a tabela toda recalcula |
 | **Comissões** | Quanto cada uma produziu e quanto tem a receber |
@@ -285,6 +285,21 @@ Nas duas pontas:
 As sugestões saem espaçadas pela duração do serviço e no máximo três por dia:
 9h00 e 9h15 são a mesma oportunidade dita duas vezes, e doze horários de amanhã
 respondem uma pergunta que ninguém fez.
+
+## Depois de finalizado, ainda dá para corrigir
+
+A forma de pagamento se erra com facilidade — é o último toque de um
+atendimento corrido. Terminado o atendimento, a agenda não tinha mais caminho
+de volta para o dinheiro: o cartão do horário só dizia "concluído".
+
+Agora, quando "Cliente chegou" vira comanda, o horário guarda **em qual
+atendimento virou**. O cartão do horário concluído mostra como foi pago e por
+quanto, e oferece dois caminhos: **Corrigir o horário** (dia, hora, serviço) e
+**Abrir o atendimento** — onde se troca a forma de pagamento, o valor ou os
+itens, sem reabrir a comanda nem mexer duas vezes no caixa.
+
+Horários concluídos antes deste elo existir são encontrados pela cliente no
+mesmo dia. Não é perfeito, mas é melhor do que deixar quem atendeu sem caminho.
 
 ## Cortesia
 

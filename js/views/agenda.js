@@ -8,6 +8,7 @@ import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
          chave, uid, linkMapa, retrato, primeiroNome } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
+import { nomeFormaPagamento } from '../pricing.js';
 import * as M from '../metricas.js';
 
 let dia = hoje();
@@ -942,7 +943,12 @@ function fichaAgendamento(a) {
       ${pacoteDaCliente(a).total} ainda por usar. Em "Cliente chegou", a comanda
       já abre sem cobrar.</div></div>` : ''}
     ${a.status === 'concluido'
-      ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.</div></div>`
+      ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.${
+          comandaDoHorario(a)
+            ? ` Pagamento: <strong>${esc(nomeFormaPagamento(comandaDoHorario(a).forma_pagamento))}</strong>`
+              + ` · ${fmt.brl(comandaDoHorario(a).total)}. Para corrigir o valor ou a forma de`
+              + ' pagamento, toque em "Abrir o atendimento".'
+            : ''}</div></div>`
       : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('editar')}Editar este horário</button>`}`;
 }
 
@@ -958,6 +964,24 @@ function pacoteDaCliente(a) {
     ? db.estado.clientes.find((c) => c.id === a.cliente_id)
     : db.estado.clientes.find((c) => chave(c.nome) === chave(a.cliente_nome || ''));
   return cli ? M.pacoteDoServico(cli.id, a.servico_id) : null;
+}
+
+/**
+ * O atendimento em que este horário virou comanda.
+ *
+ * Pelo elo direto quando existe. Para os horários concluídos antes de o elo
+ * existir, procura pela cliente no mesmo dia — não é perfeito, mas é melhor do
+ * que deixar quem atendeu sem caminho nenhum.
+ */
+function comandaDoHorario(a) {
+  if (a.comanda_id) {
+    const c = db.estado.comandas.find((x) => x.id === a.comanda_id);
+    if (c) return c;
+  }
+  const dia = localData(a.inicio);
+  return db.estado.comandas.find((c) => c.data === dia
+    && (a.cliente_id ? c.cliente_id === a.cliente_id
+                     : chave(c.cliente_nome || '') === chave(a.cliente_nome || ''))) || null;
 }
 
 /** Os outros serviços da mesma ida ao studio. */
@@ -1016,7 +1040,18 @@ function pedirAlcance(a) {
 
 function acoesDe(a) {
   if (a.status === 'concluido') {
-    return [{ texto: 'Fechar', classe: 'btn-fantasma', onClick: (f) => f() }];
+    // Atendido não é intocável. A forma de pagamento se erra com facilidade —
+    // é o último toque de um atendimento corrido — e o conserto mora na
+    // comanda, não aqui. O caminho de volta tem de existir.
+    const comanda = comandaDoHorario(a);
+    return [
+      { texto: ico('editar') + ' Corrigir o horário', classe: 'btn-fantasma',
+        onClick: (f) => { f(); setTimeout(() => abrirEditar(a), 80); } },
+      ...(comanda ? [{ texto: 'Abrir o atendimento', classe: 'btn-primario', onClick: (f) => {
+          f(); setTimeout(() => abrirComanda(comanda.id), 80);
+        } }] : []),
+      { texto: 'Fechar', classe: 'btn-fantasma', onClick: (f) => f() },
+    ];
   }
   return [
     { texto: 'Não veio', classe: 'btn-perigo', onClick: async (fechar) => {
@@ -1063,10 +1098,16 @@ async function virarComanda(a) {
         .sort((x, y) => x.inicio.localeCompare(y.inicio))
     : [a];
 
+  // O horário guarda em qual atendimento virou. Sem este elo, terminado o
+  // atendimento a agenda não tinha mais como levar de volta ao dinheiro: a
+  // Laura fechava no crédito, percebia que era débito, e não achava onde
+  // corrigir — o cartão do horário só dizia "concluído".
+  const comandaId = uid();
   db.salvarLote('agendamentos',
-    daIda.map((x) => ({ ...x, status: 'concluido', cliente_id: clienteId })));
+    daIda.map((x) => ({ ...x, status: 'concluido', cliente_id: clienteId, comanda_id: comandaId })));
 
   abrirComanda(null, {
+    id: comandaId,
     cliente_nome: a.cliente_nome,
     cliente_id: clienteId,
     profissional_id: a.profissional_id,

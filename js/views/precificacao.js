@@ -147,9 +147,11 @@ function abaPremissas(alvo, p, raiz) {
       ['taxa_pix', 'Taxa do Pix', '%'],
       ['taxa_debito', 'Taxa do débito', '%'],
       ['taxa_credito', 'Taxa do crédito à vista', '%'],
+      ['taxa_parcelado', 'Taxa do crédito parcelado', '%'],
       ['mix_pix', 'Das vendas, quanto é Pix', '%'],
       ['mix_debito', 'Das vendas, quanto é débito', '%'],
-      ['mix_credito', 'Das vendas, quanto é crédito', '%'],
+      ['mix_credito', 'Das vendas, quanto é crédito à vista', '%'],
+      ['mix_parcelado', 'Das vendas, quanto é parcelado', '%'],
     ]],
   ];
 
@@ -186,7 +188,8 @@ function abaPremissas(alvo, p, raiz) {
       const v = Number(i.value) || 0;
       novo[i.dataset.k] = i.dataset.un === '%' ? v / 100 : v;
     });
-    const soma = novo.mix_pix + novo.mix_debito + novo.mix_credito;
+    const soma = Number(novo.mix_pix || 0) + Number(novo.mix_debito || 0)
+               + Number(novo.mix_credito || 0) + Number(novo.mix_parcelado || 0);
     if (Math.abs(soma - 1) > 0.02) {
       return avisar(`O mix de pagamento soma ${fmt.pct(soma, 0)} — precisa dar 100%`, 'erro');
     }

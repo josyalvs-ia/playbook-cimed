@@ -16,10 +16,12 @@ export const PREMISSAS_PADRAO = {
   taxa_pix: 0,
   taxa_debito: 0.0137,          // InfinitePay — 1 dia útil
   taxa_credito: 0.0315,         // InfinitePay crédito à vista — 1 dia útil
+  taxa_parcelado: 0.0899,       // InfinitePay crédito parcelado (média 2 a 6x) — confira a sua
 
   mix_pix: 0.60,
   mix_debito: 0.10,
-  mix_credito: 0.30,
+  mix_credito: 0.25,
+  mix_parcelado: 0.05,
 
   margem: 0.20,                 // margem de lucro desejada
 };
@@ -27,6 +29,7 @@ export const PREMISSAS_PADRAO = {
 export const OBSERVACOES_PREMISSAS = [
   'O imposto de 6% é apenas uma hipótese de cálculo. Confirme com seu contador o regime/anexo e a alíquota efetiva.',
   'As taxas InfinitePay usadas são para maquininha/InfiniteTap, faturamento até R$ 20 mil/mês e recebimento em 1 dia útil.',
+  'A taxa do crédito parcelado é uma média de 2 a 6 vezes: confira a sua no aplicativo da maquininha, porque ela muda a cada número de parcelas.',
   'Os custos de material e tempos são estimativas editáveis: a planilha original trazia preços de referência, não consumo real por atendimento.',
   'O preço técnico é um piso de sustentabilidade, não uma pesquisa de mercado. Serve para identificar o que está barato demais, não para derrubar o que já está saudável.',
 ];
