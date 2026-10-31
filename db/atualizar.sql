@@ -466,3 +466,24 @@ $$;
 
 revoke all on function public.meus_agendamentos(text, text) from public;
 grant execute on function public.meus_agendamentos(text, text) to anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- O PACOTE NA MÃO DE QUEM ATENDE
+-- ═══════════════════════════════════════════════════════════════════════════
+-- "A Laura precisa ter acesso 100% a editar os pacotes: ver o que tem, corrigir
+-- quantas ainda faltam — nem sempre é esse número — e decidir se este
+-- atendimento sai do pacote ou não." — Josy.
+--
+-- Quantas foram usadas é contado pelos itens de comanda. Mas há sessões que
+-- aconteceram antes do sistema, ou anotadas no caderno, e a conta do app não
+-- as vê. Em vez de inventar itens de comanda falsos para fechar o número, o
+-- pacote guarda quantas foram usadas FORA do sistema. A conta vira:
+-- usadas = itens de comanda + usadas_fora. Corrigir "faltam 5" é ajustar isso.
+alter table pacotes add column if not exists usadas_fora int not null default 0
+  check (usadas_fora >= 0);
+
+-- A decisão por horário: sai do pacote, é cobrado à parte, ou o sistema decide
+-- (nulo). E de qual pacote — o de terapia inclui a escova, então o pacote nem
+-- sempre é o do serviço marcado.
+alter table agendamentos add column if not exists usar_pacote boolean;
+alter table agendamentos add column if not exists pacote_id uuid references pacotes(id) on delete set null;

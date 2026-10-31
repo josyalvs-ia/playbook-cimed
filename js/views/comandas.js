@@ -194,7 +194,7 @@ export function abrirComanda(id, inicial) {
       : (inicial?.servico_ids || [inicial?.servico_id].filter(Boolean))
           .map((servico_id) => ({ servico_id, valor: null }));
 
-    for (const { servico_id: id, valor: combinado } of marcados) {
+    for (const { servico_id: id, valor: combinado, usar_pacote, pacote_id: pacoteEscolhido } of marcados) {
       const s = db.estado.servicos.find((x) => x.id === id);
       if (!s) continue;
       // Valor combinado no agendamento manda sobre a tabela — e, tendo valor
@@ -206,9 +206,18 @@ export function abrirComanda(id, inicial) {
                      valor: temCombinado ? Number(combinado) : (Number(s.preco) || 0),
                      custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
                      confirmar_valor: !temCombinado && s.preco_tipo && s.preco_tipo !== 'fixo' };
-      // Ela chegou para uma sessão que já pagou: a comanda abre descontada.
-      // Esperar alguém lembrar de zerar o valor é cobrar duas vezes.
-      const pac = c.cliente_id ? pacoteDoServico(c.cliente_id, s.id) : null;
+      // O que foi decidido no cartão do horário manda: "cobrar à parte" não
+      // desconta nem que haja pacote; "sai do pacote X" desconta de X mesmo
+      // que o serviço seja outro. Sem decisão, vale o automático de sempre:
+      // ela chegou para uma sessão que já pagou, a comanda abre descontada.
+      let pac = null;
+      if (usar_pacote === false) pac = null;
+      else if (usar_pacote === true && c.cliente_id) {
+        const dela = pacotesDe(c.cliente_id).filter((p) => p.valido);
+        pac = dela.find((p) => p.id === pacoteEscolhido) || dela.find((p) => p.restam > 0) || null;
+      } else {
+        pac = c.cliente_id ? pacoteDoServico(c.cliente_id, s.id) : null;
+      }
       const jaNesta = pac ? itens.filter((i) => i.pacote_id === pac.id).length : 0;
       if (pac && pac.restam > jaNesta) {
         item.pacote_id = pac.id; item.valor = 0; item.confirmar_valor = false;
@@ -614,7 +623,8 @@ export function abrirComanda(id, inicial) {
     //
     // Então o fechamento pergunta — uma vez, com o nome do pacote e quantas
     // faltam. É a última porta antes do dinheiro entrar no caixa.
-    if (fecharComanda && !itens.some((i) => i.pacote_id)) {
+    // Decidido no cartão do horário ("cobrar à parte"), não se pergunta de novo.
+    if (fecharComanda && !inicial?.pacote_decidido && !itens.some((i) => i.pacote_id)) {
       const cliPacote = acharCliente(nomeCliente)
         || (c.cliente_id ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
       const sobrando = cliPacote

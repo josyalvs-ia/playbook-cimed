@@ -297,10 +297,22 @@ export function fechamentoProfissional(prof, { de, ate }, p = premissas()) {
  * ele. Contador salvo precisa de alguém para mantê-lo em dia, e um atendimento
  * excluído deixaria a conta errada para sempre — assim a sessão volta sozinha.
  */
-export function usadasDoPacote(pacoteId) {
+/** Só o que o sistema viu passar pela comanda. */
+export function usadasNoSistema(pacoteId) {
   return estado.comanda_itens
     .filter((i) => i.pacote_id === pacoteId)
     .reduce((s, i) => s + Math.max(1, Number(i.qtd) || 1), 0);
+}
+
+/**
+ * Quantas sessões do pacote já foram usadas: as que passaram pela comanda
+ * mais as que a Laura disse que aconteceram fora dele — antes do sistema, ou
+ * anotadas no caderno. "Nem sempre é esse número": corrigir é mexer na
+ * segunda parcela, não inventar comanda falsa para fechar a conta.
+ */
+export function usadasDoPacote(pacoteId) {
+  const p = estado.pacotes.find((x) => x.id === pacoteId);
+  return usadasNoSistema(pacoteId) + Math.max(0, Number(p?.usadas_fora) || 0);
 }
 
 /** O pacote com o que já se sabe dele: quantas foram, quantas faltam, se vale. */

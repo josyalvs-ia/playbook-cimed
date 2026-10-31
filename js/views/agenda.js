@@ -8,7 +8,7 @@ import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
          chave, uid, linkMapa, retrato, primeiroNome } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
-import { mesmoTelefone } from './clientes.js';
+import { mesmoTelefone, abrirAjustePacote } from './clientes.js';
 import { nomeFormaPagamento } from '../pricing.js';
 import * as M from '../metricas.js';
 
@@ -595,6 +595,7 @@ export function abrirAgendamento(id, dataPadrao) {
         fecharModal();
         setTimeout(() => abrirEditar(a), 80);
       });
+      if (a) ligarPainelPacote(veu, a);
 
       const lista = veu.querySelector('#servicos-lista');
       if (!lista) return;
@@ -974,18 +975,7 @@ function fichaAgendamento(a) {
           .join('<br>')}</td></tr>` : ''}
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
-    ${(() => {
-      const p = pacoteDaCliente(a);
-      if (!p) return '';
-      return `<div class="aviso ok mt">${ico('check')}<div>
-        ${p.doServico
-          ? `Este serviço sai do pacote dela — ${p.restam} de ${p.total} ainda por
-             usar. Em "Cliente chegou", a comanda já abre sem cobrar.`
-          : `Ela tem pacote de <strong>${esc(p.servico_nome)}</strong> — ${p.restam} de
-             ${p.total} ainda por usar. Não é o serviço deste horário, então a comanda
-             abre cobrando: se for para sair do pacote, toque em "Descontar do pacote"
-             na linha do serviço.`}</div></div>`;
-    })()}
+    ${a.status === 'concluido' ? '' : `<div id="painel-pacote">${painelPacote(a)}</div>`}
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.${
           comandaDoHorario(a)
@@ -994,6 +984,92 @@ function fichaAgendamento(a) {
               + ' pagamento, toque em "Abrir o atendimento".'
             : ''}</div></div>`
       : `<button class="btn btn-fantasma btn-sm mt" id="mudar">${ico('editar')}Editar este horário</button>`}`;
+}
+
+/**
+ * O pacote, inteiro, na mão de quem atende — no cartão do horário.
+ *
+ * "A Laura precisa ter acesso 100%: ver o que tem, corrigir quantas faltam, e
+ * decidir se este atendimento sai do pacote ou não." Antes o cartão dizia uma
+ * frase e decidia sozinho. Agora mostra TODOS os pacotes válidos dela, cada um
+ * com "faltam X de Y" e um "corrigir", e a decisão deste horário fica em três
+ * botões: sai do pacote tal, cobrar à parte, ou deixar o sistema decidir.
+ */
+function painelPacote(a) {
+  const cli = clienteDoHorario(a);
+  if (!cli) return '';
+  const pacotes = M.pacotesDe(cli.id).filter((p) => p.ativo !== false && !p.vencido);
+  if (!pacotes.length) return '';
+
+  const decidido = a.usar_pacote === true || a.usar_pacote === false;
+  const escolhido = a.usar_pacote === true
+    ? (pacotes.find((p) => p.id === a.pacote_id) || pacotes.find((p) => p.restam > 0) || null)
+    : null;
+  const automatico = !decidido ? pacoteDaCliente(a) : null;
+
+  return `<div class="cartao mt" style="padding:12px 14px">
+    <div class="rotulo mb">Pacote de ${esc(primeiroNome(cli.nome))}</div>
+    ${pacotes.map((p) => `<div class="flex-entre" style="gap:10px;padding:6px 0;border-bottom:1px solid var(--linha)">
+      <div><strong>${esc(p.servico_nome)}</strong>
+        <div class="pequeno t3">${p.usadas} usada${p.usadas === 1 ? '' : 's'}${
+          p.usadas_fora ? ` (${p.usadas_fora} fora do sistema)` : ''}${
+          p.validade ? ` · vale até ${fmt.data(p.validade)}` : ''}</div></div>
+      <div class="flex" style="gap:8px;align-items:center">
+        <span class="num"><strong class="display" style="font-size:19px">${p.restam}</strong>
+          <span class="t3 pequeno"> de ${p.total}</span></span>
+        <button type="button" class="btn-icone" data-ajustar-pacote="${esc(p.id)}"
+          title="Corrigir quantas faltam">${ico('editar')}</button>
+      </div>
+    </div>`).join('')}
+
+    <div class="pequeno t3" style="margin:10px 0 6px">Neste atendimento:</div>
+    <div class="pilulas">
+      ${pacotes.filter((p) => p.restam > 0).map((p) => `<button type="button"
+        class="pilula ${escolhido?.id === p.id ? 'ativa' : ''}"
+        data-decidir="sim" data-pacote="${esc(p.id)}">${ico('check')} Sai do pacote${
+          pacotes.length > 1 ? ' · ' + esc(p.servico_nome) : ''}</button>`).join('')}
+      <button type="button" class="pilula ${a.usar_pacote === false ? 'ativa' : ''}"
+        data-decidir="nao">Cobrar à parte</button>
+      ${decidido ? `<button type="button" class="btn-link" data-decidir="auto">deixar o sistema decidir</button>` : ''}
+    </div>
+    <div class="pequeno t3 mt">${
+      a.usar_pacote === false ? 'Este horário será cobrado normalmente, mesmo havendo pacote.'
+      : escolhido ? `Em "Cliente chegou", a comanda abre sem cobrar — sai do pacote de ${esc(escolhido.servico_nome)}.`
+      : automatico?.doServico ? `Sem decisão sua, o sistema desconta do pacote de ${esc(automatico.servico_nome)} (é o serviço deste horário).`
+      : 'Sem decisão sua, a comanda abre cobrando: o serviço deste horário não é o do pacote.'}</div>
+  </div>`;
+}
+
+/** A ficha da cliente deste horário, pelo id ou pelo nome. */
+function clienteDoHorario(a) {
+  return a.cliente_id
+    ? db.estado.clientes.find((c) => c.id === a.cliente_id)
+    : db.estado.clientes.find((c) => chave(c.nome) === chave(a.cliente_nome || ''));
+}
+
+/** Liga os botões do painel. `a` é atualizado no lugar, para o cartão seguir coerente. */
+function ligarPainelPacote(veu, a) {
+  const painel = veu.querySelector('#painel-pacote');
+  if (!painel) return;
+  painel.querySelectorAll('[data-decidir]').forEach((b) => b.onclick = async () => {
+    const modo = b.dataset.decidir;
+    const mudanca = modo === 'sim' ? { usar_pacote: true, pacote_id: b.dataset.pacote }
+                  : modo === 'nao' ? { usar_pacote: false, pacote_id: null }
+                  : { usar_pacote: null, pacote_id: null };
+    Object.assign(a, mudanca);
+    await db.salvar('agendamentos', { ...a });
+    painel.innerHTML = painelPacote(a);
+    ligarPainelPacote(veu, a);
+    avisar(modo === 'sim' ? 'Este atendimento sai do pacote'
+         : modo === 'nao' ? 'Este atendimento será cobrado à parte' : 'O sistema decide');
+  });
+  painel.querySelectorAll('[data-ajustar-pacote]').forEach((b) => b.onclick = () => {
+    const pac = db.estado.pacotes.find((x) => x.id === b.dataset.ajustarPacote);
+    if (!pac) return;
+    // O ajuste abre por cima e fecha este cartão; ao terminar, o cartão volta
+    // com o número novo — senão ela corrige e vê o número velho.
+    abrirAjustePacote(pac, () => setTimeout(() => abrirAgendamento(a.id), 80));
+  });
 }
 
 /**
@@ -1173,7 +1249,10 @@ async function virarComanda(a) {
     // a comanda voltava para o preço de tabela e ela tinha de lembrar, de
     // cabeça, quanto tinha combinado dias antes.
     marcados: daIda.filter((x) => x.servico_id)
-      .map((x) => ({ servico_id: x.servico_id, valor: x.valor })),
+      .map((x) => ({ servico_id: x.servico_id, valor: x.valor,
+                     usar_pacote: x.usar_pacote ?? null, pacote_id: x.pacote_id || null })),
+    // Decidido no cartão, a comanda não pergunta de novo na hora de fechar.
+    pacote_decidido: daIda.some((x) => x.usar_pacote === true || x.usar_pacote === false),
   });
 }
 

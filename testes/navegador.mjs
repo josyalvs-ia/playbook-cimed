@@ -4072,6 +4072,106 @@ const fecharTudo = async (pg) => {
     remarcados === 1005, String(remarcados)]);
 }
 
+// ── 43. O pacote na mão da Laura, no cartão do horário ──
+// "Ela precisa ter acesso 100%: ver o pacote, corrigir quantas faltam — nem
+// sempre é esse número — e decidir se este atendimento sai do pacote ou não."
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-pac', nome: 'Carla Pacote', telefone: '11933332222', ativo: true });
+    // Pacote de TERAPIA; o horário marcado é ESCOVA — o caso real da Laura.
+    await db.salvar('pacotes', { id: 'pac-carla', cliente_id: 'cli-pac', cliente_nome: 'Carla Pacote',
+      servico_id: 'cab-sessao-terapia', servico_nome: 'Sessão de terapia capilar', sessoes: 8, valor: 1280, ativo: true });
+    const d = new Date(); d.setDate(d.getDate() + 3); d.setHours(10, 0, 0, 0);
+    globalThis.__DB.agendamentos.push({ id: 'ag-carla', profissional_id: 'p1', servico_id: 'cab-trat-medio',
+      servico_nome: 'Tratamento com escova médio', cliente_id: 'cli-pac', cliente_nome: 'Carla Pacote',
+      inicio: d.toISOString(), duracao_min: 60, valor: 90, status: 'confirmado', origem: 'studio',
+      atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    location.hash = '#/agenda';
+  });
+  await p2.waitForTimeout(700);
+  await p2.evaluate(async () => {
+    const { abrirAgendamento } = await import('./js/views/agenda.js');
+    abrirAgendamento('ag-carla');
+  });
+  await p2.waitForTimeout(500);
+
+  const painel = nb(await p2.textContent('.veu #painel-pacote')).replace(/\s+/g, ' ');
+  checagens.push(['cartão: mostra o pacote dela inteiro, com quantas faltam',
+    /Sessão de terapia capilar/.test(painel) && /8 de 8/.test(painel), painel.slice(0, 120)]);
+  checagens.push(['cartão: oferece decidir — sai do pacote ou cobrar à parte',
+    await p2.locator('.veu [data-decidir="sim"]').count() === 1
+    && await p2.locator('.veu [data-decidir="nao"]').count() === 1]);
+  checagens.push(['cartão: sem decisão, avisa que a comanda abre cobrando (serviço é outro)',
+    /abre cobrando/.test(painel)]);
+
+  // Decide: sai do pacote, mesmo sendo escova e o pacote de terapia.
+  await p2.click('.veu [data-decidir="sim"]');
+  await p2.waitForTimeout(500);
+  const gravado = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === 'ag-carla');
+    return { usar: a.usar_pacote, pac: a.pacote_id };
+  });
+  checagens.push(['cartão: a decisão fica gravada no horário',
+    gravado.usar === true && gravado.pac === 'pac-carla', JSON.stringify(gravado)]);
+
+  // Corrigir quantas faltam: ela sabe que são 5, não 8.
+  await p2.click('.veu [data-ajustar-pacote="pac-carla"]');
+  await p2.waitForTimeout(400);
+  await p2.fill('.veu [name=faltam]', '5');
+  await tocarPrimario(p2);
+  await p2.waitForTimeout(700);
+  const corrigido = await p2.evaluate(async () => {
+    const M = await import('./js/metricas.js');
+    const db = await import('./js/db.js');
+    const p = M.situacaoPacote(db.estado.pacotes.find((x) => x.id === 'pac-carla'));
+    return { restam: p.restam, total: p.total, fora: p.usadas_fora };
+  });
+  checagens.push(['ajuste: "faltam 5" vira 5 de 8, com 3 usadas fora do sistema',
+    corrigido.restam === 5 && corrigido.total === 8 && corrigido.fora === 3, JSON.stringify(corrigido)]);
+  checagens.push(['ajuste: o cartão reabre já com o número novo',
+    /5 de 8/.test(nb(await p2.textContent('.veu #painel-pacote')).replace(/\s+/g, ' '))]);
+
+  // "Cliente chegou": a comanda abre descontada do pacote de terapia, apesar de ser escova.
+  await p2.evaluate(() => [...document.querySelectorAll('.veu .modal-pe button')]
+    .find((b) => /Cliente chegou/.test(b.textContent)).click());
+  await p2.waitForTimeout(900);
+  checagens.push(['chegou: com "sai do pacote" decidido, a comanda abre sem cobrar',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
+  checagens.push(['chegou: e o item aponta para o pacote de terapia, mesmo sendo escova',
+    /sai do pacote · Sessão de terapia capilar/.test(nb(await p2.textContent('.veu #itens')))]);
+  await fecharTudo(p2);
+
+  // O contrário: "cobrar à parte" vence o automático, e o fechamento não pergunta.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const d = new Date(); d.setDate(d.getDate() + 4); d.setHours(11, 0, 0, 0);
+    globalThis.__DB.agendamentos.push({ id: 'ag-carla2', profissional_id: 'p1', servico_id: 'cab-sessao-terapia',
+      servico_nome: 'Sessão de terapia capilar', cliente_id: 'cli-pac', cliente_nome: 'Carla Pacote',
+      inicio: d.toISOString(), duracao_min: 90, valor: 280, status: 'confirmado', origem: 'studio',
+      usar_pacote: false, atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    const { abrirAgendamento } = await import('./js/views/agenda.js');
+    abrirAgendamento('ag-carla2');
+  });
+  await p2.waitForTimeout(500);
+  checagens.push(['cartão: "cobrar à parte" aparece marcado',
+    await p2.locator('.veu [data-decidir="nao"].ativa').count() === 1]);
+  await p2.evaluate(() => [...document.querySelectorAll('.veu .modal-pe button')]
+    .find((b) => /Cliente chegou/.test(b.textContent)).click());
+  await p2.waitForTimeout(900);
+  checagens.push(['chegou: com "cobrar à parte", a comanda abre com o preço cheio mesmo sendo o serviço do pacote',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '280']);
+  await p2.selectOption('.veu #prof', 'p1');
+  await p2.click('.veu [data-pg="pix"]');
+  await tocarPrimario(p2);     // Fechar comanda
+  await p2.waitForTimeout(800);
+  checagens.push(['fechamento: decidido no cartão, não pergunta de novo sobre o pacote',
+    await p2.locator('.veu').count() === 0]);
+}
+
 await browser.close();
 
 let falhas = 0;

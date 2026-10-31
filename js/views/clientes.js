@@ -226,6 +226,10 @@ export function abrirCliente(id) {
       veu.querySelectorAll('[data-abrir-ficha]').forEach((b) => b.onclick = () => {
         abrirFicha(c, { fichaId: b.dataset.abrirFicha }, () => abrirCliente(id));
       });
+      veu.querySelectorAll('[data-ajustar-pacote]').forEach((b) => b.onclick = () => {
+        const pac = db.estado.pacotes.find((x) => x.id === b.dataset.ajustarPacote);
+        if (pac) abrirAjustePacote(pac, () => abrirCliente(id));
+      });
       veu.querySelectorAll('[data-encerrar-pacote]').forEach((b) => b.onclick = async () => {
         const pac = db.estado.pacotes.find((x) => x.id === b.dataset.encerrarPacote);
         if (!pac) return;
@@ -265,7 +269,9 @@ function listaPacotes(clienteId) {
         <div class="pequeno ${p.valido ? 't3' : 'erro-c'}">
           ${p.valido ? `${p.usadas} usada${p.usadas === 1 ? '' : 's'}`
             : (p.vencido ? 'vencido' : (p.restam ? 'encerrado' : 'terminou'))}</div></td>
-      <td style="width:40px">${p.valido
+      <td style="width:76px;white-space:nowrap">
+        <button class="btn-icone" data-ajustar-pacote="${p.id}" title="Corrigir sessões, prazo">${ico('editar')}</button>
+        ${p.valido
         ? `<button class="btn-icone" data-encerrar-pacote="${p.id}" title="Encerrar pacote">${ico('fechar')}</button>`
         : ''}</td>
     </tr>`).join('')}
@@ -795,5 +801,60 @@ export function abrirRepetidas() {
         }
       });
     },
+  });
+}
+
+
+/**
+ * Corrigir um pacote que já existe: quantas faltam, quantas tem, até quando.
+ *
+ * "Nem sempre é esse número" — Laura. O sistema conta o que passou pela
+ * comanda; o que aconteceu antes dele, ou ficou no caderno, ele não viu. Então
+ * a pergunta aqui é a que ela responde de cabeça — "quantas ainda faltam?" — e
+ * o sistema deduz quantas foram usadas fora dele. Nada de comanda inventada
+ * para fechar a conta, e o histórico de verdade continua intacto.
+ */
+export function abrirAjustePacote(pacote, aoFechar) {
+  const p = M.situacaoPacote(pacote);
+  const noSistema = M.usadasNoSistema(p.id);
+
+  abrirModal({
+    titulo: `Pacote de ${pacote.cliente_nome || 'cliente'}`,
+    corpo: `
+      <p class="t2 mb"><strong>${esc(p.servico_nome)}</strong>
+        · ${noSistema} sess${noSistema === 1 ? 'ão' : 'ões'} registrada${noSistema === 1 ? '' : 's'} pelo sistema${
+          p.usadas_fora ? ` · ${p.usadas_fora} fora dele` : ''}.</p>
+      <div class="linha-campos">
+        <label class="campo"><span>Quantas ainda faltam</span>
+          <input type="number" name="faltam" min="0" max="99" step="1" inputmode="numeric" value="${p.restam}">
+          <span class="dica t3">O que você sabe que ela ainda tem. É este número que a agenda mostra.</span></label>
+        <label class="campo"><span>Quantas o pacote tem no total</span>
+          <input type="number" name="sessoes" min="1" max="99" step="1" inputmode="numeric" value="${p.total}"></label>
+        <label class="campo"><span>Vale até</span>
+          <input type="date" name="validade" value="${p.validade || ''}">
+          <span class="dica t3">Em branco, não vence.</span></label>
+      </div>
+      <label class="campo"><span>Observações</span>
+        <input name="observacoes" value="${esc(p.observacoes || '')}" placeholder="Ex.: 2 sessões feitas antes do sistema"></label>
+      <label class="check mt"><input type="checkbox" name="ativo" ${p.ativo !== false ? 'checked' : ''}>
+        <span>Pacote em uso</span></label>`,
+    acoes: [
+      { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => { f(); aoFechar?.(); } },
+      { texto: 'Salvar', classe: 'btn-primario', onClick: async (fechar, veu) => {
+          const d = lerForm(veu);
+          const faltam = Math.max(0, Math.round(Number(d.faltam) || 0));
+          let sessoes = Math.max(1, Math.round(Number(d.sessoes) || 0));
+          // Se ela diz que faltam mais do que caberia, quem está errado é o
+          // total — não o que ela sabe da cliente.
+          if (noSistema + faltam > sessoes) sessoes = noSistema + faltam;
+          const usadas_fora = Math.max(0, sessoes - noSistema - faltam);
+          await db.salvar('pacotes', { ...pacote, sessoes, usadas_fora,
+            validade: d.validade || null, observacoes: d.observacoes || null,
+            ativo: !!d.ativo });
+          fechar();
+          avisar(`Pacote ajustado — faltam ${faltam} de ${sessoes}`);
+          aoFechar?.();
+        } },
+    ],
   });
 }
