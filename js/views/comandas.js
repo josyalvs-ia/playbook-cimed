@@ -187,13 +187,25 @@ export function abrirComanda(id, inicial) {
   // A agenda manda uma lista: uma ida ao studio pode ter tido manicure e corte,
   // e os dois entram na mesma comanda.
   if (!existente) {
-    for (const id of inicial?.servico_ids || [inicial?.servico_id].filter(Boolean)) {
+    // O que o horário trouxe: serviço e, quando houve, o valor combinado na
+    // hora de marcar.
+    const marcados = Array.isArray(inicial?.marcados) && inicial.marcados.length
+      ? inicial.marcados
+      : (inicial?.servico_ids || [inicial?.servico_id].filter(Boolean))
+          .map((servico_id) => ({ servico_id, valor: null }));
+
+    for (const { servico_id: id, valor: combinado } of marcados) {
       const s = db.estado.servicos.find((x) => x.id === id);
       if (!s) continue;
+      // Valor combinado no agendamento manda sobre a tabela — e, tendo valor
+      // combinado, não há mais o que confirmar: já foi confirmado na cadeira.
+      const temCombinado = combinado != null && Number(combinado) >= 0
+                           && Number(combinado) !== (Number(s.preco) || 0);
       const item = { id: uid(), comanda_id: c.id, servico_id: s.id, nome: s.nome,
-                     tipo: s.tipo || 'servico', qtd: 1, valor: Number(s.preco) || 0,
+                     tipo: s.tipo || 'servico', qtd: 1,
+                     valor: temCombinado ? Number(combinado) : (Number(s.preco) || 0),
                      custo: Number(s.custo) || 0, tempo: Number(s.tempo) || 0,
-                     confirmar_valor: s.preco_tipo && s.preco_tipo !== 'fixo' };
+                     confirmar_valor: !temCombinado && s.preco_tipo && s.preco_tipo !== 'fixo' };
       // Ela chegou para uma sessão que já pagou: a comanda abre descontada.
       // Esperar alguém lembrar de zerar o valor é cobrar duas vezes.
       const pac = c.cliente_id ? pacoteDoServico(c.cliente_id, s.id) : null;
@@ -313,29 +325,30 @@ export function abrirComanda(id, inicial) {
             </tr></thead><tbody>
             ${itens.map((it, i) => {
               const pac = it.pacote_id ? db.estado.pacotes.find((x) => x.id === it.pacote_id) : null;
-              const certo = it.pacote_id ? null : pacoteParaItem(it);
-              // Outros pacotes dela que não são deste serviço. Aparecem porque
-              // o pacote da Laura "inclui escova/finalização": o que ela lança
-              // na comanda nem sempre é o serviço com que o pacote foi
-              // cadastrado — e sem esta saída ela fica sem nenhuma.
-              const outros = it.pacote_id ? [] : pacotesUsaveis().filter((p) => p !== certo);
+              // Todos os pacotes utilizáveis dela, sempre, em botão de verdade.
+              //
+              // Antes isto era um link de 12px que só aparecia quando o pacote
+              // batia com o serviço daquela linha — e, quando não batia, virava
+              // um segundo toque ("descontar de um pacote dela…") para abrir uma
+              // lista. Três estados, letra miúda, dentro de uma célula de tabela
+              // que rola de lado no celular. A Laura desistiu e foi anotar os
+              // pacotes nas notas do telefone.
+              //
+              // Agora é um botão por pacote dela, do tamanho de um dedo, na
+              // linha do serviço. Sem passo intermediário e sem precisar que o
+              // serviço da comanda seja o mesmo com que o pacote foi cadastrado
+              // — que quase nunca é: o pacote de terapia inclui a escova.
+              const usaveis = it.pacote_id ? [] : pacotesUsaveis();
               return `<tr>
               <td>${esc(it.nome)}${it.tipo === 'adicional' ? ' <span class="selo">adicional</span>' : ''}${
                 it.confirmar_valor ? ' <span class="selo alerta" title="o valor deste serviço varia">confirmar valor</span>' : ''}
-                ${pac ? `<div class="pequeno"><span class="selo ok">pacote${
-                  pac.servico_nome ? ' · ' + esc(pac.servico_nome) : ''}</span>
-                  <button class="btn-link" data-cobrar="${i}">cobrar à parte</button></div>` : ''}
-                ${certo ? `<div class="pequeno"><button class="btn-link" data-usar="${i}"
-                  data-pac="${esc(certo.id)}">descontar do pacote (${certo.sobram} de ${certo.total})</button></div>` : ''}
-                ${!pac && !certo && outros.length ? `<div class="pequeno">
-                  <button class="btn-link" data-escolher="${i}">descontar de um pacote dela…</button></div>` : ''}
-                ${escolhendo === i ? `<div class="escolhe-pacote">
-                  <div class="pequeno t3 mb">Qual pacote usar para <strong>${esc(it.nome)}</strong>?</div>
-                  ${pacotesUsaveis().map((p) => `<button type="button" class="pilula"
-                    data-usar="${i}" data-pac="${esc(p.id)}">${esc(p.servico_nome)}
-                    <span class="t3">· ${p.sobram} de ${p.total}</span></button>`).join('')}
-                  <button type="button" class="btn-link" data-cancelar-escolha>cancelar</button>
-                </div>` : ''}</td>
+                ${pac ? `<div class="item-pacote">
+                  <span class="selo ok">sai do pacote${pac.servico_nome ? ' · ' + esc(pac.servico_nome) : ''}</span>
+                  <button type="button" class="pilula" data-cobrar="${i}">cobrar à parte</button></div>` : ''}
+                ${usaveis.map((p) => `<div class="item-pacote">
+                  <button type="button" class="pilula pilula-pacote" data-usar="${i}" data-pac="${esc(p.id)}">
+                    ${ico('check')} Descontar do pacote<span class="t3"> · ${esc(p.servico_nome)} (${p.sobram} de ${p.total})</span>
+                  </button></div>`).join('')}</td>
               <td><input type="number" min="1" step="1" value="${it.qtd}" data-i="${i}" data-campo="qtd"></td>
               <td><input type="number" min="0" step="0.01" value="${it.valor}" data-i="${i}" data-campo="valor" style="text-align:right"></td>
               <td class="n num">${fmt.brl(it.valor * it.qtd)}</td>
@@ -363,12 +376,6 @@ export function abrirComanda(id, inicial) {
             usarPacote(itens[+b.dataset.usar], p);
             pintarItens(); pintarTotais(); pintarCliente();
           };
-        });
-        alvo.querySelectorAll('[data-escolher]').forEach((b) => {
-          b.onclick = () => { escolhendo = +b.dataset.escolher; pintarItens(); };
-        });
-        alvo.querySelector('[data-cancelar-escolha]')?.addEventListener('click', () => {
-          escolhendo = null; pintarItens();
         });
       };
 
@@ -444,14 +451,10 @@ export function abrirComanda(id, inicial) {
       const pacoteParaItem = (it) =>
         (it.servico_id ? pacotesUsaveis().find((p) => p.servico_id === it.servico_id) : null) || null;
 
-      /** Qual item está com a lista de pacotes aberta. */
-      let escolhendo = null;
-
       /** Desconta este item de um pacote — mesmo que seja de outro serviço. */
       const usarPacote = (it, p) => {
         it.pacote_id = p.id;
         it.valor = 0;
-        escolhendo = null;
         avisar(`Sessão do pacote — sobram ${p.sobram - 1} depois desta`);
       };
 
@@ -538,8 +541,8 @@ export function abrirComanda(id, inicial) {
           alvo.innerHTML = `<div class="aviso ok mb">${ico('check')}<div>
             <strong>${esc(primeiroNome(cli.nome))}</strong> tem pacote:
             ${usaveis.map((p) => `${esc(p.servico_nome)} (${p.sobram} de ${p.total})`).join(' · ')}.
-            O serviço do pacote já entra descontado; os outros têm o botão
-            "descontar de um pacote dela".</div></div>`;
+            Cada serviço da lista abaixo tem o botão verde
+            <strong>Descontar do pacote</strong>.</div></div>`;
           return;
         }
 
@@ -568,7 +571,6 @@ export function abrirComanda(id, inicial) {
         pintarCliente();
         if (agora !== clienteVista) {
           clienteVista = agora;
-          escolhendo = null;
           pintarItens();
         }
       };
@@ -598,6 +600,40 @@ export function abrirComanda(id, inicial) {
     if (fecharComanda && !$('#prof').value) {
       $('#prof').focus();
       return avisar('Escolha quem atendeu', 'erro');
+    }
+
+    // ── A pergunta que a Laura pediu, na hora que ela pediu ──────────────
+    //
+    // "Eu ter a opção na hora do fechamento da conta de descontar do pacote."
+    //
+    // Ela fecha a conta com a cliente de pé na frente dela. Se a cliente tem
+    // sessão paga sobrando e nada nesta comanda está saindo do pacote, ou a
+    // cliente vai pagar de novo por algo que já pagou, ou a sessão vai ficar
+    // para trás. Os dois erros só aparecem semanas depois, quando ninguém mais
+    // lembra do atendimento.
+    //
+    // Então o fechamento pergunta — uma vez, com o nome do pacote e quantas
+    // faltam. É a última porta antes do dinheiro entrar no caixa.
+    if (fecharComanda && !itens.some((i) => i.pacote_id)) {
+      const cliPacote = acharCliente(nomeCliente)
+        || (c.cliente_id ? db.estado.clientes.find((x) => x.id === c.cliente_id) : null);
+      const sobrando = cliPacote
+        ? pacotesDe(cliPacote.id).filter((p) => p.valido && p.restam > 0) : [];
+      if (sobrando.length) {
+        const p = sobrando[0];
+        const resposta = await confirmar(
+          `${primeiroNome(cliPacote.nome)} tem pacote com sessão sobrando`,
+          `${p.servico_nome} — ${p.restam} de ${p.total} ainda por usar. ` +
+          'Este atendimento sai do pacote ou é cobrado à parte?',
+          'Descontar do pacote', false, 'Cobrar à parte');
+        if (resposta) {
+          // Desconta o primeiro serviço da comanda — o adicional (esmalte,
+          // hidratação avulsa) continua sendo cobrado, que é o certo.
+          const alvo = itens.find((i) => i.tipo !== 'adicional') || itens[0];
+          alvo.pacote_id = p.id;
+          alvo.valor = 0;
+        }
+      }
     }
 
     // Cliente: acha pelo nome ou cadastra na hora.

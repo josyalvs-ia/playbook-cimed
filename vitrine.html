@@ -15,7 +15,7 @@
 <meta property="og:title" content="Alento — Studio de Beleza">
 <meta property="og:description" content="Beleza que acolhe e renova. Veja a tabela de valores e marque seu horário na hora.">
 <meta property="og:url" content="https://alentoostudio.com.br/vitrine.html">
-<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-09-13.2">
+<meta property="og:image" content="https://alentoostudio.com.br/assets/previa-vitrine.png?v=2026-10-31.1">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Alento — Studio de Beleza">
@@ -26,10 +26,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=2026-09-13.2">
+<link rel="stylesheet" href="css/app.css?v=2026-10-31.1">
 <!-- Sem isto a página não sabe o endereço do banco: mostra a tabela embutida
      e o agendamento fica indisponível. -->
-<script src="config.js?v=2026-09-13.2"></script>
+<script src="config.js?v=2026-10-31.1"></script>
 <style>
   .vitrine { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; position: relative; z-index: 1; }
 
@@ -322,6 +322,37 @@
     opacity: .6;
   }
 
+  /* "Já marquei e quero ver" — discreto quando fechado, porque a maioria de
+     quem chega vem marcar, não conferir. */
+  .procurar { margin-bottom: 26px; }
+  .procurar > summary {
+    list-style: none; cursor: pointer;
+    color: var(--texto-3); font-size: 13.5px;
+    text-decoration: underline; text-underline-offset: 3px;
+    padding: 10px 2px; min-height: 42px; display: flex; align-items: center;
+  }
+  .procurar > summary::-webkit-details-marker { display: none; }
+  .procurar > summary:hover { color: var(--creme); }
+  .procurar-caixa {
+    border: 1px solid rgba(240,235,222,.16); border-radius: 16px;
+    padding: 16px 18px; margin-top: 4px;
+  }
+  .procurar-campos { display: flex; gap: 10px; flex-wrap: wrap; }
+  .procurar-campos label { flex: 1 1 160px; font-size: 12px; color: var(--texto-3); }
+  .procurar-campos input {
+    width: 100%; margin-top: 5px; padding: 12px 14px;
+    background: rgba(255,255,255,.05); color: var(--texto);
+    border: 1px solid rgba(240,235,222,.18); border-radius: 10px;
+    font-size: 16px;  /* 16px evita o zoom automático do iPhone */
+  }
+  .procurar-caixa button.ir {
+    margin-top: 12px; width: 100%; min-height: 46px;
+    background: var(--creme); color: var(--verde);
+    border-radius: 999px; font-weight: 600; font-size: 14.5px;
+  }
+  .procurar-caixa .recado { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+  .procurar-caixa .recado.ruim { color: var(--erro); }
+
   @media (max-width: 860px) {
     .ag-tela { padding: 14px 14px 40px; }
     .ag-passo { font-size: 0; gap: 0; justify-content: center; }
@@ -356,7 +387,7 @@ import { SERVICOS, ADICIONAIS, CATEGORIAS_SERVICO, REGRAS, COMBO_ALONGAMENTO,
          PACOTES_PADRAO, PACOTES_NOTA } from './js/data/servicos.js';
 import { fmt, esc, estrela, ico, precoTexto, ceuEstrelado, linkMapa,
          destaque, icoDestaque, familiaDe, noDestaque, retrato } from './js/ui.js';
-import { iniciarAgendamento, meusHorarios, desmarcar, conferirMeusHorarios,
+import { iniciarAgendamento, meusHorarios, desmarcar, conferirMeusHorarios, procurarMeusHorarios,
          hora, dataLonga } from './js/agendar.js';
 
 // A vitrine tenta ler os preços ao vivo do banco (assim, mexeu no app, mudou
@@ -509,6 +540,10 @@ const blocos = ['unhas', 'cabelos', 'combos']
 
 document.getElementById('vitrine').innerHTML = `
   <div id="meus-horarios"></div>
+  <!-- Quem marcou pelo navegador do Instagram e depois abriu no Safari não
+       achava nada: o cartão acima é memória DESTE aparelho. Aqui ela procura
+       no studio com o que já digitou para marcar. -->
+  <div id="procurar-horarios"></div>
 
   <header class="capa">
     ${ceuEstrelado()}
@@ -588,9 +623,11 @@ function pintarMeusHorarios() {
   const meus = sbCliente ? meusHorarios() : [];
   if (!meus.length) { alvo.innerHTML = ''; return; }
 
-  alvo.innerHTML = meus.map((h) => `
+  // Com mais de um horário, repetir "Seu próximo horário" em todos seria
+  // mentira em três deles. O primeiro é o próximo; os outros são os seguintes.
+  alvo.innerHTML = meus.map((h, i) => `
     <div class="meu-horario">
-      <span class="rot">Seu próximo horário</span>
+      <span class="rot">${i === 0 ? 'Seu próximo horário' : 'Depois'}</span>
       <span>
         <span class="quando">${dataLonga(h.quando)}, ${hora(h.quando)}</span>
         <span class="oque" style="display:block">${esc(h.servico)} com ${esc(h.prof)}</span>
@@ -610,6 +647,69 @@ pintarMeusHorarios();
 // O cartão é memória do celular; o banco é quem manda. Confere assim que a
 // página abre e repinta — assim um horário desmarcado pelo studio some daqui.
 conferirMeusHorarios(sbCliente).then(pintarMeusHorarios);
+
+/**
+ * "Já marquei e quero ver os meus horários."
+ *
+ * Fica fechado por padrão: quem chega na página vem marcar, e um formulário
+ * aberto no alto competiria com isso. Abre num toque, e quem já procurou uma
+ * vez neste aparelho nem precisa — o cartão passa a aparecer sozinho.
+ */
+function pintarProcurar() {
+  const alvo = document.getElementById('procurar-horarios');
+  if (!sbCliente) { alvo.innerHTML = ''; return; }
+
+  alvo.innerHTML = `
+    <details class="procurar">
+      <summary>Já tenho horário marcado — quero ver ou desmarcar</summary>
+      <div class="procurar-caixa">
+        <div class="procurar-campos">
+          <label>Seu WhatsApp
+            <input id="pr-tel" type="tel" inputmode="tel" autocomplete="tel"
+                   placeholder="(11) 99999-9999"></label>
+          <label>Seu primeiro nome
+            <input id="pr-nome" autocomplete="given-name" placeholder="Como você marcou"></label>
+        </div>
+        <button class="ir" id="pr-ir">Ver meus horários</button>
+        <div class="recado" id="pr-recado"></div>
+      </div>
+    </details>`;
+
+  const recado = alvo.querySelector('#pr-recado');
+  const botao = alvo.querySelector('#pr-ir');
+
+  const procurar = async () => {
+    recado.className = 'recado';
+    recado.textContent = 'Procurando…';
+    botao.disabled = true;
+    try {
+      const achados = await procurarMeusHorarios(
+        sbCliente, alvo.querySelector('#pr-tel').value, alvo.querySelector('#pr-nome').value);
+      if (!achados.length) {
+        recado.className = 'recado ruim';
+        recado.textContent = 'Não achei horário marcado com esse WhatsApp e esse nome. '
+          + 'Confira se é o mesmo nome que você usou para marcar — ou fale com o studio pelo WhatsApp.';
+      } else {
+        recado.textContent = achados.length === 1
+          ? 'Achei o seu horário — está logo acima.'
+          : `Achei ${achados.length} horários seus — estão logo acima.`;
+        pintarMeusHorarios();
+        document.getElementById('meus-horarios')
+          .scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } catch (e) {
+      recado.className = 'recado ruim';
+      recado.textContent = e.message || 'Não consegui procurar agora.';
+    }
+    botao.disabled = false;
+  };
+
+  botao.onclick = procurar;
+  alvo.querySelectorAll('#pr-tel, #pr-nome').forEach((campo) => {
+    campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); procurar(); } };
+  });
+}
+pintarProcurar();
 
 // ── Destaques: a fileira de círculos do manual, virada em navegação ─────────
 // Clicar num deles esconde o que não é daquela família e leva a página até a

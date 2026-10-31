@@ -349,3 +349,120 @@ begin
 end $$;
 
 grant execute on function public.proximos_horarios(text, int, int, int) to anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- A FICHA DA CLIENTE
+-- ═══════════════════════════════════════════════════════════════════════════
+-- "Poder abrir uma ficha pras clientes — que nem eu faço terapia capilar, daí
+-- eu poder colocar anamnese, colocar foto da tricoscopia, o dia que fez a
+-- tricoscopia; tanto de eu colocar coloração, a Júlia colocar o esmalte que a
+-- cliente usou" — pedido da Laura.
+--
+-- Não confundir com `ficha_tecnica`, que é outra coisa: aquela é a receita de
+-- insumos de um SERVIÇO (quanto de acetona uma manicure gasta). Esta é o
+-- prontuário de uma CLIENTE — o que foi visto nela, o que foi usado, e o que
+-- precisa ser lembrado na próxima vez.
+--
+-- Uma linha por anotação, não uma por cliente: a fórmula de coloração de
+-- março não é a de setembro, e a graça da tricoscopia é justamente comparar
+-- a foto de hoje com a de três meses atrás. Sobrescrever apagaria a evolução,
+-- que é o que o tratamento inteiro quer mostrar.
+create table if not exists fichas_cliente (
+  id               uuid primary key default gen_random_uuid(),
+  cliente_id       uuid not null references clientes(id) on delete cascade,
+  comanda_id       uuid references comandas(id) on delete set null,
+  profissional_id  uuid references profissionais(id) on delete set null,
+  data             date not null default (now() at time zone public.fuso())::date,
+  anamnese         text,   -- o que a cliente relata e o que foi observado
+  tricoscopia      text,   -- o laudo da tricoscopia
+  tricoscopia_em   date,   -- o dia em que a tricoscopia foi feita
+  formula          text,   -- fórmula de coloração: base, tom, oxidante, tempo
+  esmalte          text,   -- marca e cor que a cliente usou
+  observacoes      text,
+  -- As fotos ficam no Storage; aqui mora só o caminho de cada uma, com a
+  -- legenda e o dia. jsonb e não tabela à parte porque foto sem ficha não
+  -- existe, e assim a ficha chega inteira numa consulta só.
+  fotos            jsonb not null default '[]'::jsonb,
+  criado_em        timestamptz not null default now(),
+  atualizado_em    timestamptz not null default now()
+);
+create index if not exists idx_fichas_cliente on fichas_cliente (cliente_id, data desc);
+create index if not exists idx_fichas_comanda on fichas_cliente (comanda_id);
+create index if not exists idx_fichas_atualizado on fichas_cliente (atualizado_em);
+
+drop trigger if exists fichas_cliente_atualizado on fichas_cliente;
+create trigger fichas_cliente_atualizado before update on fichas_cliente
+  for each row execute function public.marcar_atualizacao();
+
+alter table fichas_cliente enable row level security;
+drop policy if exists "equipe" on fichas_cliente;
+create policy "equipe" on fichas_cliente for all to authenticated
+  using (public.e_da_equipe()) with check (public.e_da_equipe());
+
+-- ── Onde as fotos ficam ────────────────────────────────────────────────────
+-- Balde privado: foto de tricoscopia é dado de saúde da cliente, e não pode
+-- ser um endereço que qualquer um abre. Quem está logada E é da equipe lê;
+-- mais ninguém, nem com o link.
+insert into storage.buckets (id, name, public)
+values ('fichas', 'fichas', false)
+on conflict (id) do nothing;
+
+drop policy if exists "equipe le fichas" on storage.objects;
+create policy "equipe le fichas" on storage.objects for select to authenticated
+  using (bucket_id = 'fichas' and public.e_da_equipe());
+
+drop policy if exists "equipe grava fichas" on storage.objects;
+create policy "equipe grava fichas" on storage.objects for insert to authenticated
+  with check (bucket_id = 'fichas' and public.e_da_equipe());
+
+drop policy if exists "equipe apaga fichas" on storage.objects;
+create policy "equipe apaga fichas" on storage.objects for delete to authenticated
+  using (bucket_id = 'fichas' and public.e_da_equipe());
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- OS HORÁRIOS DA CLIENTE, PELO TELEFONE DELA
+-- ═══════════════════════════════════════════════════════════════════════════
+-- "Ela agenda e aí não consegue entrar lá no sistema e ver os dias que ela tá
+-- agendada; e alguma cliente já teve problema pra fazer o cancelamento" —
+-- Laura, repassando a Júlia.
+--
+-- A página das clientes guardava os horários no próprio aparelho. Quem
+-- agendou pelo navegador de dentro do Instagram e depois abriu o site no
+-- Safari não encontrava nada — o horário existia, o aparelho é que era outro.
+-- E sem o código guardado não havia como desmarcar.
+--
+-- Agora ela se identifica com o que já digitou para marcar: telefone e
+-- primeiro nome. Os dois precisam bater. Devolve só o que interessa a ela —
+-- e nunca o nome completo, o telefone ou o histórico de ninguém.
+-- `unaccent` não vem ligada em todo projeto, e ligar extensão a partir do app
+-- não é possível. Esta troca à mão cobre o que aparece em nome brasileiro.
+create or replace function public.sem_acento(p text)
+returns text language sql immutable set search_path = pg_catalog, pg_temp as $$
+  select translate(coalesce(p, ''),
+    'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ',
+    'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC')
+$$;
+
+create or replace function public.meus_agendamentos(p_telefone text, p_nome text)
+returns table (codigo uuid, quando timestamptz, servico text, prof_nome text, duracao_min int)
+language sql security definer set search_path = public, pg_temp stable as $$
+  select a.token, a.inicio, a.servico_nome, split_part(p.nome, ' ', 1), a.duracao_min
+    from agendamentos a
+    join profissionais p on p.id = a.profissional_id
+   where a.status = 'confirmado'
+     and a.inicio > now()
+     -- Só os dígitos: ela pode digitar com parênteses, com traço ou sem nada.
+     -- Os últimos 8 bastam e evitam a briga do nono dígito e do DDD.
+     and right(regexp_replace(coalesce(a.cliente_telefone, ''), '\D', '', 'g'), 8)
+       = right(regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g'), 8)
+     and length(regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g')) >= 10
+     -- E o primeiro nome, sem acento e sem caixa: o telefone sozinho abriria a
+     -- agenda de quem quer que seja para quem souber o número.
+     and lower(public.sem_acento(split_part(trim(a.cliente_nome), ' ', 1)))
+       = lower(public.sem_acento(split_part(trim(coalesce(p_nome, '')), ' ', 1)))
+     and length(trim(coalesce(p_nome, ''))) >= 2
+   order by a.inicio
+$$;
+
+revoke all on function public.meus_agendamentos(text, text) from public;
+grant execute on function public.meus_agendamentos(text, text) to anon, authenticated;

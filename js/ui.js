@@ -248,6 +248,14 @@ export const fmt = {
     return x.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   },
   diaSemana: (d) => new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }),
+  /** Dia e hora de um horário marcado: "sex, 07/11 · 14:00". */
+  dataHora: (d) => {
+    if (!d) return '—';
+    const x = typeof d === 'string' ? new Date(d) : d;
+    if (Number.isNaN(x.getTime())) return '—';
+    return x.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+      + ' · ' + x.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  },
   telefone: (t) => {
     const d = String(t || '').replace(/\D/g, '');
     if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
@@ -381,7 +389,7 @@ export function abrirModal({ titulo, corpo, acoes = [], largo = false, aoAbrir }
 export function fecharModal() { _fecharAtual?.(); }
 
 /** Confirmação. Resolve para true/false. */
-export function confirmar(titulo, texto, textoOk = 'Confirmar', perigo = true) {
+export function confirmar(titulo, texto, textoOk = 'Confirmar', perigo = true, textoNao = 'Cancelar') {
   return new Promise((resolve) => {
     abrirModal({
       titulo,
@@ -389,7 +397,7 @@ export function confirmar(titulo, texto, textoOk = 'Confirmar', perigo = true) {
       // só — e quem escreve a pergunta decide onde quebra.
       corpo: `<p class="t2" style="white-space:pre-line">${esc(texto)}</p>`,
       acoes: [
-        { texto: 'Cancelar', classe: 'btn-fantasma', onClick: (f) => { f(); resolve(false); } },
+        { texto: textoNao, classe: 'btn-fantasma', onClick: (f) => { f(); resolve(false); } },
         { texto: textoOk, classe: perigo ? 'btn-perigo' : 'btn-primario', onClick: (f) => { f(); resolve(true); } },
       ],
     });

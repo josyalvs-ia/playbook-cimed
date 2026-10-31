@@ -17,7 +17,7 @@ const CHAVE_FILA   = 'alento.fila.v1';
 
 export const TABELAS = ['profissionais', 'clientes', 'servicos', 'materiais', 'ficha_tecnica',
                         'estoque_mov', 'comandas', 'comanda_itens', 'caixa', 'config',
-                        'horarios', 'bloqueios', 'agendamentos', 'pacotes'];
+                        'horarios', 'bloqueios', 'agendamentos', 'pacotes', 'fichas_cliente'];
 
 /** Coleções em memória. As telas leem daqui, sempre. */
 export const estado = Object.fromEntries(TABELAS.map((t) => [t, []]));
@@ -149,7 +149,7 @@ const NOME_TABELA = {
   materiais: 'insumo', ficha_tecnica: 'ficha técnica', estoque_mov: 'movimento de estoque',
   comandas: 'atendimento', comanda_itens: 'item do atendimento', caixa: 'lançamento do caixa',
   config: 'ajuste', horarios: 'horário de funcionamento', bloqueios: 'bloqueio de agenda',
-  agendamentos: 'horário marcado', pacotes: 'pacote',
+  agendamentos: 'horário marcado', pacotes: 'pacote', fichas_cliente: 'ficha da cliente',
 };
 
 /**
@@ -650,6 +650,11 @@ const EXIGENCIAS = [
   { o_que: 'Agendamento pelo site', tipo: 'funcao', nome: 'horarios_livres',
     args: { p_servico_id: '__x__', p_data: '2000-01-01' },
     serve_para: 'a cliente ver os horários livres e marcar' },
+  { o_que: 'Ficha da cliente', tipo: 'tabela', nome: 'fichas_cliente',
+    serve_para: 'anamnese, tricoscopia, fórmula de coloração e esmalte usado' },
+  { o_que: 'Horários da cliente pelo telefone', tipo: 'funcao', nome: 'meus_agendamentos',
+    args: { p_telefone: '__x__', p_nome: '__x__' },
+    serve_para: 'a cliente ver e desmarcar os horários dela de qualquer aparelho' },
 ];
 
 export async function conferirBanco() {
@@ -661,7 +666,7 @@ export async function conferirBanco() {
       if (e.tipo === 'coluna') {
         const { error } = await cliente.from(e.tabela).select(e.coluna).limit(1);
         if (error) throw error;
-      } else if (e.tipo === 'view') {
+      } else if (e.tipo === 'view' || e.tipo === 'tabela') {
         const { error } = await cliente.from(e.nome).select('id').limit(1);
         if (error) throw error;
       } else {
@@ -810,4 +815,90 @@ function vigiar() {
 
 export function estaVazio() {
   return estado.servicos.length === 0 && estado.materiais.length === 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FOTOS DA FICHA
+// ═══════════════════════════════════════════════════════════════════════════
+// A foto da tricoscopia é dado de saúde da cliente: mora num balde privado, e
+// o endereço dela não abre para quem não está logada. Por isso cada exibição
+// pede um link assinado, que vence sozinho — e não um endereço fixo que, uma
+// vez vazado, vale para sempre.
+
+const BALDE = 'fichas';
+
+/**
+ * Encolhe a foto antes de subir.
+ *
+ * A foto de um celular de hoje tem 4 MB. Vinte fichas com três fotos cada já
+ * passam de 200 MB — e, pior que o espaço, é a espera: subir 4 MB no 4G do
+ * studio leva mais tempo do que a cliente tem paciência. 1600px de lado maior
+ * é mais resolução do que a tela mostra, e sobra para dar zoom na raiz.
+ *
+ * Se qualquer passo falhar (formato estranho, navegador antigo), sobe o
+ * arquivo original: foto grande é melhor que foto nenhuma.
+ */
+async function encolher(arquivo, lado = 1600, qualidade = 0.82) {
+  try {
+    if (!/^image\//.test(arquivo.type) || arquivo.type === 'image/gif') return arquivo;
+    const bitmap = await createImageBitmap(arquivo);
+    const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height));
+    if (escala === 1 && arquivo.size < 900 * 1024) { bitmap.close?.(); return arquivo; }
+    const tela = document.createElement('canvas');
+    tela.width = Math.round(bitmap.width * escala);
+    tela.height = Math.round(bitmap.height * escala);
+    tela.getContext('2d').drawImage(bitmap, 0, 0, tela.width, tela.height);
+    bitmap.close?.();
+    const blob = await new Promise((ok) => tela.toBlob(ok, 'image/jpeg', qualidade));
+    if (!blob || blob.size >= arquivo.size) return arquivo;
+    return new File([blob], (arquivo.name || 'foto').replace(/\.\w+$/, '') + '.jpg',
+                    { type: 'image/jpeg' });
+  } catch { return arquivo; }
+}
+
+/** Sobe uma foto e devolve o caminho dela dentro do balde. */
+export async function subirFoto(clienteId, arquivo) {
+  if (!cliente) throw new Error('Sem conexão com o servidor.');
+  const menor = await encolher(arquivo);
+  const ext = (menor.type === 'image/jpeg' ? 'jpg'
+            : (menor.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+  const caminho = `${clienteId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await cliente.storage.from(BALDE)
+    .upload(caminho, menor, { contentType: menor.type, upsert: false });
+  if (error) throw new Error(explicarFoto(error));
+  return caminho;
+}
+
+/**
+ * Links para ver as fotos, válidos por uma hora.
+ *
+ * Em lote porque uma ficha com seis fotos faria seis idas ao servidor só para
+ * desenhar a tela.
+ */
+export async function verFotos(caminhos) {
+  const limpos = (caminhos || []).filter(Boolean);
+  if (!cliente || !limpos.length) return {};
+  const { data, error } = await cliente.storage.from(BALDE)
+    .createSignedUrls(limpos, 60 * 60);
+  if (error || !Array.isArray(data)) return {};
+  return Object.fromEntries(data.filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]));
+}
+
+export async function apagarFoto(caminho) {
+  if (!cliente || !caminho) return;
+  await cliente.storage.from(BALDE).remove([caminho]);
+}
+
+/** O erro do Storage em português — o original fala de bucket e de policy. */
+function explicarFoto(erro) {
+  const m = String(erro?.message || erro);
+  if (/bucket.*not found|not found.*bucket/i.test(m)) {
+    return 'O lugar de guardar as fotos ainda não existe no banco. '
+         + 'Rode db/atualizar.sql no Supabase e tente de novo.';
+  }
+  if (/policy|permission|unauthorized|403/i.test(m)) {
+    return 'O servidor não deixou guardar a foto. Confira se você está logada como profissional ativa.';
+  }
+  if (/exceeded|too large|413/i.test(m)) return 'A foto é grande demais mesmo depois de encolher.';
+  return 'Não consegui guardar a foto: ' + m;
 }

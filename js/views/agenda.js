@@ -8,6 +8,7 @@ import * as db from '../db.js';
 import { ico, estrela, esc, fmt, hoje, avisar, abrirModal, fecharModal, confirmar, lerForm, vazio,
          chave, uid, linkMapa, retrato, primeiroNome } from '../ui.js';
 import { abrirComanda, fazEsseServico } from './comandas.js';
+import { mesmoTelefone } from './clientes.js';
 import { nomeFormaPagamento } from '../pricing.js';
 import * as M from '../metricas.js';
 
@@ -676,9 +677,22 @@ export function abrirAgendamento(id, dataPadrao) {
         // Trocar de serviço traz o tempo da tabela de volta; digitar depois
         // manda. O contrário — insistir no número antigo — é o que faz alguém
         // marcar quatro horas de mechas achando que marcou uma de manicure.
+        const campoValor = linha.querySelector('[data-valor]');
+        const dicaValor = linha.querySelector('[data-valor-dica]');
         const doServico = () => {
           const s = servicos.find((x) => x.id === selServico.value);
           if (s) campoDur.value = minutosDe(s);
+          // O valor da tabela entra preenchido e editável: o serviço sob
+          // avaliação é o caso dela — faz a avaliação com a cliente na cadeira
+          // e já sabe o preço, que não é o da tabela.
+          if (s && campoValor) {
+            campoValor.value = Number(s.preco) || 0;
+            if (dicaValor) {
+              dicaValor.textContent = s.preco_tipo && s.preco_tipo !== 'fixo'
+                ? 'Este serviço varia — ponha o que foi combinado.'
+                : `Tabela: ${fmt.brl(Number(s.preco) || 0)}. Dá para mudar.`;
+            }
+          }
           recalcular();
         };
         const campoHora = linha.querySelector('[data-hora]');
@@ -754,9 +768,23 @@ export function abrirAgendamento(id, dataPadrao) {
           // manda quem está digitando.
           if (!campoTel.value && ja.telefone) campoTel.value = fmt.telefone(ja.telefone);
         }
+
+        // Nome que não casa, mas telefone que já é de alguém: quase sempre é a
+        // mesma pessoa escrita de outro jeito — "Ana Paula" hoje, "Aninha" na
+        // semana passada. É daí que vêm os cadastros repetidos, e é aqui, antes
+        // de criar o segundo, que ainda dá para evitar.
+        const porTelefone = ja ? [] : mesmoTelefone(campoTel.value);
+        const alerta = veu.querySelector('#cliente-repetida');
+        alerta.hidden = !porTelefone.length;
+        if (porTelefone.length) {
+          alerta.querySelector('div').innerHTML =
+            `Este WhatsApp já é de <strong>${porTelefone.map((x) => esc(x.nome)).join(', ')}</strong>. `
+            + 'Se for ela, escolha o nome na lista acima — assim o histórico não se divide em duas fichas.';
+        }
       };
       campoNome.oninput = verCliente;
       campoNome.onchange = verCliente;
+      campoTel.oninput = verCliente;
       verCliente();
 
       // Dizer quantas vezes e até quando: "repetir" sem número na tela é um
@@ -809,6 +837,7 @@ function formNovo(servicos, profs, dataPadrao) {
       </div>
     </div>
     <div id="cliente-conhecida" class="aviso" hidden>${ico('check')}<div></div></div>
+    <div id="cliente-repetida" class="aviso alerta" hidden>${ico('alerta')}<div></div></div>
 
     <label class="campo"><span>Dia</span>
       <input type="date" name="data" value="${dataPadrao || hoje()}"></label>
@@ -879,6 +908,13 @@ function linhaServico(profs) {
         <label class="campo"><span>Duração (min)</span>
           <input type="number" data-dur min="15" max="600" step="5" inputmode="numeric" placeholder="—">
           <span class="dica t3" data-quando></span></label>
+        <!-- "Eu tô aqui com a cliente, fiz a avaliação dela, aí vou fazer o
+             agendamento e tenho que entrar no agendamento depois pra mudar o
+             valor" — pedido da Laura. O valor combinado é combinado na
+             cadeira, não depois. Em branco vale o da tabela. -->
+        <label class="campo"><span>Valor combinado</span>
+          <input type="number" data-valor min="0" step="0.01" inputmode="decimal" placeholder="—">
+          <span class="dica t3" data-valor-dica></span></label>
       </div>
       <!-- "Tenho que entrar dia a dia na agenda procurando um buraco" — o
            sistema já sabe o expediente, as folgas e o que está marcado. -->
@@ -938,10 +974,18 @@ function fichaAgendamento(a) {
           .join('<br>')}</td></tr>` : ''}
       ${a.observacoes ? `<tr><td class="t2">Observações</td><td>${esc(a.observacoes)}</td></tr>` : ''}
     </tbody></table>
-    ${pacoteDaCliente(a) ? `<div class="aviso ok mt">${ico('check')}<div>
-      Este serviço sai do pacote dela — ${pacoteDaCliente(a).restam} de
-      ${pacoteDaCliente(a).total} ainda por usar. Em "Cliente chegou", a comanda
-      já abre sem cobrar.</div></div>` : ''}
+    ${(() => {
+      const p = pacoteDaCliente(a);
+      if (!p) return '';
+      return `<div class="aviso ok mt">${ico('check')}<div>
+        ${p.doServico
+          ? `Este serviço sai do pacote dela — ${p.restam} de ${p.total} ainda por
+             usar. Em "Cliente chegou", a comanda já abre sem cobrar.`
+          : `Ela tem pacote de <strong>${esc(p.servico_nome)}</strong> — ${p.restam} de
+             ${p.total} ainda por usar. Não é o serviço deste horário, então a comanda
+             abre cobrando: se for para sair do pacote, toque em "Descontar do pacote"
+             na linha do serviço.`}</div></div>`;
+    })()}
     ${a.status === 'concluido'
       ? `<div class="aviso ok mt">${ico('check')}<div>Atendimento concluído.${
           comandaDoHorario(a)
@@ -963,7 +1007,18 @@ function pacoteDaCliente(a) {
   const cli = a.cliente_id
     ? db.estado.clientes.find((c) => c.id === a.cliente_id)
     : db.estado.clientes.find((c) => chave(c.nome) === chave(a.cliente_nome || ''));
-  return cli ? M.pacoteDoServico(cli.id, a.servico_id) : null;
+  if (!cli) return null;
+
+  // Primeiro o pacote exatamente deste serviço: esse entra descontado sozinho.
+  const doServico = M.pacoteDoServico(cli.id, a.servico_id);
+  if (doServico) return { ...doServico, doServico: true };
+
+  // Não havendo, qualquer pacote válido dela ainda vale ser dito. O pacote de
+  // terapia capilar da Laura inclui a escova, e o que se marca na agenda quase
+  // nunca é o serviço com que o pacote foi cadastrado — era aí que o aviso
+  // ficava mudo e ela fechava a conta cobrando uma sessão já paga.
+  const qualquer = M.pacotesDe(cli.id).filter((p) => p.valido && p.restam > 0);
+  return qualquer.length ? { ...qualquer[0], doServico: false } : null;
 }
 
 /**
@@ -1113,6 +1168,12 @@ async function virarComanda(a) {
     profissional_id: a.profissional_id,
     data: localData(a.inicio),
     servico_ids: daIda.map((x) => x.servico_id).filter(Boolean),
+    // O valor combinado no agendamento vem junto. Sem isto, a avaliação que a
+    // Laura fez com a cliente na cadeira era perdida na hora de abrir a conta:
+    // a comanda voltava para o preço de tabela e ela tinha de lembrar, de
+    // cabeça, quanto tinha combinado dias antes.
+    marcados: daIda.filter((x) => x.servico_id)
+      .map((x) => ({ servico_id: x.servico_id, valor: x.valor })),
   });
 }
 
@@ -1135,7 +1196,11 @@ async function salvarNovo(fechar, veu, servicos) {
     if (!s) return avisar('Escolha o serviço', 'erro');
     const hora = linha.querySelector('[data-hora]').value;
     if (!hora) return avisar('Informe a hora do serviço', 'erro');
-    pedidos.push({ prof, s, hora, dur: duracaoValida(linha.querySelector('[data-dur]').value, s) });
+    const campoValor = linha.querySelector('[data-valor]');
+    const valorDigitado = campoValor && campoValor.value !== '' ? Number(campoValor.value) : null;
+    pedidos.push({ prof, s, hora,
+                   dur: duracaoValida(linha.querySelector('[data-dur]').value, s),
+                   valor: valorDigitado != null && valorDigitado >= 0 ? valorDigitado : null });
   }
   if (!pedidos.length) return avisar('Escolha o serviço', 'erro');
 
@@ -1149,8 +1214,8 @@ async function salvarNovo(fechar, veu, servicos) {
    * quando o outro termina, mas a cliente pode fazer a unha às 14h e o cabelo
    * só às 16h — e a agenda tem de aceitar isso.
    */
-  const idaDe = (data) => pedidos.map(({ prof, s, dur, hora }) =>
-    ({ prof, s, dur, ini: new Date(`${data}T${hora}:00`) }));
+  const idaDe = (data) => pedidos.map(({ prof, s, dur, hora, valor }) =>
+    ({ prof, s, dur, valor, ini: new Date(`${data}T${hora}:00`) }));
 
   // A primeira ida pergunta sobre choque; as seguintes pulam o dia inteiro se
   // esbarrarem em alguém — quebrar a ida no meio deixaria a cliente com o
@@ -1187,7 +1252,7 @@ async function salvarNovo(fechar, veu, servicos) {
       continue;
     }
     const grupo_id = ida.length > 1 ? uid() : null;
-    for (const { prof, s, dur, ini } of ida) {
+    for (const { prof, s, dur, ini, valor } of ida) {
       horarios.push({
         id: uid(),
         profissional_id: prof,
@@ -1198,7 +1263,7 @@ async function salvarNovo(fechar, veu, servicos) {
         inicio: ini.toISOString(),
         fim: new Date(ini.getTime() + dur * 60000).toISOString(),
         duracao_min: dur,
-        valor: Number(s.preco) || 0,
+        valor: valor != null ? valor : (Number(s.preco) || 0),
         status: 'confirmado', origem: 'studio',
         encaixe: data === d.data && !!choque && !!choqueCom(prof, ini, dur),
         serie_id, grupo_id,

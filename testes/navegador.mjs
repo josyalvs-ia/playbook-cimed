@@ -177,7 +177,57 @@ export function createClient(){
                         prof_nome: 'Julia', situacao: a.status || 'confirmado' };
         }).filter(Boolean), error: null };
       }
+      // Os horários dela achados pelo telefone e pelo primeiro nome — a mesma
+      // conta do banco: últimos 8 dígitos, primeiro nome sem acento, e os dois
+      // precisam bater.
+      if (nome === 'meus_agendamentos') {
+        if (globalThis.__SEM_MEUS) {
+          return { data: null, error: { code: '42883',
+            message: 'Could not find the function public.meus_agendamentos' } };
+        }
+        // Sem regex de propósito: este módulo é injetado como TEXTO dentro de
+        // um template literal, e ali \D não é "não-dígito" — é um escape que
+        // o próprio template come, e a regex vira outra coisa em silêncio. Foi
+        // o que fez este teste acusar um defeito que era dele mesmo.
+        const so = (t) => [...String(t || '')].filter((c) => c >= '0' && c <= '9').join('');
+        const fim = (t) => so(t).length >= 10 ? so(t).slice(-8) : '__nao__';
+        const SEM = { 'á':'a','à':'a','â':'a','ã':'a','ä':'a','é':'e','è':'e','ê':'e','ë':'e',
+                      'í':'i','ì':'i','î':'i','ï':'i','ó':'o','ò':'o','ô':'o','õ':'o','ö':'o',
+                      'ú':'u','ù':'u','û':'u','ü':'u','ç':'c' };
+        const pn = (n) => [...String(n || '').trim().split(' ')[0].toLowerCase()]
+          .map((c) => SEM[c] || c).join('');
+        if (so(args.p_telefone).length < 10) return { data: [], error: null };
+        if (String(args.p_nome || '').trim().length < 2) return { data: [], error: null };
+        const agora = new Date().toISOString();
+        return { data: (memoria.agendamentos || [])
+          .filter((a) => (a.status || 'confirmado') === 'confirmado' && a.inicio > agora
+            && fim(a.cliente_telefone) === fim(args.p_telefone)
+            && pn(a.cliente_nome) === pn(args.p_nome))
+          .sort((x, y) => x.inicio.localeCompare(y.inicio))
+          .map((a) => ({ codigo: a.token || a.id, quando: a.inicio,
+                         servico: a.servico_nome, prof_nome: 'Laura',
+                         duracao_min: a.duracao_min })), error: null };
+      }
       return { data: [], error: null };
+    },
+    // O Storage de mentira: guarda o caminho e devolve um link que existe.
+    storage: {
+      from: () => ({
+        upload: async (caminho) => {
+          (memoria.__fotos || (memoria.__fotos = [])).push(caminho);
+          persistir();
+          return { data: { path: caminho }, error: null };
+        },
+        createSignedUrls: async (caminhos) => ({
+          data: caminhos.map((p) => ({ path: p, signedUrl: 'data:image/gif;base64,'
+            + 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' })),
+          error: null }),
+        remove: async (caminhos) => {
+          memoria.__fotos = (memoria.__fotos || []).filter((x) => !caminhos.includes(x));
+          persistir();
+          return { data: [], error: null };
+        },
+      }),
     },
     channel: () => ({ on(){ return this; }, subscribe(){ return this; } }),
   };
@@ -1261,17 +1311,42 @@ await p2.waitForTimeout(700);
 // que vem" — e é essa segunda pergunta que faz alguém abrir a agenda no
 // domingo à noite.
 {
-  // Espalha horários por três dias do mês, com a Julia e com a Laura.
+  // Espalha horários pela semana e pelo mês, com a Julia e com a Laura.
+  //
+  // As datas são ancoradas no domingo da semana e em dias do meio do mês, e
+  // não em "daqui a 1, 2 e 9 dias". Com deslocamento, rodar o teste num sábado
+  // jogava tudo para a semana seguinte, e rodar no fim do mês jogava para o
+  // mês seguinte: a semana aparecia vazia e o mês sem bolinha, e o teste
+  // acusava um defeito que não existia. Teste que só passa em alguns dias do
+  // calendário não serve para dizer se o sistema está de pé.
   await p2.evaluate(async () => {
     const t = globalThis.__DB.agendamentos;
-    const d = (dias, hora) => {
-      const x = new Date(); x.setDate(x.getDate() + dias); x.setHours(hora, 0, 0, 0);
-      return x.toISOString();
+    const hoje = new Date();
+    const emDia = (base, hora) => {
+      const x = new Date(base); x.setHours(hora, 0, 0, 0); return x.toISOString();
     };
-    for (const [i, [dias, hora, prof]] of [[1, 9, 'p1'], [1, 11, 'p1'], [2, 14, 'p2'], [9, 10, 'p1']].entries()) {
+    // Domingo desta semana: dom+0, dom+1 e dom+2 estão SEMPRE nesta semana.
+    const domingo = new Date(hoje); domingo.setDate(hoje.getDate() - hoje.getDay());
+    const noDomingoMais = (n) => { const x = new Date(domingo); x.setDate(domingo.getDate() + n); return x; };
+    // Dias 5, 12 e 19 estão SEMPRE dentro da grade do mês que está na tela.
+    const noMes = (d) => new Date(hoje.getFullYear(), hoje.getMonth(), d);
+
+    // Amanhã e depois de amanhã, para a visão de Lista — que mostra o que
+    // ainda vai acontecer, e por isso não serve com dia desta semana que já
+    // passou. Num sábado, "amanhã" é da semana que vem: são horários à parte
+    // justamente porque as duas visões querem coisas diferentes.
+    const emDias = (n) => { const x = new Date(hoje); x.setDate(hoje.getDate() + n); return x; };
+
+    const linhas = [
+      [noDomingoMais(0), 9, 'p1'], [noDomingoMais(0), 11, 'p1'], [noDomingoMais(2), 14, 'p2'],
+      [noMes(5), 10, 'p1'], [noMes(12), 10, 'p1'], [noMes(19), 15, 'p2'], [noMes(19), 17, 'p1'],
+      [emDias(1), 9, 'p1'],   // Cliente 7 — amanhã, com a Laura
+      [emDias(2), 16, 'p2'],  // Cliente 8 — depois, com a Julia
+    ];
+    for (const [i, [base, hora, prof]] of linhas.entries()) {
       t.push({ id: 'v-' + i, profissional_id: prof, servico_id: 'manicure',
                servico_nome: 'Serviço ' + i, cliente_nome: 'Cliente ' + i,
-               inicio: d(dias, hora), duracao_min: 60, valor: 80,
+               inicio: emDia(base, hora), duracao_min: 60, valor: 80,
                status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
     }
     const db = await import('./js/db.js'); await db.recarregar();
@@ -1328,7 +1403,7 @@ await p2.waitForTimeout(700);
   await p2.waitForTimeout(500);
   const soMinha = nb(await p2.textContent('#conteudo'));
   checagens.push(['visões: "só eu" também filtra a lista',
-    soMinha.includes('Cliente 0') && !soMinha.includes('Cliente 2')]);
+    soMinha.includes('Cliente 7') && !soMinha.includes('Cliente 8')]);
 
   await p2.click('[data-visao="mes"]');
   await p2.waitForTimeout(500);
@@ -3390,24 +3465,32 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['pacote: o serviço do pacote entra zerado',
     (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '0']);
 
-  // ── E um serviço DIFERENTE também pode sair do pacote, à mão ──
+  // ── E um serviço DIFERENTE também pode sair do pacote, num toque só ──
+  // Era um link de 12px que abria uma lista: dois toques e pontaria. Agora o
+  // botão do pacote está na própria linha, pronto para ser tocado.
   await p2.selectOption('.veu #add-serv', 'cab-trat-medio');
   await p2.waitForTimeout(400);
-  checagens.push(['pacote: outro serviço oferece descontar de um pacote dela',
-    await p2.locator('.veu [data-escolher]').count() > 0]);
+  const botoesPacote = p2.locator('.veu [data-usar="1"]');
+  checagens.push(['pacote: outro serviço mostra o botão de descontar na própria linha',
+    await botoesPacote.count() > 0]);
+  const rotuloPacote = nb(await botoesPacote.first().textContent()).replace(/\s+/g, ' ');
+  checagens.push(['pacote: o botão diz de qual pacote e quantas sobram',
+    /Descontar do pacote · Sessão de terapia capilar \(3 de 4\)/.test(rotuloPacote),
+    rotuloPacote.slice(0, 90)]);
 
-  await p2.click('.veu [data-escolher]');
-  await p2.waitForTimeout(300);
-  checagens.push(['pacote: a escolha abre na própria linha, sem fechar a comanda',
-    await p2.locator('.veu .escolhe-pacote').count() > 0
-    && await p2.locator('.veu #cli').count() > 0]);
+  // Alvo de dedo: o link antigo tinha 12px de altura dentro de uma célula.
+  const alturaBotao = await botoesPacote.first().evaluate((e) => e.getBoundingClientRect().height);
+  checagens.push(['pacote: o botão tem área tocável de dedo',
+    alturaBotao >= 36, `${Math.round(alturaBotao)}px`]);
 
-  await p2.click('.veu .escolhe-pacote .pilula');
+  await botoesPacote.first().click();
   await p2.waitForTimeout(400);
-  checagens.push(['pacote: escolhido à mão, o segundo serviço também zera',
+  checagens.push(['pacote: num toque só, o segundo serviço zera',
     (await p2.inputValue('.veu [data-i="1"][data-campo=valor]')) === '0']);
   checagens.push(['pacote: e a linha mostra de qual pacote saiu',
-    /pacote · Sessão de terapia capilar/.test(nb(await p2.textContent('.veu #itens')))]);
+    /sai do pacote · Sessão de terapia capilar/.test(nb(await p2.textContent('.veu #itens')))]);
+  checagens.push(['pacote: a comanda continua aberta depois de descontar',
+    await p2.locator('.veu #cli').count() > 0]);
 
   await p2.evaluate(() => document.querySelector('.veu [data-fechar]').click());
   await p2.waitForTimeout(300);
@@ -3577,12 +3660,338 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     taxas.media > 0 && Number.isFinite(taxas.media), String(taxas.media)]);
 }
 
+/**
+ * Toca no botão principal do modal.
+ *
+ * Por JS e não por ponteiro: o cabeçalho do modal é grudado no topo e, num
+ * modal comprido, cobre o rodapé aos olhos do Playwright — o clique fica
+ * eternamente "interceptado por .modal-cabeca". Quem usa rola a tela e
+ * acerta; o teste não rola.
+ */
+const tocarPrimario = async (pg) => {
+  await pg.evaluate(() => {
+    const veus = document.querySelectorAll('.veu');
+    const veu = veus[veus.length - 1];
+    veu.querySelector('.modal-pe .btn-primario').click();
+  });
+};
+
+/** Fecha todos os modais abertos — alguns reabrem outro por cima ao salvar. */
+const fecharTudo = async (pg) => {
+  for (let i = 0; i < 6; i++) {
+    const n = await pg.locator('.veu').count();
+    if (!n) break;
+    await pg.evaluate(() => document.querySelector('.veu [data-fechar]')?.click());
+    await pg.waitForTimeout(220);
+  }
+};
+
+// ── 36. A ficha da cliente: anamnese, tricoscopia, fórmula e esmalte ──
+// "Que nem eu faço terapia capilar, daí eu poder colocar anamnese dentro do
+// sistema, colocar foto da tricoscopia, o dia que fez" — pedido da Laura.
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-ficha', nome: 'Bruna Ficha', telefone: '11955554444', ativo: true });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(700);
+  await p2.click('[data-cli="cli-ficha"]');
+  await p2.waitForSelector('.veu');
+  checagens.push(['ficha: a ficha da cliente tem lugar para anotar',
+    await p2.locator('.veu #nova-ficha').count() === 1]);
+
+  await p2.click('.veu #nova-ficha');
+  await p2.waitForTimeout(500);
+  const campos = await p2.evaluate(() =>
+    [...document.querySelectorAll('.veu [name]')].map((x) => x.name));
+  for (const campo of ['anamnese', 'tricoscopia', 'tricoscopia_em', 'formula', 'esmalte']) {
+    checagens.push([`ficha: tem o campo "${campo}"`, campos.includes(campo)]);
+  }
+
+  await p2.fill('.veu [name=anamnese]', 'Queda há 6 meses, usa escova diária');
+  await p2.fill('.veu [name=tricoscopia]', 'Afinamento difuso no topo');
+  await p2.fill('.veu [name=tricoscopia_em]', '2026-10-20');
+  await p2.fill('.veu [name=formula]', '8.1 + ox 20vol, 35min');
+  await p2.fill('.veu [name=esmalte]', 'Risqué vermelho · gel');
+  await tocarPrimario(p2);   // Salvar ficha
+  await p2.waitForTimeout(900);
+
+  const gravada = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return db.estado.fichas_cliente.find((f) => f.cliente_id === 'cli-ficha') || null;
+  });
+  checagens.push(['ficha: grava a anamnese', /Queda há 6 meses/.test(gravada?.anamnese || '')]);
+  checagens.push(['ficha: grava o dia da tricoscopia', gravada?.tricoscopia_em === '2026-10-20']);
+  checagens.push(['ficha: grava a fórmula de coloração', /20vol/.test(gravada?.formula || '')]);
+  checagens.push(['ficha: grava o esmalte que a cliente usou', /Risqué/.test(gravada?.esmalte || '')]);
+
+  // Salvar reabre a ficha da cliente: a anotação tem de estar lá, com o que
+  // responde à pergunta da cadeira — qual foi a fórmula da última vez.
+  await p2.waitForSelector('.veu');
+  const naFicha = nb(await p2.textContent('.veu')).replace(/\s+/g, ' ');
+  checagens.push(['ficha: a anotação aparece na ficha da cliente',
+    /fórmula: 8\.1 \+ ox 20vol/.test(naFicha), naFicha.slice(0, 120)]);
+  await fecharTudo(p2);
+}
+
+// ── 37. Histórico completo: o que já foi e o que ainda vai ser ──
+// "A gente queria poder entrar e ver o histórico todinho dela, de tudo que tá
+// agendado e tudo que vai agendar" — Laura.
+{
+  await p2.evaluate(async () => {
+    const amanha = new Date(); amanha.setDate(amanha.getDate() + 5); amanha.setHours(10, 0, 0, 0);
+    globalThis.__DB.agendamentos.push({
+      id: 'ag-futuro', profissional_id: 'p1', servico_id: 'manicure',
+      servico_nome: 'Hidratação profunda', cliente_id: 'cli-ficha', cliente_nome: 'Bruna Ficha',
+      inicio: amanha.toISOString(), duracao_min: 60, valor: 120,
+      status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    const db = await import('./js/db.js'); await db.recarregar();
+    location.hash = '#/painel';
+  });
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => { location.hash = '#/clientes'; });
+  await p2.waitForTimeout(800);
+  await p2.click('[data-cli="cli-ficha"]');
+  await p2.waitForSelector('.veu');
+  const corpo = nb(await p2.textContent('.veu')).replace(/\s+/g, ' ');
+  checagens.push(['histórico: a ficha mostra a agenda dela daqui para a frente',
+    /Agenda dela/.test(corpo) && /Hidratação profunda/.test(corpo), corpo.slice(0, 140)]);
+  checagens.push(['histórico: e mostra separado o que já foi feito',
+    /Já foi feito/.test(corpo)]);
+  await fecharTudo(p2);
+}
+
+// ── 38. Cadastros repetidos: avisar e juntar ──
+// "A gente tá com alguns cadastros duplicados — se não tem como o sistema,
+// quando insere o mesmo número de telefone, unificar" — Laura.
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    // A mesma pessoa, escrita de dois jeitos, com o mesmo WhatsApp.
+    await db.salvar('clientes', { id: 'rep-a', nome: 'Ana Paula Ribeiro', telefone: '11988887777', ativo: true });
+    await db.salvar('clientes', { id: 'rep-b', nome: 'Aninha', telefone: '(11) 98888-7777', ativo: true });
+    await db.salvar('pacotes', { id: 'pac-rep', cliente_id: 'rep-b', cliente_nome: 'Aninha',
+      servico_id: 'manicure', servico_nome: 'Manicure', sessoes: 5, valor: 250, ativo: true });
+    await db.salvar('comandas', { id: 'cmd-rep', cliente_id: 'rep-b', cliente_nome: 'Aninha',
+      data: '2026-10-01', status: 'fechada', total: 80, profissional_id: 'p1' });
+    location.hash = '#/clientes';
+  });
+  await p2.waitForTimeout(800);
+
+  checagens.push(['repetidas: o sistema avisa que existem cadastros repetidos',
+    await p2.locator('#ver-repetidas').count() === 1]);
+
+  await p2.click('#ver-repetidas');
+  await p2.waitForSelector('.veu');
+  const painel = nb(await p2.textContent('.veu')).replace(/\s+/g, ' ');
+  checagens.push(['repetidas: mostra as duas fichas do mesmo telefone',
+    /Ana Paula Ribeiro/.test(painel) && /Aninha/.test(painel)]);
+  checagens.push(['repetidas: diz o que está pendurado em cada uma',
+    /pacote/.test(painel) && /atendimento/.test(painel), painel.slice(0, 160)]);
+  // Fica a que tem mais coisa ligada: a "Aninha" tem pacote e atendimento.
+  checagens.push(['repetidas: a que fica é a que tem mais histórico',
+    /Aninha.*fica esta/s.test(painel)]);
+
+  // O botão DESTA ficha, pelo id. Clicar em ".veu [data-juntar]" pegava o
+  // PRIMEIRO da tela — e, com mais de um par repetido na base de teste, esse
+  // primeiro era outro par qualquer: o teste juntava duas clientes qualquer e
+  // depois reclamava que estas duas continuavam separadas.
+  await p2.click('.veu [data-juntar="rep-a"]');
+  await p2.waitForTimeout(500);
+  await tocarPrimario(p2);   // confirma o "Juntar"
+  await p2.waitForTimeout(1300);
+
+  const depois = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return {
+      clientes: db.estado.clientes.filter((c) => c.id === 'rep-a' || c.id === 'rep-b').map((c) => c.id),
+      pacote: db.estado.pacotes.find((p) => p.id === 'pac-rep')?.cliente_id,
+      comanda: db.estado.comandas.find((c) => c.id === 'cmd-rep')?.cliente_id,
+    };
+  });
+  checagens.push(['repetidas: sobra uma ficha só', depois.clientes.length === 1, JSON.stringify(depois)]);
+  checagens.push(['repetidas: o pacote vai junto — sessão paga não se perde',
+    depois.pacote === depois.clientes[0]]);
+  checagens.push(['repetidas: o atendimento antigo vai junto',
+    depois.comanda === depois.clientes[0]]);
+
+  await fecharTudo(p2);
+}
+
+// ── 39. O valor combinado na hora de marcar ──
+// "Eu tô aqui com a cliente, fiz a avaliação dela, aí vou agendar e tenho que
+// entrar no agendamento depois pra mudar o valor" — Laura.
+{
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('#btn-novo');
+  await p2.waitForSelector('.veu [name=cliente_nome]');
+  checagens.push(['valor: o agendamento tem campo de valor combinado',
+    await p2.locator('.veu [data-valor]').count() >= 1]);
+
+  await p2.fill('.veu [name=cliente_nome]', 'Dona do Valor');
+  await p2.selectOption('.veu [data-prof]', 'p1');
+  await p2.waitForTimeout(300);
+  await p2.selectOption('.veu [data-serv]', 'cab-sessao-terapia');
+  await p2.waitForTimeout(300);
+  const preenchido = await p2.inputValue('.veu [data-valor]');
+  checagens.push(['valor: o preço de tabela já entra preenchido',
+    Number(preenchido) > 0, preenchido]);
+
+  await p2.fill('.veu [data-valor]', '450');
+  await p2.fill('.veu [data-hora]', '15:00');
+  await p2.click('.veu .modal-pe .btn-primario');
+  await p2.waitForTimeout(900);
+
+  const marcado = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return db.estado.agendamentos.find((a) => a.cliente_nome === 'Dona do Valor') || null;
+  });
+  checagens.push(['valor: o horário guarda o valor combinado, e não o da tabela',
+    Number(marcado?.valor) === 450, String(marcado?.valor)]);
+
+  // E ao abrir a conta, é o combinado que aparece — não o de tabela.
+  await p2.evaluate(async (id) => {
+    const { abrirComanda } = await import('./js/views/comandas.js');
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === id);
+    abrirComanda(null, { cliente_nome: a.cliente_nome, profissional_id: a.profissional_id,
+      marcados: [{ servico_id: a.servico_id, valor: a.valor }] });
+  }, marcado.id);
+  await p2.waitForTimeout(600);
+  checagens.push(['valor: a comanda abre com o valor combinado na cadeira',
+    (await p2.inputValue('.veu [data-i="0"][data-campo=valor]')) === '450']);
+  await fecharTudo(p2);
+}
+
+// ── 40. O fechamento pergunta sobre o pacote ──
+// "Eu ter a opção na hora do fechamento da conta de descontar do pacote."
+{
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    await db.salvar('clientes', { id: 'cli-perg', nome: 'Marta Pacote', ativo: true });
+    await db.salvar('pacotes', { id: 'pac-perg', cliente_id: 'cli-perg', cliente_nome: 'Marta Pacote',
+      servico_id: 'manicure', servico_nome: 'Manicure', sessoes: 6, valor: 300, ativo: true });
+    location.hash = '#/comandas';
+  });
+  await p2.waitForTimeout(800);
+  await p2.click('#nova');
+  await p2.waitForSelector('.veu #cli');
+  await p2.fill('.veu #cli', 'Marta Pacote');
+  await p2.dispatchEvent('.veu #cli', 'input');
+  await p2.waitForTimeout(300);
+  await p2.selectOption('.veu #prof', 'p1');
+  await p2.waitForTimeout(250);
+  // Um serviço que NÃO é o do pacote: aqui o desconto não entra sozinho.
+  await p2.selectOption('.veu #add-serv', 'cab-sessao-terapia');
+  await p2.waitForTimeout(400);
+  await p2.click('.veu [data-pg="pix"]');
+  await tocarPrimario(p2);     // Fechar comanda
+  await p2.waitForTimeout(700);
+
+  const pergunta = nb(await p2.locator('.veu').last().textContent()).replace(/\s+/g, ' ');
+  checagens.push(['fechamento: antes de fechar, pergunta sobre a sessão sobrando',
+    /Marta tem pacote com sessão sobrando/.test(pergunta), pergunta.slice(0, 140)]);
+  checagens.push(['fechamento: diz qual pacote e quantas faltam',
+    /Manicure — 6 de 6/.test(pergunta)]);
+
+  await tocarPrimario(p2);   // "Descontar do pacote"
+  await p2.waitForTimeout(1100);
+  const fechada = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const c = db.estado.comandas.find((x) => x.cliente_nome === 'Marta Pacote');
+    const itens = db.estado.comanda_itens.filter((i) => i.comanda_id === c?.id);
+    return { total: c?.total, doPacote: itens.filter((i) => i.pacote_id === 'pac-perg').length };
+  });
+  checagens.push(['fechamento: respondendo que sim, o item sai do pacote',
+    fechada.doPacote === 1, JSON.stringify(fechada)]);
+  checagens.push(['fechamento: e a cliente não paga de novo o que já pagou',
+    Number(fechada.total) === 0, String(fechada.total)]);
+}
+
+// ── 41. A cliente acha os horários dela de qualquer aparelho ──
+// "Ela agenda e aí não consegue entrar lá no sistema e ver os dias que ela tá
+// agendada; e alguma cliente já teve problema pra fazer o cancelamento."
+{
+  const pv = await ctx.newPage();
+  pv.on('pageerror', (e) => erros.push('[pageerror] ' + e.message));
+  await pv.goto(BASE + '/vitrine.html', { waitUntil: 'networkidle' });
+  await pv.waitForTimeout(600);
+
+  // Um horário dela no banco, SEM nada guardado neste navegador — é o caso
+  // de quem marcou pelo navegador do Instagram e abriu o site no Safari.
+  await pv.evaluate(() => {
+    const d = new Date(); d.setDate(d.getDate() + 4); d.setHours(14, 0, 0, 0);
+    // A vitrine só monta o banco de mentira quando o módulo é carregado; numa
+    // aba recém-aberta a coleção ainda não existe.
+    const db = (globalThis.__DB = globalThis.__DB || {});
+    (db.agendamentos = db.agendamentos || []).push({
+      id: 'ag-dela', token: 'tok-dela', profissional_id: 'p1', servico_id: 'manicure',
+      servico_nome: 'Esmaltação em gel', cliente_nome: 'Antônia de Souza',
+      cliente_telefone: '11987654321', inicio: d.toISOString(), duracao_min: 60,
+      valor: 90, status: 'confirmado', origem: 'site' });
+    try { sessionStorage.setItem('__db', JSON.stringify(db)); } catch {}
+    localStorage.removeItem('alento.meus-horarios');
+  });
+  await pv.reload({ waitUntil: 'networkidle' });
+  await pv.waitForTimeout(800);
+
+  checagens.push(['cliente: sem nada guardado, o cartão não aparece',
+    nb(await pv.textContent('#meus-horarios')).trim() === '']);
+  checagens.push(['cliente: mas existe onde procurar os horários dela',
+    await pv.locator('#procurar-horarios summary').count() === 1]);
+
+  await pv.click('#procurar-horarios summary');
+  await pv.waitForTimeout(200);
+
+  // Telefone certo, nome errado: não abre a agenda de ninguém.
+  await pv.fill('#pr-tel', '(11) 98765-4321');
+  await pv.fill('#pr-nome', 'Mariana');
+  await pv.click('#pr-ir');
+  await pv.waitForTimeout(600);
+  checagens.push(['cliente: telefone certo e nome errado não acha nada',
+    /Não achei/.test(nb(await pv.textContent('#pr-recado')))]);
+
+  // Com os dois certos — e o nome digitado sem acento, como se digita no celular.
+  await pv.fill('#pr-nome', 'antonia');
+  await pv.click('#pr-ir');
+  await pv.waitForTimeout(800);
+  const cartao = nb(await pv.textContent('#meus-horarios')).replace(/\s+/g, ' ');
+  checagens.push(['cliente: com telefone e nome, acha o horário dela',
+    /Esmaltação em gel/.test(cartao), cartao.slice(0, 120)]);
+  checagens.push(['cliente: e o cartão oferece desmarcar',
+    await pv.locator('#meus-horarios [data-desmarcar]').count() === 1]);
+
+  await pv.click('#meus-horarios [data-desmarcar]');
+  await pv.waitForTimeout(800);
+  const cancelado = await pv.evaluate(() =>
+    globalThis.__DB.agendamentos.find((a) => a.id === 'ag-dela')?.status);
+  checagens.push(['cliente: desmarcar de verdade cancela no studio',
+    cancelado === 'cancelado', String(cancelado)]);
+  checagens.push(['cliente: e o horário sai da tela dela',
+    !/Esmaltação em gel/.test(nb(await pv.textContent('#meus-horarios')))]);
+
+  // Banco sem a função: a página não quebra, explica.
+  await pv.evaluate(() => { globalThis.__SEM_MEUS = true; });
+  await pv.fill('#pr-tel', '11987654321');
+  await pv.fill('#pr-nome', 'Antônia');
+  await pv.click('#pr-ir');
+  await pv.waitForTimeout(600);
+  checagens.push(['cliente: banco sem a função explica, em vez de dar erro cru',
+    /não está disponível|Fale com o studio/.test(nb(await pv.textContent('#pr-recado')))]);
+  await pv.evaluate(() => { globalThis.__SEM_MEUS = false; });
+  await pv.close();
+}
+
 await browser.close();
 
 let falhas = 0;
-for (const [nome, ok] of checagens) {
+for (const [nome, ok, detalhe] of checagens) {
   if (!ok) falhas++;
-  console.log((ok ? '  ok  ' : ' FALHA') + '  ' + nome);
+  // O detalhe só aparece quando falha — é aí que ele serve para alguma coisa.
+  console.log((ok ? '  ok  ' : ' FALHA') + '  ' + nome
+    + (!ok && detalhe !== undefined ? '\n          → ' + detalhe : ''));
 }
 if (erros.length) { console.log('\nERROS DE JS:'); [...new Set(erros)].forEach((e) => console.log('  ' + e)); }
 console.log(`\n${checagens.length - falhas}/${checagens.length} checagens passaram`);

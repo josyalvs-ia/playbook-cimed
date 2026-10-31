@@ -82,6 +82,51 @@ export async function conferirMeusHorarios(sb) {
   return meusHorarios();
 }
 
+/**
+ * Os horários dela, procurados no banco pelo telefone e pelo primeiro nome.
+ *
+ * "Ela agenda e aí não consegue entrar lá no sistema e ver os dias que ela tá
+ * agendada" — e a razão era esta: `meusHorarios()` é memória do APARELHO. Quem
+ * marcou pelo navegador de dentro do Instagram e depois abriu o site no Safari
+ * não encontrava nada. O horário existia; o aparelho é que era outro. E sem o
+ * código guardado também não havia como desmarcar — era o problema de
+ * cancelamento que a Júlia relatou.
+ *
+ * Agora ela se identifica com o que já digitou para marcar. Os dois precisam
+ * bater: telefone sozinho abriria a agenda de qualquer uma para quem souber o
+ * número.
+ *
+ * O que vem do banco é guardado neste aparelho também — a partir daí o cartão
+ * aparece sozinho, sem ela precisar procurar de novo.
+ */
+export async function procurarMeusHorarios(sb, telefone, nome) {
+  if (!sb) throw new Error('Sem conexão com o studio agora. Tente daqui a pouco.');
+  const digitos = String(telefone || '').replace(/\D/g, '');
+  if (digitos.length < 10) throw new Error('Digite o WhatsApp com DDD.');
+  if (String(nome || '').trim().length < 2) throw new Error('Digite o seu primeiro nome.');
+
+  const { data, error } = await sb.rpc('meus_agendamentos',
+    { p_telefone: digitos, p_nome: String(nome).trim() });
+  if (error) {
+    throw new Error(/does not exist|could not find|schema cache/i.test(error.message)
+      ? 'Esta busca ainda não está disponível. Fale com o studio pelo WhatsApp.'
+      : 'Não consegui procurar agora. Tente de novo em instantes.');
+  }
+
+  const achados = (data || []).map((x) => ({
+    codigo: x.codigo, quando: x.quando, servico: x.servico, prof: x.prof_nome,
+  }));
+
+  // Junta com o que já estava neste aparelho, sem repetir.
+  try {
+    const porCodigo = new Map(meusHorarios().map((h) => [h.codigo, h]));
+    for (const h of achados) porCodigo.set(h.codigo, h);
+    localStorage.setItem(GUARDADOS, JSON.stringify([...porCodigo.values()]));
+  } catch {}
+
+  return achados;
+}
+
 export async function iniciarAgendamento({ sb, servicos, categorias, studio, equipe = [], raiz }) {
   let etapa = 1;
   let escolha = { servico: null, dia: null, horario: null };

@@ -3,7 +3,7 @@
 import { estado, cfg } from './db.js';
 import { PREMISSAS_PADRAO } from './data/premissas.js';
 import { custoFixoPorAtendimento, taxaMediaCartao, custoUnitario, FORMAS_PAGAMENTO } from './pricing.js';
-import { hoje, diasEntre } from './ui.js';
+import { hoje, diasEntre, chave } from './ui.js';
 
 export const premissas = () => ({ ...PREMISSAS_PADRAO, ...(cfg('premissas') || {}) });
 
@@ -109,6 +109,32 @@ export function historicoCliente(clienteId) {
   return estado.comandas
     .filter((c) => c.cliente_id === clienteId && c.status === 'fechada')
     .sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+}
+
+/**
+ * Os horários marcados dela que ainda não aconteceram.
+ *
+ * "A gente queria poder entrar e ver o histórico todinho dela, de tudo que tá
+ * agendado e tudo que vai agendar" — Laura. O que já foi vive em `comandas`;
+ * o que ainda vai ser vive em `agendamentos`, e não aparecia na ficha em
+ * lugar nenhum. Quem atende precisa das duas pontas na mesma tela: é assim
+ * que se sabe se vale remarcar, se o pacote vai acabar a tempo, e o que
+ * combinar enquanto a cliente ainda está na cadeira.
+ */
+export function proximosDaCliente(clienteId, nome) {
+  if (!clienteId && !nome) return [];
+  const agora = new Date().toISOString();
+  const k = chave(nome || '');
+  const dela = (a) => {
+    if (clienteId && a.cliente_id === clienteId) return true;
+    // Horário marcado pela própria cliente no site entra sem ficha ligada:
+    // só tem o nome que ela digitou. Sem casar por nome, o que ela acabou de
+    // marcar não apareceria na ficha dela.
+    return !a.cliente_id && !!k && chave(a.cliente_nome || '') === k;
+  };
+  return estado.agendamentos
+    .filter((a) => a.status === 'confirmado' && a.inicio > agora && dela(a))
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
 }
 
 export function fichaCliente(c) {

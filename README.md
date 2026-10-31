@@ -51,9 +51,16 @@ fechado na agenda. Não depende do Trinks.
 > baixar só o que mudou em vez do banco inteiro a cada volta. É também o que
 > marca quais serviços não se marcam sozinhos pelo site — cor exige ver o
 > cabelo antes —, e o pacote de sessões que a cliente paga de uma vez e vai
-> usando. Quem está criando o banco agora não precisa — já vem no
-> `schema.sql`. Rodar duas vezes não faz mal: a escolha de quais serviços
-> abrem no site é delas, e uma segunda rodada não desfaz.
+> usando, a ficha da cliente (anamnese, tricoscopia com foto, fórmula de
+> coloração, esmalte) e a busca que deixa a cliente achar os horários dela
+> pelo telefone, de qualquer aparelho. Quem está criando o banco agora não
+> precisa — já vem no `schema.sql`. Rodar duas vezes não faz mal: a escolha de
+> quais serviços abrem no site é delas, e uma segunda rodada não desfaz.
+
+> **As fotos da ficha** ficam num balde privado do Supabase Storage chamado
+> `fichas`, criado pelo próprio SQL. Privado de propósito: foto de tricoscopia
+> é dado de saúde da cliente, e o endereço dela não pode ser um link que
+> qualquer um abre. Só quem está logada como profissional ativa enxerga.
 
 ### 3. Pegar a URL e a chave pública
 
