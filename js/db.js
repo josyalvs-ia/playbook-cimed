@@ -389,11 +389,44 @@ function aplicarFila() {
   }
 }
 
+/**
+ * Uma tabela inteira, em páginas de mil.
+ *
+ * O servidor devolve no máximo mil linhas por consulta — é o limite padrão do
+ * PostgREST, e ele não avisa: devolve as primeiras mil e pronto. A agenda
+ * passou de mil horários no fim de outubro de 2026, e a partir daí cada
+ * recarga trazia 1.000 das 1.023 linhas e TROCAVA a coleção inteira por elas.
+ * As 23 de fora eram justamente as mais novas e as recém-editadas — a cliente
+ * marcada ontem sumia da agenda, e voltava quando a conferida parcial a
+ * trazia, e sumia de novo no pente fino seguinte. "Está sumindo cliente da
+ * agenda" — Júlia. Nenhuma linha foi apagada; elas só não cabiam na resposta.
+ *
+ * Então pede-se página por página até vir uma incompleta. A ordem por id é
+ * para as páginas não se sobreporem nem deixarem buraco entre uma consulta e
+ * a seguinte: sem ordem fixa, o servidor pode mudar a sequência entre as duas.
+ */
+const PAGINA = 1000;
+// `config` é identificada pela chave, não por id — ordenar por uma coluna que
+// a tabela não tem faria o servidor recusar a consulta inteira, e os ajustes
+// do studio (pacotes, regras, horário) sumiriam da tela em silêncio.
+const CHAVE_DE = { config: 'chave' };
+async function tudoDe(tabela, filtrar = (q) => q) {
+  const linhas = [];
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await filtrar(cliente.from(tabela).select('*'))
+      .order(CHAVE_DE[tabela] || 'id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) return { data: null, error };
+    linhas.push(...(data || []));
+    if (!data || data.length < PAGINA) break;
+  }
+  return { data: linhas, error: null };
+}
+
 export async function recarregar() {
   if (!cliente) return;
   let resultados;
   try {
-    resultados = await Promise.all(TABELAS.map((t) => cliente.from(t).select('*')));
+    resultados = await Promise.all(TABELAS.map((t) => tudoDe(t)));
   } catch (e) {
     console.error('Alento — não consegui recarregar do servidor:', e);
     return false;
@@ -458,17 +491,25 @@ export async function sincronizar() {
 
   let resultados;
   try {
+    // Paginado também: um dia inteiro de remarcações em série passa de mil.
     resultados = await Promise.all(
-      TABELAS.map((t) => cliente.from(t).select('*').gt('atualizado_em', desde)));
+      TABELAS.map((t) => tudoDe(t, (q) => q.gt('atualizado_em', desde))));
   } catch {
     return 0;
   }
 
   let chegaram = 0;
+  const semStamp = [];
   TABELAS.forEach((t, i) => {
     const { data, error } = resultados[i];
-    // Banco sem a coluna do carimbo: volta ao jeito antigo, sem quebrar.
-    if (error) { semCarimbo = true; return; }
+    // Tabela sem a coluna do carimbo: ELA volta ao jeito antigo — e só ela.
+    //
+    // Antes, uma única tabela sem carimbo (a `config`, por meses) fazia a
+    // conferida inteira desistir e cair na recarga completa, a cada 45
+    // segundos, em todos os aparelhos. Era isso que multiplicava o corte em
+    // mil linhas: a agenda inteira era trocada por 1.000 das 1.023 a cada
+    // ciclo, e a cliente marcada ontem sumia na frente de quem olhava.
+    if (error) { semStamp.push(t); return; }
     if (!data?.length) return;
     const porId = new Map(estado[t].map((x) => [x.id ?? x.chave, x]));
     for (const linha of data) porId.set(linha.id ?? linha.chave, linha);
@@ -476,7 +517,15 @@ export async function sincronizar() {
     chegaram += data.length;
   });
 
-  if (semCarimbo) { semCarimbo = false; return (await recarregar()) ? 1 : 0; }
+  // As que não têm carimbo são recarregadas inteiras, uma a uma, sem levar
+  // as outras junto. São tabelas pequenas (ajustes, horário de funcionamento);
+  // as grandes todas têm carimbo.
+  for (const t of semStamp) {
+    const { data, error } = await tudoDe(t);
+    if (error || !data) continue;
+    if (JSON.stringify(estado[t]) !== JSON.stringify(data)) chegaram += data.length;
+    estado[t] = data;
+  }
 
   // Mesmo cuidado da carga completa: a linha que veio do servidor não pode
   // desfazer a alteração que ainda está esperando para subir.
@@ -486,8 +535,6 @@ export async function sincronizar() {
   if (chegaram) { ordenar(); salvarCache(); notificar(); }
   return chegaram;
 }
-
-let semCarimbo = false;
 
 /** Compara textos que podem não existir: uma linha sem o campo não pode
     derrubar o app inteiro, e derrubava — um insumo cadastrado sem categoria

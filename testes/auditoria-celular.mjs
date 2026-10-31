@@ -23,6 +23,9 @@ if (!memoria.profissionais) memoria.profissionais = [
 function q(n){const o={
   select(){return Object.assign(Promise.resolve({data:memoria[n]||(memoria[n]=[]),error:null}),o)},
   eq(){return this}, in(){return this}, single(){return this},
+  // O app lê em páginas de mil (order + range); o cliente falso devolve tudo
+  // de uma vez — nenhuma tabela da auditoria chega perto de mil linhas.
+  order(){return this}, range(){return this}, gt(){return this}, limit(){return this},
   upsert(r){const a=Array.isArray(r)?r:[r];for(const x of a){const t=memoria[n]||(memoria[n]=[]);
     const i=t.findIndex(y=>y.id===x.id||(y.chave&&y.chave===x.chave));if(i>=0)t[i]={...t[i],...x};else t.push({...x})}
     const out={data:a[0],error:null};return Object.assign(Promise.resolve(out),{select:()=>({single:()=>Promise.resolve(out)})})},

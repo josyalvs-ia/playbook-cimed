@@ -40,9 +40,18 @@ function query(nome){
     // concluía que nada tinha mudado.
     _rows(){
       const t = tabela(nome);
-      const linhas = !this._gt ? t
+      let linhas = !this._gt ? t
         : t.filter((x) => String(x[this._gt[0]] || '') > this._gt[1]);
-      return linhas.map((x) => ({ ...x }));
+      if (this._ordem) {
+        const [col, asc] = this._ordem;
+        linhas = [...linhas].sort((a, b) =>
+          String(a[col] ?? '').localeCompare(String(b[col] ?? '')) * (asc ? 1 : -1));
+      }
+      // Como o PostgREST de verdade: range() recorta, e SEM range vêm no máximo
+      // mil linhas — em silêncio. Foi exatamente isso que fez a agenda do studio
+      // "perder" clientes quando passou de mil horários.
+      const [de, ate] = this._range || [0, 999];
+      return linhas.slice(de, ate + 1).map((x) => ({ ...x }));
     },
     // Preguiçoso, como o cliente de verdade: a consulta só é resolvida quando
     // alguém a espera. Montando a resposta já no select, um gt() vindo depois
@@ -68,6 +77,8 @@ function query(nome){
       return new Promise((r) => setTimeout(r, d)).then(() => this._resposta()).then(ok, falha);
     },
     limit(){ return this; },
+    order(col, opts){ this._ordem = [col, opts?.ascending !== false]; return this; },
+    range(de, ate){ this._range = [de, ate]; return this; },
     eq(){ return this; }, in(){ return this; }, single(){ return this; },
     gt(col, v){ this._gt = [col, v]; return this; },
     upsert(r){ const arr = Array.isArray(r)?r:[r];
@@ -3982,6 +3993,83 @@ const fecharTudo = async (pg) => {
     /não está disponível|Fale com o studio/.test(nb(await pv.textContent('#pr-recado')))]);
   await pv.evaluate(() => { globalThis.__SEM_MEUS = false; });
   await pv.close();
+}
+
+// ── 42. Mais de mil horários: nenhum pode sumir ──
+// "Está sumindo cliente da agenda" — Júlia, 31/10/2026. Ninguém apagou nada:
+// a tabela passou de mil linhas e o servidor devolve mil por consulta. As
+// 23 de fora eram as mais novas, e a recarga trocava a agenda inteira por
+// 1.000 das 1.023.
+{
+  const quantos = 1100;
+  await p2.evaluate(async (n) => {
+    const t = globalThis.__DB.agendamentos;
+    const base = new Date(); base.setHours(9, 0, 0, 0);
+    for (let i = 0; i < n; i++) {
+      const d = new Date(base); d.setDate(base.getDate() + 30 + Math.floor(i / 8)); d.setHours(9 + (i % 8));
+      t.push({ id: 'mil-' + String(i).padStart(4, '0'), profissional_id: i % 2 ? 'p1' : 'p2',
+               servico_id: 'manicure', servico_nome: 'Serviço ' + i, cliente_nome: 'Cliente Mil ' + i,
+               inicio: d.toISOString(), duracao_min: 60, valor: 80, status: 'confirmado',
+               origem: 'studio', atualizado_em: new Date(Date.now() - 86400000).toISOString() });
+    }
+    // A última a ser cadastrada é a que o corte em mil deixava de fora.
+    const ultima = new Date(); ultima.setDate(ultima.getDate() + 1); ultima.setHours(16, 0, 0, 0);
+    t.push({ id: 'mil-ultima', profissional_id: 'p1', servico_id: 'manicure',
+             servico_nome: 'Escova', cliente_nome: 'Val Que Sumia', inicio: ultima.toISOString(),
+             duracao_min: 60, valor: 80, status: 'confirmado', origem: 'studio',
+             atualizado_em: new Date().toISOString() });
+    const db = await import('./js/db.js');
+    await db.recarregar();
+  }, quantos);
+  await p2.waitForTimeout(500);
+
+  const carregados = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return { total: db.estado.agendamentos.filter((a) => String(a.id).startsWith('mil-')).length,
+             ultima: db.estado.agendamentos.some((a) => a.id === 'mil-ultima') };
+  });
+  checagens.push(['mil: a recarga completa traz TODOS os horários, não só mil',
+    carregados.total === quantos + 1, `${carregados.total} de ${quantos + 1}`]);
+  checagens.push(['mil: a cliente marcada por último está lá',
+    carregados.ultima === true]);
+
+  // O servidor falso só devolve mil por consulta, como o de verdade: se tudo
+  // chegou, foi porque o app pediu em páginas.
+  const capado = await p2.evaluate(async () => {
+    const sb = (await import('https://esm.sh/@supabase/supabase-js@2.45.4')).createClient('x', 'y');
+    const { data } = await sb.from('agendamentos').select('*');
+    return data.length;
+  });
+  checagens.push(['mil: o servidor de mentira corta em mil sem pedir página (como o real)',
+    capado === 1000, String(capado)]);
+
+  // E na agenda ela aparece: amanhã, com a Laura.
+  await p2.evaluate(() => { location.hash = '#/agenda'; });
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]');
+  await p2.click('#proximo');
+  await p2.waitForTimeout(600);
+  checagens.push(['mil: e aparece na agenda de amanhã',
+    /Val Que Sumia/.test(nb(await p2.textContent('#conteudo')))]);
+
+  // A conferida parcial também pagina.
+  await p2.evaluate(async () => {
+    const t = globalThis.__DB.agendamentos;
+    const agora = new Date().toISOString();
+    for (let i = 0; i < 1005; i++) {
+      const a = t.find((x) => x.id === 'mil-' + String(i).padStart(4, '0'));
+      if (a) { a.valor = 99; a.atualizado_em = agora; }
+    }
+    const db = await import('./js/db.js');
+    await db.sincronizar();
+  });
+  await p2.waitForTimeout(400);
+  const remarcados = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    return db.estado.agendamentos.filter((a) => String(a.id).startsWith('mil-0') || String(a.id).startsWith('mil-1')).filter((a) => a.valor === 99).length;
+  });
+  checagens.push(['mil: a conferida parcial com mais de mil mudanças traz todas',
+    remarcados === 1005, String(remarcados)]);
 }
 
 await browser.close();
