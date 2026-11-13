@@ -747,6 +747,9 @@ await p2.waitForTimeout(700);
 await p2.evaluate(() => { location.hash = '#/servicos'; });
 await p2.waitForTimeout(700);
 {
+  // A tabela agora abre no lado de quem está logada; "Tudo" é um toque.
+  await p2.click('[data-quem=""]');
+  await p2.waitForTimeout(400);
   const total = nb(await p2.textContent('#conteudo'));
   await p2.click('[data-quem="cabelo"]');
   await p2.waitForTimeout(500);
@@ -2909,6 +2912,11 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
 
   await p2.fill('.veu [name=cliente_nome]', 'Bianca Novata');
   await p2.dispatchEvent('.veu [name=cliente_nome]', 'input');
+  // Num dia que nenhum outro teste ocupa. Marcar "hoje às 15h" esbarrava na
+  // cliente que o teste da vitrine marca em "agora + 6h" — rodando de manhã,
+  // isso cai às 15h e pouco, o aviso de encaixe abre e o teste trava ali.
+  await p2.fill('.veu [name=data]', await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 8);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }));
   await p2.waitForTimeout(300);
   checagens.push(['cadastro: nome novo abre os campos da ficha',
     await p2.evaluate(() => !document.querySelector('.veu #cliente-nova').hidden)]);
@@ -2930,7 +2938,7 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   checagens.push(['cadastro: e o horário fica ligado à ficha dela',
     await p2.evaluate(() => {
       const c = globalThis.__DB.clientes.find((x) => x.nome === 'Bianca Novata');
-      return globalThis.__DB.agendamentos.some((a) => a.cliente_id === c.id);
+      return !!c && globalThis.__DB.agendamentos.some((a) => a.cliente_id === c.id);
     })]);
 
   // Cliente de casa: em vez dos campos de ficha, o que já se sabe dela.
@@ -4170,6 +4178,120 @@ const fecharTudo = async (pg) => {
   await p2.waitForTimeout(800);
   checagens.push(['fechamento: decidido no cartão, não pergunta de novo sobre o pacote',
     await p2.locator('.veu').count() === 0]);
+}
+
+// ── 44. A tabela de preços de cada uma, e o tempo que muda ──
+// "Tô ajustando os meus serviços e tá aparecendo misturado os da Júlia; e na
+// tabela coloquei 60 minutos, mas na hora de marcar dá que é uma hora e
+// meia" — Laura, 13/11/2026.
+{
+  // Laura (p1, cabelo) está logada: a tabela abre no lado dela, sem ninguém tocar.
+  // Sem escolha guardada e com a página recarregada — é assim que uma versão
+  // nova chega ao celular dela.
+  await p2.evaluate(() => { try { localStorage.removeItem('alento.tabela.quem'); } catch {} });
+  await p2.reload({ waitUntil: 'networkidle' });
+  await p2.waitForTimeout(900);
+  if (await p2.locator('.veu').getByText('Instalar dados iniciais').count()) {
+    await p2.click('text=Instalar dados iniciais'); await p2.waitForTimeout(1600);
+  }
+  await fecharTudo(p2);
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(800);
+  const funcao = await p2.evaluate(async () => (await import('./js/db.js')).eu?.funcao);
+  const tabela = nb(await p2.textContent('#conteudo')).replace(/\s+/g, ' ');
+  checagens.push(['tabela: abre no lado de quem está logada (sem os serviços de unha)',
+    funcao !== 'cabelo' || !/Manicure \+ esmaltação/.test(tabela), `funcao=${funcao}`]);
+  checagens.push(['tabela: a pílula do lado dela está marcada',
+    await p2.locator(`[data-quem="${funcao}"].ativa`).count() === 1]);
+
+  // "Tudo" é uma escolha — e sobrevive ao recarregar da página.
+  await p2.click('[data-quem=""]');
+  await p2.waitForTimeout(400);
+  await p2.reload({ waitUntil: 'networkidle' });
+  await p2.waitForTimeout(900);
+  // O recarregar pode abrir o modal de dados iniciais: nesse caso instala, senão
+  // o catálogo fica vazio e não há serviço nenhum para editar.
+  if (await p2.locator('.veu').getByText('Instalar dados iniciais').count()) {
+    await p2.click('text=Instalar dados iniciais'); await p2.waitForTimeout(1600);
+  }
+  await fecharTudo(p2);
+  await p2.evaluate(() => { location.hash = '#/servicos'; });
+  await p2.waitForTimeout(700);
+  checagens.push(['tabela: a escolha de "Tudo" fica guardada ao recarregar',
+    await p2.locator('[data-quem=""].ativa').count() === 1]);
+  await p2.click(`[data-quem="${funcao}"]`);
+  await p2.waitForTimeout(300);
+
+  // Um horário futuro gravado com o tempo antigo da tabela (90 min).
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const s = db.estado.servicos.find((x) => x.id === 'cab-corte-final')
+      || db.estado.servicos.find((x) => x.profissional === 'cabelo')
+      || db.estado.servicos.find((x) => String(x.id).startsWith('cab-'))
+      || db.estado.servicos[0];
+    if (!s) throw new Error('catálogo vazio depois do reload: ' + db.estado.servicos.length);
+    globalThis.__S_TEMPO = s.id;
+    await db.salvar('servicos', { ...s, tempo: 1.5 });
+    const d = new Date(); d.setDate(d.getDate() + 6); d.setHours(12, 0, 0, 0);
+    globalThis.__DB.agendamentos.push({ id: 'ag-tempo', profissional_id: 'p1', servico_id: s.id,
+      servico_nome: s.nome, cliente_nome: 'Denize Teste', inicio: d.toISOString(),
+      fim: new Date(d.getTime() + 90 * 60000).toISOString(), duracao_min: 90, valor: 90,
+      status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    location.hash = '#/servicos';
+  });
+  await p2.waitForTimeout(700);
+
+  // Laura corrige a tabela para 60: o sistema oferece atualizar o horário preso em 90.
+  await p2.evaluate(async (id) => {
+    const { abrirServico } = await import('./js/views/servicos.js');
+    abrirServico(id);
+  }, await p2.evaluate(() => globalThis.__S_TEMPO));
+  await p2.waitForTimeout(400);
+  await p2.fill('.veu [name=tempo_min]', '60');
+  await tocarPrimario(p2);      // Salvar
+  await p2.waitForTimeout(600);
+  const pergunta = nb(await p2.locator('.veu').last().textContent()).replace(/\s+/g, ' ');
+  checagens.push(['tempo: ao mudar a tabela, pergunta sobre os horários futuros com o tempo antigo',
+    /Atualizar os horários já marcados/.test(pergunta) && /1h30/.test(pergunta) && /1h\b/.test(pergunta), pergunta.slice(0, 160)]);
+  await tocarPrimario(p2);      // Atualizar
+  await p2.waitForTimeout(800);
+  const depois = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === 'ag-tempo');
+    return { dur: a.duracao_min, fim: (new Date(a.fim) - new Date(a.inicio)) / 60000 };
+  });
+  checagens.push(['tempo: o horário futuro passa a 60 min, com o fim recalculado',
+    depois.dur === 60 && depois.fim === 60, JSON.stringify(depois)]);
+  await fecharTudo(p2);
+
+  // O aviso de choque explica a duração gravada quando ela difere da tabela.
+  await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === 'ag-tempo');
+    // de volta a 90 na agenda, com a tabela em 60: o caso da Denize
+    await db.salvar('agendamentos', { ...a, duracao_min: 90,
+      fim: new Date(new Date(a.inicio).getTime() + 90 * 60000).toISOString() });
+    location.hash = '#/agenda';
+  });
+  await p2.waitForTimeout(600);
+  await p2.click('#btn-novo');
+  await p2.waitForSelector('.veu [name=cliente_nome]');
+  const diaAlvo = await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 6);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await p2.fill('.veu [name=cliente_nome]', 'Outra Cliente');
+  await p2.fill('.veu [name=data]', diaAlvo);
+  await p2.selectOption('.veu [data-prof]', 'p1');
+  await p2.waitForTimeout(300);
+  await p2.selectOption('.veu [data-serv]', await p2.evaluate(() => globalThis.__S_TEMPO));
+  await p2.waitForTimeout(300);
+  await p2.fill('.veu [data-hora]', '13:00');   // 13:00 ainda cai dentro dos 90 min da Denize (12:00–13:30)
+  await tocarPrimario(p2);                      // Marcar
+  await p2.waitForTimeout(600);
+  const choque = nb(await p2.locator('.veu').last().textContent()).replace(/\s+/g, ' ');
+  checagens.push(['choque: diz que o horário antigo foi gravado com 1h30 e que a tabela hoje diz 1h',
+    /gravado com 1h30/.test(choque) && /tabela hoje diz 1h\b/.test(choque), choque.slice(0, 200)]);
+  await fecharTudo(p2);
 }
 
 await browser.close();

@@ -239,10 +239,22 @@ export function proximosLivres(profissional_id, dur,
  * ver o aviso antes de a agenda ficar com duas clientes no mesmo minuto.
  */
 async function pedirEncaixe(choque, profissional_id) {
+  // "Na tabela a gente colocou 60 minutos, só que na hora de marcar outra
+  // cliente dá que o serviço é de uma hora e meia" — Laura. O horário antigo
+  // foi gravado com o tempo que a tabela tinha NAQUELE dia; mudar a tabela
+  // depois não o encurta. Sem dizer isso aqui, parece que o sistema inventou
+  // a hora e meia.
+  const s = db.estado.servicos.find((x) => x.id === choque.servico_id);
+  const gravado = Number(choque.duracao_min) || 0;
+  const tabela = s ? minutosDe(s) : 0;
+  const nota = s && gravado && tabela && gravado !== tabela
+    ? `\n\nEsse horário foi gravado com ${fmt.horas(gravado / 60)}; a tabela hoje diz `
+      + `${fmt.horas(tabela / 60)}. Para encurtá-lo, abra o horário dela e corrija a duração.`
+    : '';
   return confirmar('Encaixar mesmo assim?',
     `${nomeProf(profissional_id)} já tem ${choque.cliente_nome} das `
     + `${localHora(choque.inicio)} às ${localHora(choque.fim || choque.inicio)}`
-    + ` (${choque.servico_nome}).\n\n`
+    + ` (${choque.servico_nome}).${nota}\n\n`
     + 'Se for encaixe — um corte enquanto a cor processa, por exemplo — pode '
     + 'seguir: os dois ficam na agenda, e este entra marcado como encaixe.',
     'Encaixar', false);

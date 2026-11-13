@@ -7,12 +7,33 @@ import { REGRAS } from '../data/servicos.js';
 import { precoTecnico } from '../pricing.js';
 import { premissas } from '../metricas.js';
 
-let filtroQuem = '';
+/**
+ * Qual lado da tabela está na tela: unhas, cabelos ou tudo.
+ *
+ * "Tô ajustando os meus serviços e tá aparecendo misturado os serviços da
+ * Júlia — antes não aparecia" — Laura. Antes aparecia porque ela tinha tocado
+ * em "Cabelos" uma vez; cada versão nova recarrega a página, e o filtro
+ * voltava para "Tudo" sem ninguém ter pedido. Agora ele nasce no lado de quem
+ * está logada e fica guardado no aparelho: Laura abre e vê cabelos, Júlia
+ * abre e vê unhas, e "Tudo" é uma escolha, não um acidente.
+ */
+const CHAVE_FILTRO = 'alento.tabela.quem';
+let filtroQuem = null;
+function quemVer() {
+  if (filtroQuem !== null) return filtroQuem;
+  try {
+    const guardado = localStorage.getItem(CHAVE_FILTRO);
+    if (guardado !== null) return (filtroQuem = guardado);
+  } catch {}
+  const f = db.eu?.funcao;
+  return (filtroQuem = (f === 'unhas' || f === 'cabelo') ? f : '');
+}
 
 export function render(raiz) {
   const cats = db.categorias();
   const p = premissas();
-  const cabe = (s) => !filtroQuem || s.profissional === filtroQuem || s.profissional === 'ambos';
+  const quem = quemVer();
+  const cabe = (s) => !quem || s.profissional === quem || s.profissional === 'ambos';
   const servicos = db.estado.servicos.filter((s) => s.tipo !== 'adicional' && cabe(s));
   const adicionais = db.estado.servicos.filter((s) => s.tipo === 'adicional' && cabe(s));
 
@@ -32,7 +53,7 @@ export function render(raiz) {
       <div class="flex envolve" style="gap:8px">
         <div class="pilulas">
           ${[['', 'Tudo'], ['unhas', 'Unhas'], ['cabelo', 'Cabelos']].map(([v, t]) =>
-            `<button class="pilula ${filtroQuem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
+            `<button class="pilula ${quem === v ? 'ativa' : ''}" data-quem="${v}">${t}</button>`).join('')}
         </div>
         <button class="btn btn-sm" id="ver-vitrine">${ico('tabela')}Ver página pública</button>
         <button class="btn btn-primario btn-sm" id="novo">${ico('mais')}Serviço</button>
@@ -127,7 +148,9 @@ export function render(raiz) {
     </div>`;
 
   raiz.querySelectorAll('[data-quem]').forEach((b) => b.onclick = () => {
-    filtroQuem = b.dataset.quem; render(raiz);
+    filtroQuem = b.dataset.quem;
+    try { localStorage.setItem(CHAVE_FILTRO, filtroQuem); } catch {}
+    render(raiz);
   });
   raiz.querySelector('#ver-vitrine').onclick = () => window.open('vitrine.html', '_blank');
   raiz.querySelector('#novo').onclick = () => abrirServico();
@@ -223,7 +246,11 @@ export function abrirPacoteCatalogo(id, aoFechar) {
 export function abrirServico(id) {
   const cats = db.categorias();
   const s = id ? db.estado.servicos.find((x) => x.id === id)
-              : { tipo: 'servico', categoria: cats[0]?.id || 'maos', ativo: true, preco: 0, custo: 0, tempo: 1 };
+              : { tipo: 'servico', ativo: true, preco: 0, custo: 0, tempo: 1,
+                  // Nasce no lado de quem está logada: serviço novo da Laura já é de cabelo.
+                  profissional: (db.eu?.funcao === 'cabelo' || db.eu?.funcao === 'unhas') ? db.eu.funcao : 'unhas',
+                  categoria: (db.eu?.funcao === 'cabelo' ? cats.find((c) => c.id.startsWith('cab-'))?.id : null)
+                             || cats[0]?.id || 'maos' };
   const p = premissas();
 
   abrirModal({
@@ -232,9 +259,12 @@ export function abrirServico(id) {
       <label class="campo"><span>Nome</span><input name="nome" value="${esc(s.nome || '')}" required></label>
       <div class="linha-campos">
         <label class="campo"><span>Categoria</span>
+          <!-- Só as categorias do lado de "Quem faz": a Laura editando um corte
+               não precisa ver Alongamento em Gel na lista. -->
           <select name="categoria">
-            ${cats.map((c) => `<option value="${c.id}" ${s.categoria === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
-            <option value="adicionais" ${s.categoria === 'adicionais' ? 'selected' : ''}>Adicionais</option>
+            ${cats.map((c) => `<option value="${c.id}" data-lado="${c.id.startsWith('cab-') ? 'cabelo' : 'unhas'}"
+               ${s.categoria === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
+            <option value="adicionais" data-lado="ambos" ${s.categoria === 'adicionais' ? 'selected' : ''}>Adicionais</option>
           </select></label>
         <label class="campo"><span>Tipo</span>
           <select name="tipo">
@@ -294,6 +324,8 @@ export function abrirServico(id) {
           const d = lerForm(veu);
           if (!d.nome) return avisar('Informe o nome', 'erro');
           const { tempo_min, ...campos } = d;
+          const minutosAntes = Math.round((Number(s.tempo) || 0) * 60);
+          const minutosDepois = Math.round(Number(tempo_min) || 0);
           await db.salvar('servicos', {
             ...s, ...campos,
             // Preço e custo em branco são zero, não ausência: a coluna não
@@ -308,10 +340,45 @@ export function abrirServico(id) {
             agenda_online: !!d.agenda_online,
             recado_agenda: (d.recado_agenda || '').trim() || null,
           });
+          // Mudou o tempo: os horários futuros deste serviço, marcados com o tempo
+          // antigo da tabela, ficam ocupando a agenda — e o site — com a duração
+          // velha. "Na tabela eu coloquei 60 minutos e na hora de marcar dá que é
+          // uma hora e meia." Quem esticou ou encurtou à mão não é tocado: só os
+          // que estão exatamente com o número antigo.
+          if (s.id && minutosAntes && minutosDepois && minutosAntes !== minutosDepois) {
+            const agora = new Date().toISOString();
+            const presos = db.estado.agendamentos.filter((a) => a.servico_id === s.id
+              && a.status === 'confirmado' && a.inicio > agora
+              && Math.round(Number(a.duracao_min) || 0) === minutosAntes);
+            if (presos.length && await confirmar('Atualizar os horários já marcados?',
+                  `${presos.length} horário(s) futuro(s) de "${d.nome}" estão com `
+                  + `${fmt.horas(minutosAntes / 60)}, o tempo antigo. Quer passar para `
+                  + `${fmt.horas(minutosDepois / 60)}?\n\nOs que foram ajustados à mão não mudam.`,
+                  'Atualizar', false)) {
+              db.salvarLote('agendamentos', presos.map((a) => ({ ...a,
+                duracao_min: minutosDepois,
+                fim: new Date(new Date(a.inicio).getTime() + minutosDepois * 60000).toISOString() })));
+              avisar(`${presos.length} horário(s) atualizado(s)`);
+            }
+          }
           fechar(); avisar('Serviço salvo');
         } },
     ],
     aoAbrir: (veu) => {
+      // Trocar "Quem faz" esconde as categorias do outro lado — e, se a
+      // categoria marcada era do outro lado, pula para a primeira do lado certo.
+      const selQuem = veu.querySelector('[name=profissional]');
+      const selCat = veu.querySelector('[name=categoria]');
+      const filtrarCategorias = () => {
+        const lado = selQuem.value;
+        for (const o of selCat.options) o.hidden = lado !== 'ambos' && o.dataset.lado !== 'ambos' && o.dataset.lado !== lado;
+        if (selCat.selectedOptions[0]?.hidden) {
+          const primeira = [...selCat.options].find((o) => !o.hidden);
+          if (primeira) selCat.value = primeira.value;
+        }
+      };
+      selQuem.addEventListener('change', filtrarCategorias);
+      filtrarCategorias();
       const previa = () => {
         const d = lerForm(veu);
         d.tempo = (Number(d.tempo_min) || 0) / 60;
