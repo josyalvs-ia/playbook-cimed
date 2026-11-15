@@ -1128,3 +1128,13 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .ldt-fechado.bloqueado strong { color: #8E3A28; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; }
 .ldt-fechado.bloqueado:hover { background: repeating-linear-gradient(135deg, rgba(201,87,63,.16) 0 6px, rgba(201,87,63,.3) 6px 12px); }
 .ldt-fechado.bloqueado.curto { flex-direction: row; gap: 8px; }
+
+/* Bloqueio na coluna em lista: a mesma terracota da linha do tempo. */
+.bloqueio-coluna {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; cursor: pointer;
+  margin: 8px 0 2px; padding: 9px 12px; border-radius: var(--r-sm);
+  background: repeating-linear-gradient(135deg, rgba(201,87,63,.10) 0 6px, rgba(201,87,63,.2) 6px 12px);
+  border: 1px solid rgba(201,87,63,.5);
+}
+.bloqueio-coluna strong { color: #E0A28F; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.bloqueio-coluna span { color: var(--texto-2); font-size: 12.5px; }

@@ -298,11 +298,12 @@ export function render(raiz) {
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
     localData(b.inicio) <= ate && localData(b.fim) >= de
     && (!eu || !b.profissional_id || b.profissional_id === eu)
-    // Na visão do dia, quem está em linha do tempo já vê o bloqueio dentro da
-    // própria coluna, de outra cor, escrito "bloqueada": o aviso em cima
-    // viraria repetição. Fica só para quem está em lista (e nas outras visões).
+    // Na visão do dia, o bloqueio aparece dentro da própria coluna — listrado
+    // na linha do tempo, uma linha terracota na lista — então o aviso em cima
+    // viraria repetição. "Isso tem que estar só lá na agenda." Fica para as
+    // outras visões, onde não há coluna, e para quem não está na tela.
     && !(visao === 'dia' && (b.profissional_id ? [b.profissional_id] : visiveis.map((p) => p.id))
-          .every((id) => emLinhaDoTempo(id))));
+          .every((id) => visiveis.some((p) => p.id === id))));
 
   raiz.innerHTML = `
     <div class="flex envolve mb" style="gap:8px">
@@ -572,9 +573,33 @@ function coluna(prof, itens) {
           aria-label="${linha ? 'Ver como lista' : 'Ver como linha do tempo'}">${ico(linha ? 'lista' : 'relogio')}</button>
       </div>
       ${linha ? linhaDoTempo(prof, itens, dia)
-        : itens.length ? itens.map(cartaoHorario).join('')
-        : '<p class="t3 pequeno centro" style="padding:20px 0">Dia livre.</p>'}
+        : bloqueiosNaColuna(prof, dia)
+          + (itens.length ? itens.map(cartaoHorario).join('')
+          : '<p class="t3 pequeno centro" style="padding:20px 0">Dia livre.</p>')}
     </div>`;
+}
+
+/** Os bloqueios que pegam esta profissional neste dia — os dela e os do studio. */
+function bloqueiosDoDiaDe(prof, data) {
+  const diaIni = new Date(data + 'T00:00:00'), diaFim = new Date(data + 'T23:59:59');
+  return db.estado.bloqueios.filter((b) =>
+    (!b.profissional_id || b.profissional_id === prof.id)
+    && new Date(b.inicio) <= diaFim && new Date(b.fim) >= diaIni);
+}
+
+/**
+ * Na coluna em lista, o bloqueio é uma linha terracota, escrita "bloqueada",
+ * tocável para editar — o mesmo que a linha do tempo mostra listrado. "Isso
+ * tem que estar só lá na agenda": com o bloqueio em todas as colunas, o aviso
+ * em cima perde a razão de existir na visão do dia.
+ */
+function bloqueiosNaColuna(prof, data) {
+  return bloqueiosDoDiaDe(prof, data).map((b) => `
+    <div class="bloqueio-coluna" data-bloqueio="${esc(b.id)}" title="Toque para editar ou liberar">
+      <strong>bloqueada</strong>
+      <span>${b.motivo ? esc(b.motivo) + ' · ' : ''}${esc(quandoBloqueio(b))}${
+        b.profissional_id ? '' : ' · studio inteiro'}</span>
+    </div>`).join('');
 }
 
 /**

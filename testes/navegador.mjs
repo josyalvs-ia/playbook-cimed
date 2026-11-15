@@ -2653,7 +2653,21 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
   await p2.waitForTimeout(600);
   const todas = nb(await p2.textContent('#conteudo'));
   checagens.push(['bloqueio: em "Studio" aparecem os dois', /Cílios/.test(todas) && /Reunião/.test(todas)]);
-  checagens.push(['bloqueio: com o nome de quem fechou', /Julia\s+· agenda fechada/.test(todas), todas.slice(0, 160)]);
+  // "Isso tem que estar só lá na agenda": na visão do dia o aviso de cima some
+  // e o bloqueio vira uma linha terracota dentro da coluna, escrita "bloqueada".
+  checagens.push(['bloqueio: na visão do dia não há aviso em cima',
+    !/agenda fechada/.test(todas), todas.slice(0, 160)]);
+  checagens.push(['bloqueio: a coluna mostra "bloqueada" com o motivo',
+    await p2.evaluate(() => [...document.querySelectorAll('.bloqueio-coluna, .ldt-fechado.bloqueado')]
+      .some((el) => /bloqueada/i.test(el.textContent) && /Cílios/.test(el.textContent)))]);
+  // Tocar na linha bloqueada abre a edição do bloqueio.
+  await p2.evaluate(() => [...document.querySelectorAll('.bloqueio-coluna, .ldt-fechado.bloqueado')]
+    .find((el) => /Cílios/.test(el.textContent)).click());
+  await p2.waitForTimeout(500);
+  checagens.push(['bloqueio: tocar na coluna abre a edição',
+    await p2.evaluate(() => /Bloqueio da agenda/.test(document.querySelector('.veu')?.textContent || ''))]);
+  await p2.evaluate(() => document.querySelector('.veu [data-fechar]')?.click());
+  await p2.waitForTimeout(300);
 
   await p2.evaluate(async () => {
     const db = await import('./js/db.js');
@@ -4526,8 +4540,13 @@ const fecharTudo = async (pg) => {
   await p2.waitForTimeout(700);
 
   const aviso = nb(await p2.evaluate(() => [...document.querySelectorAll('#conteudo .aviso.alerta')].map((a) => a.textContent).join(' | '))).replace(/\s+/g, ' ');
-  checagens.push(['bloqueio: o aviso amarelo some para quem está em linha do tempo (Júlia)', !/Julia/.test(aviso), aviso.slice(0, 160)]);
-  checagens.push(['bloqueio: mas continua para quem está em lista (Laura)', /Laura/.test(aviso) && /folga/.test(aviso)]);
+  // "Isso tem que estar só lá na agenda": na visão do dia o aviso de cima some
+  // para todo mundo, e cada coluna mostra o seu bloqueio — listrado na linha
+  // do tempo (Júlia), uma linha terracota na lista (Laura).
+  checagens.push(['bloqueio: na visão do dia não há aviso amarelo em cima', aviso === '', aviso.slice(0, 160)]);
+  checagens.push(['bloqueio: a coluna em lista (Laura) mostra "bloqueada · folga"',
+    await p2.evaluate(() => [...document.querySelectorAll('.bloqueio-coluna')]
+      .some((el) => /bloqueada/i.test(el.textContent) && /folga/.test(el.textContent)))]);
 
   const bloqueado = await p2.evaluate(() => [...document.querySelectorAll('.ldt-fechado.bloqueado')]
     .map((e) => ({ id: e.dataset.bloqueio, texto: e.textContent.replace(/\s+/g, ' ').trim(), alt: e.getBoundingClientRect().height })));
