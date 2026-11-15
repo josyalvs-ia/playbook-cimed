@@ -745,7 +745,25 @@ export async function conferirBanco() {
 export function categorias() {
   const doArquivo = new Map(CATEGORIAS_SERVICO.map((c) => [c.id, c]));
   return (cfg('categorias') || [])
-    .map((c) => ({ ...c, nome: doArquivo.get(c.id)?.nome || c.nome }));
+    .map((c) => ({ ...c, nome: doArquivo.get(c.id)?.nome || c.nome,
+                   cor: c.cor || doArquivo.get(c.id)?.cor || null,
+                   etiqueta: c.etiqueta || doArquivo.get(c.id)?.etiqueta || null }));
+}
+
+/**
+ * A etiqueta de cor de um serviço: a da família dele.
+ *
+ * "Tudo que é alongamento uma cor, tudo que é pé outra — e quando a cliente
+ * marcar, a etiqueta aparece sozinha na agenda." Não é cadastrada na cliente
+ * nem no horário: vem do serviço, então acompanha o que foi marcado, sempre.
+ * Serviço cuja categoria não está no studio cai nas cores do arquivo.
+ */
+export function etiquetaDoServico(servicoId) {
+  const s = estado.servicos.find((x) => x.id === servicoId);
+  if (!s) return null;
+  const cat = categorias().find((c) => c.id === s.categoria)
+    || CATEGORIAS_SERVICO.find((c) => c.id === s.categoria);
+  return cat?.cor ? { cor: cat.cor, nome: cat.etiqueta || cat.nome, categoria: cat.id } : null;
 }
 
 export function cfg(chave, padrao = null) {

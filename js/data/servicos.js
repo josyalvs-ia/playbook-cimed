@@ -35,20 +35,25 @@ export const PACOTES_PADRAO = [
 export const PACOTES_NOTA = 'Incluem escova/finalização. Consulte nossa equipe para '
   + 'mais informações e condições especiais.';
 
+// Cada família tem uma cor e um apelido curto: é a etiqueta que o horário
+// ganha sozinho na agenda, a partir do serviço marcado. "Tudo que é
+// alongamento uma cor, tudo que é pé outra" — pedido da Júlia. Duas famílias
+// de alongamento dividem a mesma cor de propósito: para quem olha a agenda,
+// alongamento é alongamento.
 export const CATEGORIAS_SERVICO = [
-  { id: 'maos',        nome: 'Mãos',                        ordem: 1 },
-  { id: 'pes',         nome: 'Pés',                         ordem: 2 },
-  { id: 'combos',      nome: 'Combos',                      ordem: 3 },
-  { id: 'blindagem',   nome: 'Blindagem e Banho de Gel',    ordem: 4 },
-  { id: 'alongamento', nome: 'Alongamento em Gel Moldado',  ordem: 5 },
-  { id: 'combo-along', nome: 'Combo de Alongamento',        ordem: 6 },
+  { id: 'maos',        nome: 'Mãos',                        ordem: 1,  cor: '#E8DFC4', etiqueta: 'mãos' },
+  { id: 'pes',         nome: 'Pés',                         ordem: 2,  cor: '#9FC5E8', etiqueta: 'pés' },
+  { id: 'combos',      nome: 'Combos',                      ordem: 3,  cor: '#C8B6E2', etiqueta: 'mãos + pés' },
+  { id: 'blindagem',   nome: 'Blindagem e Banho de Gel',    ordem: 4,  cor: '#A8C08A', etiqueta: 'blindagem' },
+  { id: 'alongamento', nome: 'Alongamento em Gel Moldado',  ordem: 5,  cor: '#E3A0B5', etiqueta: 'alongamento' },
+  { id: 'combo-along', nome: 'Combo de Alongamento',        ordem: 6,  cor: '#E3A0B5', etiqueta: 'alongamento' },
 
   // Cabelos — tabela da Laura
-  { id: 'cab-escova',     nome: 'Lavagem, Escova e Finalização', ordem: 7 },
-  { id: 'cab-corte',      nome: 'Cortes',                        ordem: 8 },
-  { id: 'cab-tratamento', nome: 'Tratamentos',                   ordem: 9 },
-  { id: 'cab-cor',        nome: 'Coloração e Mechas',            ordem: 10 },
-  { id: 'cab-terapia',    nome: 'Terapia Capilar',               ordem: 11 },
+  { id: 'cab-escova',     nome: 'Lavagem, Escova e Finalização', ordem: 7,  cor: '#F2D7A7', etiqueta: 'escova' },
+  { id: 'cab-corte',      nome: 'Cortes',                        ordem: 8,  cor: '#9DD3C8', etiqueta: 'corte' },
+  { id: 'cab-tratamento', nome: 'Tratamentos',                   ordem: 9,  cor: '#B5C99A', etiqueta: 'tratamento' },
+  { id: 'cab-cor',        nome: 'Coloração e Mechas',            ordem: 10, cor: '#E09E8A', etiqueta: 'cor' },
+  { id: 'cab-terapia',    nome: 'Terapia Capilar',               ordem: 11, cor: '#C9B8E8', etiqueta: 'terapia' },
 ];
 
 export const SERVICOS = [

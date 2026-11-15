@@ -4372,6 +4372,52 @@ const fecharTudo = async (pg) => {
   checagens.push(['linha do tempo: e volta para linha do tempo', await p2.locator('.ldt').count() === 1]);
 }
 
+// ── 46. Etiquetas de cor por família de serviço ──
+// "Tudo que é alongamento uma cor, tudo que é pé outra — e quando a cliente
+// marcar, a etiqueta aparece sozinha na agenda da Júlia."
+{
+  const diaAlvo = await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 11);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  const ids = await p2.evaluate(async (diaAlvo) => {
+    const db = await import('./js/db.js');
+    const along = db.estado.servicos.find((x) => x.categoria === 'alongamento' || x.categoria === 'combo-along');
+    const pe = db.estado.servicos.find((x) => x.categoria === 'pes');
+    const em = (h) => { const d = new Date(diaAlvo + 'T00:00:00'); d.setHours(h, 0, 0, 0); return d.toISOString(); };
+    const t = globalThis.__DB.agendamentos;
+    t.push({ id: 'cor-1', profissional_id: 'p2', servico_id: along.id, servico_nome: along.nome, cliente_nome: 'Cliente Alongamento',
+             inicio: em(9), duracao_min: 120, valor: 200, status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    t.push({ id: 'cor-2', profissional_id: 'p2', servico_id: pe.id, servico_nome: pe.nome, cliente_nome: 'Cliente Pé',
+             inicio: em(14), duracao_min: 60, valor: 60, status: 'confirmado', origem: 'site', atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    location.hash = '#/agenda';
+    return { along: along.id, pe: pe.id };
+  }, diaAlvo);
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]');
+  await p2.fill('#dia', diaAlvo); await p2.dispatchEvent('#dia', 'change');
+  await p2.waitForTimeout(700);
+
+  // Na linha do tempo da Júlia: cada bloco com a etiqueta e a cor da família.
+  const blocos = await p2.evaluate(() => Object.fromEntries([...document.querySelectorAll('.ldt-bloco')]
+    .map((b) => [b.dataset.agend, { etiqueta: b.dataset.etiqueta, cor: b.style.getPropertyValue('--cor').trim(),
+                                    chip: b.querySelector('.etiqueta-cat')?.textContent }])));
+  checagens.push(['etiqueta: o alongamento ganha etiqueta e cor sozinho',
+    blocos['cor-1']?.etiqueta === 'alongamento' && blocos['cor-1']?.cor === '#E3A0B5' && blocos['cor-1']?.chip === 'alongamento', JSON.stringify(blocos)]);
+  checagens.push(['etiqueta: o pé ganha outra cor',
+    blocos['cor-2']?.etiqueta === 'pés' && blocos['cor-2']?.cor === '#9FC5E8' && blocos['cor-2']?.cor !== blocos['cor-1']?.cor]);
+  checagens.push(['etiqueta: a legenda do dia mostra as famílias presentes',
+    (await p2.evaluate(() => [...document.querySelectorAll('.legenda-cores .etiqueta-cat')].map((e) => e.textContent))).join('|') === 'alongamento|pés'
+    || (await p2.evaluate(() => [...document.querySelectorAll('.legenda-cores .etiqueta-cat')].map((e) => e.textContent))).sort().join('|') === 'alongamento|pés']);
+
+  // Na lista (a Laura, ou a Júlia se trocar), a etiqueta aparece no cartão.
+  await p2.click('[data-formato="p2"]');
+  await p2.waitForTimeout(500);
+  const naLista = await p2.evaluate(() => [...document.querySelectorAll('[data-agend] .etiqueta-cat')].map((e) => e.dataset.etiqueta));
+  checagens.push(['etiqueta: na lista, o cartão traz a mesma etiqueta', naLista.includes('alongamento') && naLista.includes('pés'), JSON.stringify(naLista)]);
+  await p2.click('[data-formato="p2"]');
+  await p2.waitForTimeout(300);
+}
+
 await browser.close();
 
 let falhas = 0;

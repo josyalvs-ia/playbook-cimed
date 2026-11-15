@@ -428,7 +428,12 @@ function tituloDoPeriodo() {
 // ─── As quatro visões ──────────────────────────────────────────────────────
 
 function corpoDia(visiveis, lista) {
+  // A legenda só das famílias que aparecem no dia: a cor sem nome é adivinhação.
+  const legenda = [...new Map(lista.map((a) => db.etiquetaDoServico(a.servico_id))
+    .filter(Boolean).map((e) => [e.nome, e])).values()];
   return `
+    ${legenda.length ? `<div class="legenda-cores mb">${legenda.map((e) =>
+      `<i class="etiqueta-cat" style="--cor:${e.cor}">${esc(e.nome)}</i>`).join('')}</div>` : ''}
     <div class="grade agenda-colunas" style="--colunas:${Math.max(1, visiveis.length)}">
       ${visiveis.map((p) => coluna(p, lista.filter((a) => a.profissional_id === p.id))).join('')
         || vazio('Nenhuma profissional cadastrada para atender.')}
@@ -635,13 +640,13 @@ function linhaDoTempo(prof, itens, data) {
     ${livres.filter(([li, lf]) => lf - li >= 30).map(([li, lf]) => `<div class="ldt-livre"
         style="top:${y(li)}px;height:${(lf - li) * PX}px" data-livre-de="${relogioDeMin(li)}">
         <span>livre · ${fmt.horas((lf - li) / 60)}</span></div>`).join('')}
-    ${blocos.map(({ a, i, f, faixa }) => `<div class="ldt-bloco ${selo[a.status] || ''} ${a.encaixe ? 'encaixe' : ''}"
-        data-agend="${a.id}" style="top:${y(i)}px;height:${Math.max(26, (f - i) * PX - 2)}px;
+    ${blocos.map(({ a, i, f, faixa }) => { const et = db.etiquetaDoServico(a.servico_id); return `<div class="ldt-bloco ${selo[a.status] || ''} ${a.encaixe ? 'encaixe' : ''} ${et ? 'com-cor' : ''}"
+        data-agend="${a.id}" data-etiqueta="${esc(et?.nome || '')}" style="${et ? `--cor:${et.cor};` : ''}top:${y(i)}px;height:${Math.max(26, (f - i) * PX - 2)}px;
         left:calc(44px + ${(100 / nFaixas) * faixa}% - ${44 * faixa / nFaixas}px);width:calc(${100 / nFaixas}% - ${44 / nFaixas}px - 6px)"
         title="${esc(a.cliente_nome)} · ${esc(a.servico_nome)} · ${relogioDeMin(i)}–${relogioDeMin(f)}">
         <strong>${relogioDeMin(i)} ${esc(a.cliente_nome)}</strong>
-        <span>${esc(a.servico_nome)} · ${fmt.horas((f - i) / 60)}</span>
-      </div>`).join('')}
+        <span>${et ? `<i class="etiqueta-cat" style="--cor:${et.cor}">${esc(et.nome)}</i> ` : ''}${esc(a.servico_nome)} · ${fmt.horas((f - i) / 60)}</span>
+      </div>`; }).join('')}
     ${agora != null && agora >= ini && agora <= fim ? `<div class="ldt-agora" style="top:${y(agora)}px"></div>` : ''}
   </div>`;
 }
@@ -666,7 +671,8 @@ function cartaoHorario(a) {
             ${a.grupo_id ? '<span class="selo" title="a cliente tem mais de um serviço nesta ida">mesma ida</span>' : ''}
           </div>
           <div style="font-weight:600;margin-top:3px">${esc(a.cliente_nome)}</div>
-          <div class="pequeno t2">${esc(a.servico_nome)} · ${fmt.horas(a.duracao_min / 60)}</div>
+          <div class="pequeno t2">${(() => { const et = db.etiquetaDoServico(a.servico_id);
+            return et ? `<i class="etiqueta-cat" style="--cor:${et.cor}" data-etiqueta="${esc(et.nome)}">${esc(et.nome)}</i> ` : ''; })()}${esc(a.servico_nome)} · ${fmt.horas(a.duracao_min / 60)}</div>
         </div>
         <div style="text-align:right">
           <div class="num" style="font-weight:600">${fmt.brl(a.valor)}</div>

@@ -1064,3 +1064,20 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .ldt-livre:hover span { color: var(--texto); border-color: var(--creme); }
 .ldt-agora { position: absolute; left: 40px; right: 0; border-top: 2px solid var(--alerta); pointer-events: none; }
 .ldt-agora::before { content: ''; position: absolute; left: -5px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--alerta); }
+
+/* ── Etiqueta de cor por família de serviço ────────────────────────────────*/
+/* A cor vem do serviço marcado (alongamento, pés, mãos…), sem ninguém
+   cadastrar: quem olha a agenda reconhece a família antes de ler o nome. */
+.etiqueta-cat {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-style: normal; font-size: 10.5px; letter-spacing: .04em; text-transform: lowercase;
+  padding: 1px 8px 1px 6px; border-radius: 999px; vertical-align: 1px;
+  color: var(--texto); background: color-mix(in srgb, var(--cor) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cor) 55%, transparent);
+}
+.etiqueta-cat::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--cor); }
+.legenda-cores { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Na linha do tempo, o bloco inteiro veste a cor da família. */
+.ldt-bloco.com-cor { background: color-mix(in srgb, var(--cor) 28%, var(--superficie)); border-left-color: var(--cor); color: var(--texto); }
+.ldt-bloco.com-cor.ok { background: color-mix(in srgb, var(--cor) 14%, var(--superficie)); opacity: .85; }
+.ldt-bloco.com-cor .etiqueta-cat { background: color-mix(in srgb, var(--cor) 40%, transparent); }
