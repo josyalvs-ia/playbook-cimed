@@ -3254,7 +3254,11 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
     await db.salvar('servicos', { id: 'travado-1', nome: 'Serviço travado',
       categoria: 'combos', tipo: 'servico', preco: 10, custo: 0, tempo: 1, ativo: true });
   });
-  await p2.waitForTimeout(600);
+  // A recusa só entra na fila quando o servidor de mentira responde — e um
+  // teste anterior pode ter deixado a rede lenta simulada ligada. Espera a
+  // fila ter o item, em vez de contar com 600 ms.
+  await p2.waitForFunction(async () => (await import('./js/db.js')).listaPendentes()
+    .some((x) => x.rotulo === 'Serviço travado'), null, { timeout: 8000 }).catch(() => {});
 
   const preso = await p2.evaluate(async () => {
     const db = await import('./js/db.js');
@@ -3272,17 +3276,23 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
 
   // O painel de pendências mostra a lista e o botão de descartar.
   await p2.evaluate(() => document.getElementById('status-sync').click());
-  await p2.waitForTimeout(500);
+  // O painel abre num instante; mas o relógio de sincronização pode estar no
+  // meio de uma tentativa, e aí o item some e volta — espera ele estar na tela.
+  await p2.waitForSelector('.veu [data-descartar]', { state: 'attached', timeout: 8000 }).catch(() => {});
+  await p2.waitForTimeout(300);
   const painel = nb(await p2.textContent('.veu'));
   checagens.push(['revisão: o painel mostra o item preso pelo nome',
     /Serviço travado/.test(painel), painel.slice(0, 160)]);
   checagens.push(['revisão: e oferece descartar', await p2.locator('.veu [data-descartar]').count() > 0]);
 
-  await p2.click('.veu [data-descartar]');
-  await p2.waitForTimeout(400);
+  // Por JS: o link existe e está visível, mas o ponteiro do Playwright esbarra
+  // no cabeçalho grudado do modal (mesmo caso de tocarPrimario).
+  await p2.evaluate(() => document.querySelector('.veu [data-descartar]')?.click());
+  await p2.waitForSelector('.veu .modal-pe .btn-perigo', { state: 'attached', timeout: 8000 }).catch(() => {});
+  await p2.waitForTimeout(300);
   // Por JS: o botão existe e está visível, mas o ponteiro do Playwright
   // esbarra no cabeçalho grudado do modal (mesmo caso de tocarPrimario).
-  await p2.evaluate(() => document.querySelector('.veu .modal-pe .btn-perigo').click());
+  await p2.evaluate(() => document.querySelector('.veu .modal-pe .btn-perigo')?.click());
   await p2.waitForTimeout(700);
   checagens.push(['revisão: descartado, sai da fila',
     await p2.evaluate(() =>
@@ -4346,11 +4356,13 @@ const fecharTudo = async (pg) => {
   checagens.push(['linha do tempo: o buraco entre dois atendimentos aparece com o tamanho',
     livres.some((l) => /^12:00 livre · 1h30/.test(l)), JSON.stringify(livres)]);
 
-  // Tocar no buraco abre o "marcar" já naquela hora.
+  // Tocar no buraco abre o "marcar" na hora TOCADA — o toque cai no meio do
+  // chip (12:00–13:30), então a hora fica dentro do buraco, de 15 em 15.
   await p2.click('.ldt-livre[data-livre-de="12:00"]');
   await p2.waitForTimeout(500);
-  checagens.push(['linha do tempo: tocar no buraco abre o marcar com a hora do buraco',
-    (await p2.inputValue('.veu [data-hora]')) === '12:00' && (await p2.inputValue('.veu [name=data]')) === diaAlvo]);
+  const horaBuraco = await p2.inputValue('.veu [data-hora]');
+  checagens.push(['linha do tempo: tocar no buraco abre o marcar numa hora dentro do buraco',
+    /^1[23]:(00|15|30|45)$/.test(horaBuraco) && horaBuraco < '13:30' && (await p2.inputValue('.veu [name=data]')) === diaAlvo, horaBuraco]);
   await fecharTudo(p2);
 
   // Tocar no bloco abre o horário.
@@ -4416,6 +4428,82 @@ const fecharTudo = async (pg) => {
   checagens.push(['etiqueta: na lista, o cartão traz a mesma etiqueta', naLista.includes('alongamento') && naLista.includes('pés'), JSON.stringify(naLista)]);
   await p2.click('[data-formato="p2"]');
   await p2.waitForTimeout(300);
+}
+
+// ── 47. Toque no vazio, fundo creme, e arrastar para mudar a hora ──
+// "Quando ela clica na parte vazia já tem que abrir pra agendar; o fundo
+// creme; e quando apertar e arrastar, ajustar os horários."
+{
+  const diaAlvo = await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 13);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await p2.evaluate(async (diaAlvo) => {
+    const db = await import('./js/db.js');
+    const em = (h, m = 0) => { const d = new Date(diaAlvo + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.toISOString(); };
+    globalThis.__DB.agendamentos.push({ id: 'arr-1', profissional_id: 'p2', servico_id: 'manicure', servico_nome: 'Manicure',
+      cliente_nome: 'Cliente Arrasto', inicio: em(10), duracao_min: 60, valor: 45, status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    location.hash = '#/agenda';
+  }, diaAlvo);
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]');
+  await p2.fill('#dia', diaAlvo); await p2.dispatchEvent('#dia', 'change');
+  await p2.waitForTimeout(700);
+
+  // Fundo creme.
+  const fundo = await p2.evaluate(() => getComputedStyle(document.querySelector('.ldt')).backgroundColor);
+  checagens.push(['linha do tempo: o fundo é creme', fundo === 'rgb(232, 223, 196)', fundo]);
+
+  // Toque num ponto vazio (14:00) abre o marcar com a Júlia e a hora.
+  const ponto = await p2.evaluate(() => { const l = document.querySelector('.ldt'); const r = l.getBoundingClientRect();
+    return { x: r.left + r.width * 0.6, y: r.top + (14 * 60 - Number(l.dataset.ini)) * Number(l.dataset.px) + 2 }; });
+  await p2.mouse.click(ponto.x, ponto.y);
+  await p2.waitForTimeout(500);
+  checagens.push(['linha do tempo: tocar no vazio abre o marcar já com a hora e a profissional',
+    (await p2.inputValue('.veu [data-hora]')) === '14:00' && (await p2.inputValue('.veu [data-prof]')) === 'p2',
+    JSON.stringify({ h: await p2.inputValue('.veu [data-hora]').catch(() => null) })]);
+  await fecharTudo(p2);
+
+  // Arrastar o bloco 45 minutos para baixo: 10:00 → 10:45.
+  await p2.evaluate(() => { globalThis.__DEMORA = 0; });   // sem rede lenta simulada aqui
+  const bl = await p2.locator('.ldt-bloco[data-agend="arr-1"]').boundingBox();
+  await p2.mouse.move(bl.x + bl.width / 2, bl.y + 10);
+  await p2.mouse.down();
+  await p2.mouse.move(bl.x + bl.width / 2, bl.y + 10 + 45 * 1.2, { steps: 6 });
+  await p2.mouse.up();
+  await p2.waitForTimeout(800);
+  const movido = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === 'arr-1');
+    return { h: new Date(a.inicio).getHours() * 60 + new Date(a.inicio).getMinutes(), dur: a.duracao_min };
+  });
+  checagens.push(['linha do tempo: arrastar move o horário de 15 em 15 minutos',
+    movido.h === 10 * 60 + 45 && movido.dur === 60, JSON.stringify(movido)]);
+  checagens.push(['linha do tempo: depois de arrastar, o horário não abre sozinho', await p2.locator('.veu').count() === 0]);
+
+  // Arrastar a alça de baixo: 60 → 90 minutos. Antes, espera a tela ter
+  // redesenhado o bloco na hora nova — medir o lugar antigo é arrastar o vazio.
+  await p2.waitForFunction(() => document.querySelector('.ldt-bloco[data-agend="arr-1"]')?.dataset.iniMin === '645', null, { timeout: 8000 });
+  const bl2 = await p2.locator('.ldt-bloco[data-agend="arr-1"]').boundingBox();
+  await p2.mouse.move(bl2.x + bl2.width / 2, bl2.y + bl2.height - 4);
+  await p2.mouse.down();
+  await p2.mouse.move(bl2.x + bl2.width / 2, bl2.y + bl2.height - 4 + 30 * 1.2, { steps: 5 });
+  await p2.mouse.up();
+  await p2.waitForTimeout(800);
+  const esticado = await p2.evaluate(async () => {
+    const db = await import('./js/db.js');
+    const a = db.estado.agendamentos.find((x) => x.id === 'arr-1');
+    return { dur: a.duracao_min, fim: (new Date(a.fim) - new Date(a.inicio)) / 60000 };
+  });
+  checagens.push(['linha do tempo: a alça de baixo muda a duração', esticado.dur === 90 && esticado.fim === 90, JSON.stringify(esticado)]);
+
+  // Um toque simples no bloco continua abrindo o horário.
+  await p2.waitForFunction(() => document.querySelector('.ldt-bloco[data-agend="arr-1"]')?.dataset.dur === '90', null, { timeout: 8000 }).catch(() => {});
+  await fecharTudo(p2);
+  await p2.click('.ldt-bloco[data-agend="arr-1"]');
+  await p2.waitForTimeout(600);
+  await p2.waitForTimeout(400);
+  checagens.push(['linha do tempo: um toque simples ainda abre o horário', /Cliente Arrasto/.test(nb(await p2.textContent('.veu h2')))]);
+  await fecharTudo(p2);
 }
 
 await browser.close();

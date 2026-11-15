@@ -517,12 +517,19 @@ export async function sincronizar() {
     chegaram += data.length;
   });
 
+  // Servidor que não respondeu tabela nenhuma: não é "nada mudou", é "não
+  // deu para perguntar". Carimbar "conferido agora" aqui faria a conferida
+  // seguinte pular tudo o que a outra salvou enquanto a rede estava fora.
+  if (semStamp.length === TABELAS.length) return 0;
+
   // As que não têm carimbo são recarregadas inteiras, uma a uma, sem levar
   // as outras junto. São tabelas pequenas (ajustes, horário de funcionamento);
-  // as grandes todas têm carimbo.
+  // as grandes todas têm carimbo. Se nem a recarga inteira responder, o
+  // carimbo não avança: o que mudou nela continua por buscar.
+  let completo = true;
   for (const t of semStamp) {
     const { data, error } = await tudoDe(t);
-    if (error || !data) continue;
+    if (error || !data) { completo = false; continue; }
     if (JSON.stringify(estado[t]) !== JSON.stringify(data)) chegaram += data.length;
     estado[t] = data;
   }
@@ -531,7 +538,7 @@ export async function sincronizar() {
   // desfazer a alteração que ainda está esperando para subir.
   if (chegaram) aplicarFila();
 
-  marcarSincronizado(marco);
+  if (completo) marcarSincronizado(marco);
   if (chegaram) { ordenar(); salvarCache(); notificar(); }
   return chegaram;
 }

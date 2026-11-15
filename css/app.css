@@ -1081,3 +1081,36 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .ldt-bloco.com-cor { background: color-mix(in srgb, var(--cor) 28%, var(--superficie)); border-left-color: var(--cor); color: var(--texto); }
 .ldt-bloco.com-cor.ok { background: color-mix(in srgb, var(--cor) 14%, var(--superficie)); opacity: .85; }
 .ldt-bloco.com-cor .etiqueta-cat { background: color-mix(in srgb, var(--cor) 40%, transparent); }
+
+/* ── Linha do tempo em creme ───────────────────────────────────────────────*/
+/* "O fundo da agenda deixa creme?" — a régua vira papel claro, e os blocos
+   ganham contraste de verdade: o vazio é claro, o ocupado tem cor. */
+.ldt { background: var(--creme); color: var(--verde); border-radius: var(--r-sm); margin-top: 8px;
+       -webkit-touch-callout: none; user-select: none; }
+.ldt-hora { border-top-color: rgba(46, 51, 34, .18); }
+.ldt-hora span { color: rgba(46, 51, 34, .72); background: var(--creme); padding-left: 4px; }
+.ldt-meia { border-top-color: rgba(46, 51, 34, .14); }
+.ldt-bloco { background: var(--verde); color: var(--creme); border-left-color: rgba(46, 51, 34, .6);
+             box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+.ldt-bloco.com-cor { background: var(--cor); color: var(--verde); border-left-color: color-mix(in srgb, var(--cor) 55%, var(--verde)); }
+.ldt-bloco.com-cor .etiqueta-cat { background: rgba(255,255,255,.35); border-color: rgba(46,51,34,.25); color: var(--verde); }
+.ldt-bloco.ok { opacity: .72; }
+.ldt-bloco.erro { opacity: .55; }
+.ldt-fechado { background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(46,51,34,.09) 6px 12px);
+               border-color: rgba(46,51,34,.3); }
+.ldt-fechado span { color: rgba(46,51,34,.65); }
+.ldt-livre span { color: rgba(46,51,34,.7); border-color: rgba(46,51,34,.35); background: transparent; }
+.ldt-livre:hover span { color: var(--verde); border-color: var(--verde); }
+.ldt-agora { border-top-color: #C9573F; }
+.ldt-agora::before { background: #C9573F; }
+
+/* Arrasto: o bloco levanta, e a hora nova aparece enquanto o dedo anda. */
+.ldt-bloco.arrastando { z-index: 5; box-shadow: 0 8px 22px rgba(0,0,0,.35); opacity: .95; transform: scale(1.02); cursor: grabbing; }
+.ldt-bloco.arrastando::after {
+  content: attr(data-previa); position: absolute; right: 8px; top: 5px;
+  font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 700;
+  background: var(--verde); color: var(--creme); padding: 2px 7px; border-radius: 999px;
+}
+.ldt-alca { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; cursor: ns-resize; }
+.ldt-alca::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 26px; height: 3px;
+                   margin-left: -13px; border-radius: 3px; background: rgba(46,51,34,.35); }

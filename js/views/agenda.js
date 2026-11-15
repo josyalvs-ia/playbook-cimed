@@ -377,10 +377,10 @@ export function render(raiz) {
     await trocarFormato(b.dataset.formato); render(raiz);
   });
   // Tocar num buraco já abre o "marcar" naquele dia, com a hora preenchida.
-  raiz.querySelectorAll('[data-livre-de]').forEach((el) => el.onclick = () => {
-    abrirAgendamento(null, dia);
-    setTimeout(() => { const h = document.querySelector('.veu [data-hora]'); if (h) h.value = el.dataset.livreDe; }, 120);
-  });
+  // O toque no buraco é tratado pelo contêiner da linha do tempo: a hora é a
+  // do ponto tocado, não a do começo do buraco — "livre · 7h" cobre a tarde
+  // inteira, e quem toca às 14h quer 14h.
+  raiz.querySelectorAll('.ldt').forEach((ldt) => ligarLinhaDoTempo(ldt, raiz));
   raiz.querySelectorAll('[data-desbloquear]').forEach((b) => b.onclick = async () => {
     if (await confirmar('Liberar a agenda?', 'O bloqueio some e os horários voltam a aparecer para as clientes.', 'Liberar', false)) {
       await db.remover('bloqueios', b.dataset.desbloquear);
@@ -567,6 +567,132 @@ function coluna(prof, itens) {
     </div>`;
 }
 
+/**
+ * Abre o "marcar" já com a profissional e a hora: é o que um toque no vazio
+ * da linha do tempo quer dizer. "Quando ela clica na parte vazia da agenda
+ * já tem que abrir pra ela agendar."
+ */
+function abrirMarcarEm(profId, hhmm) {
+  abrirAgendamento(null, dia);
+  setTimeout(() => {
+    const veu = document.querySelector('.veu');
+    if (!veu) return;
+    const prof = veu.querySelector('[data-prof]');
+    if (prof && profId) { prof.value = profId; prof.dispatchEvent(new Event('change')); }
+    const h = veu.querySelector('[data-hora]');
+    if (h && hhmm) { h.value = hhmm; h.dataset.tocada = '1'; h.dispatchEvent(new Event('input')); }
+  }, 120);
+}
+
+/**
+ * Segurar e arrastar: o bloco muda de hora; pela alça de baixo, de duração.
+ *
+ * "Quando ela apertar e arrastar, também deve conseguir ajustar os horários."
+ * No celular, o arrasto só começa depois de segurar um instante — um toque
+ * rápido continua abrindo o horário, e deslizar o dedo continua rolando a
+ * tela. Depois de segurar, o bloco acompanha o dedo de 15 em 15 minutos e
+ * mostra a hora nova; soltando, grava. Choque com outro horário pergunta se
+ * é encaixe, como no marcar; dizer que não desfaz.
+ */
+function ligarLinhaDoTempo(ldt, raiz) {
+  const profId = ldt.dataset.prof;
+  const ini = Number(ldt.dataset.ini), fimRegua = Number(ldt.dataset.fim), PX = Number(ldt.dataset.px) || 1.2;
+  const minDoY = (clientY) => {
+    const r = ldt.getBoundingClientRect();
+    return ini + (clientY - r.top) / PX;
+  };
+  const arred = (m) => Math.round(m / 15) * 15;
+
+  // Toque no vazio: a hora é a do lugar tocado, arredondada para 15 minutos.
+  ldt.addEventListener('click', (e) => {
+    if (e.target.closest('.ldt-bloco')) return;
+    if (ldt.dataset.arrastou) { delete ldt.dataset.arrastou; return; }
+    const m = Math.min(fimRegua - 15, Math.max(ini, arred(minDoY(e.clientY))));
+    abrirMarcarEm(profId, relogioDeMin(m));
+  });
+
+  ldt.querySelectorAll('.ldt-bloco').forEach((bloco) => {
+    const a = db.estado.agendamentos.find((x) => x.id === bloco.dataset.agend);
+    if (!a || a.status !== 'confirmado') return;
+    const iniMin = Number(bloco.dataset.iniMin), dur = Number(bloco.dataset.dur);
+    let timer = null, ativo = false, modo = null, y0 = 0, novoIni = iniMin, novaDur = dur, moveu = false;
+
+    const comecar = (e, m) => {
+      ativo = true; modo = m; moveu = false;
+      bloco.classList.add('arrastando');
+      bloco.style.touchAction = 'none';
+    };
+    const mostrar = () => {
+      bloco.style.top = (novoIni - ini) * PX + 'px';
+      bloco.style.height = Math.max(26, novaDur * PX - 2) + 'px';
+      bloco.dataset.previa = `${relogioDeMin(novoIni)}–${relogioDeMin(novoIni + novaDur)}`;
+    };
+    const terminar = async () => {
+      if (!ativo) return;
+      ativo = false;
+      bloco.classList.remove('arrastando');
+      bloco.style.touchAction = '';
+      delete bloco.dataset.previa;
+      // Segurou e soltou sem mexer: nada a gravar, e nada a redesenhar — o
+      // "click" que vem em seguida é o que abre o horário, e precisa achar o
+      // mesmo elemento na tela.
+      if (!moveu || (novoIni === iniMin && novaDur === dur)) { mostrar(); return; }
+      ldt.dataset.arrastou = '1';
+      const inicio = new Date(`${dia}T${relogioDeMin(novoIni)}:00`);
+      const choque = choqueCom(profId, inicio, novaDur, a.id);
+      const encaixe = choque ? await pedirEncaixe(choque, profId) : false;
+      if (choque && !encaixe) { render(raiz); return; }
+      await db.salvar('agendamentos', { ...a,
+        inicio: inicio.toISOString(),
+        fim: new Date(inicio.getTime() + novaDur * 60000).toISOString(),
+        duracao_min: novaDur,
+        encaixe: encaixe || !!a.encaixe });
+      avisar(modo === 'duracao'
+        ? `${primeiroNome(a.cliente_nome)}: agora ${fmt.horas(novaDur / 60)}`
+        : `${primeiroNome(a.cliente_nome)} movida para ${relogioDeMin(novoIni)}`);
+      render(raiz);
+    };
+
+    let pendenteMouse = null;   // mouse apertado, ainda sem andar: pode ser clique
+    bloco.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      y0 = e.clientY;
+      // Captura desde já: o pointermove e o pointerup chegam a este bloco
+      // mesmo quando o ponteiro sai de cima dele. Não atrapalha o clique nem
+      // a rolagem — só garante que o arrasto termine onde começou.
+      try { bloco.setPointerCapture(e.pointerId); } catch {}
+      const naAlca = !!e.target.closest('.ldt-alca');
+      // Mouse: vira arrasto assim que anda alguns pixels — um clique parado
+      // continua sendo clique. Dedo: só depois de segurar, senão rolar a tela
+      // viraria arrasto, e todo toque viraria um susto.
+      if (e.pointerType === 'mouse') { pendenteMouse = { e, modo: naAlca ? 'duracao' : 'mover' }; return; }
+      timer = setTimeout(() => { timer = null; comecar(e, naAlca ? 'duracao' : 'mover'); }, 320);
+    });
+    bloco.addEventListener('pointermove', (e) => {
+      if (!ativo) {
+        if (pendenteMouse && Math.abs(e.clientY - y0) > 6) { comecar(pendenteMouse.e, pendenteMouse.modo); pendenteMouse = null; }
+        // Mexeu antes de segurar o suficiente: é rolagem, não arrasto.
+        else if (timer && Math.abs(e.clientY - y0) > 8) { clearTimeout(timer); timer = null; }
+        if (!ativo) return;
+      }
+      const delta = arred(e.clientY - y0 > 0 ? (e.clientY - y0) / PX : (e.clientY - y0) / PX);
+      if (modo === 'mover') novoIni = Math.max(ini, Math.min(fimRegua - dur, iniMin + delta));
+      else novaDur = Math.max(15, Math.min(fimRegua - iniMin, dur + delta));
+      if (delta !== 0) moveu = true;
+      mostrar();
+    });
+    const soltar = () => { if (timer) { clearTimeout(timer); timer = null; } pendenteMouse = null; terminar(); };
+    bloco.addEventListener('pointerup', soltar);
+    bloco.addEventListener('pointercancel', soltar);
+    // Depois de um arrasto, o "click" que vem junto não pode abrir o horário.
+    bloco.addEventListener('click', (e) => {
+      if (ldt.dataset.arrastou) { e.stopImmediatePropagation(); e.preventDefault(); delete ldt.dataset.arrastou; }
+    }, true);
+    // No dedo, o navegador tenta rolar a tela durante o arrasto: não deixa.
+    bloco.addEventListener('touchmove', (e) => { if (ativo) e.preventDefault(); }, { passive: false });
+  });
+}
+
 /** Minutos desde a meia-noite local de `data`. */
 const minutosNoDia = (iso, data) => (new Date(iso) - new Date(data + 'T00:00:00')) / 60000;
 const relogioDeMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -629,7 +755,7 @@ function linhaDoTempo(prof, itens, data) {
   const agora = data === hoje() ? Math.round((Date.now() - diaIni) / 60000) : null;
   const selo = { concluido: 'ok', faltou: 'erro' };
 
-  return `<div class="ldt" style="height:${alt}px">
+  return `<div class="ldt" data-prof="${esc(prof.id)}" data-ini="${ini}" data-fim="${fim}" data-px="${PX}" style="height:${alt}px">
     ${Array.from({ length: (fim - ini) / 60 + 1 }, (_, k) => {
       const m = ini + k * 60;
       return `<div class="ldt-hora" style="top:${y(m)}px"><span>${relogioDeMin(m)}</span></div>`
@@ -641,11 +767,12 @@ function linhaDoTempo(prof, itens, data) {
         style="top:${y(li)}px;height:${(lf - li) * PX}px" data-livre-de="${relogioDeMin(li)}">
         <span>livre · ${fmt.horas((lf - li) / 60)}</span></div>`).join('')}
     ${blocos.map(({ a, i, f, faixa }) => { const et = db.etiquetaDoServico(a.servico_id); return `<div class="ldt-bloco ${selo[a.status] || ''} ${a.encaixe ? 'encaixe' : ''} ${et ? 'com-cor' : ''}"
-        data-agend="${a.id}" data-etiqueta="${esc(et?.nome || '')}" style="${et ? `--cor:${et.cor};` : ''}top:${y(i)}px;height:${Math.max(26, (f - i) * PX - 2)}px;
+        data-agend="${a.id}" data-etiqueta="${esc(et?.nome || '')}" data-ini-min="${i}" data-dur="${f - i}" style="${et ? `--cor:${et.cor};` : ''}top:${y(i)}px;height:${Math.max(26, (f - i) * PX - 2)}px;
         left:calc(44px + ${(100 / nFaixas) * faixa}% - ${44 * faixa / nFaixas}px);width:calc(${100 / nFaixas}% - ${44 / nFaixas}px - 6px)"
         title="${esc(a.cliente_nome)} · ${esc(a.servico_nome)} · ${relogioDeMin(i)}–${relogioDeMin(f)}">
         <strong>${relogioDeMin(i)} ${esc(a.cliente_nome)}</strong>
         <span>${et ? `<i class="etiqueta-cat" style="--cor:${et.cor}">${esc(et.nome)}</i> ` : ''}${esc(a.servico_nome)} · ${fmt.horas((f - i) / 60)}</span>
+        ${a.status === 'confirmado' ? '<b class="ldt-alca" title="Arraste para mudar a duração"></b>' : ''}
       </div>`; }).join('')}
     ${agora != null && agora >= ini && agora <= fim ? `<div class="ldt-agora" style="top:${y(agora)}px"></div>` : ''}
   </div>`;
