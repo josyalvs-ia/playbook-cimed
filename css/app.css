@@ -1114,3 +1114,17 @@ table input[type=number] { text-align: right; font-variant-numeric: tabular-nums
 .ldt-alca { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; cursor: ns-resize; }
 .ldt-alca::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 26px; height: 3px;
                    margin-left: -13px; border-radius: 3px; background: rgba(46,51,34,.35); }
+
+/* ── Bloqueio dentro da linha do tempo ─────────────────────────────────────*/
+/* "Quando a Júlia bloquear a agenda, não precisa do aviso em cima: na agenda
+   mesmo, de outra cor, escrito bloqueada — e tocando, abre pra editar." */
+.ldt-fechado.bloqueado {
+  cursor: pointer;
+  background: repeating-linear-gradient(135deg, rgba(201,87,63,.10) 0 6px, rgba(201,87,63,.22) 6px 12px);
+  border: 1px solid rgba(201,87,63,.45);
+  flex-direction: column; gap: 2px; padding: 6px;
+}
+.ldt-fechado.bloqueado span { color: #8E3A28; font-size: 11.5px; }
+.ldt-fechado.bloqueado strong { color: #8E3A28; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; }
+.ldt-fechado.bloqueado:hover { background: repeating-linear-gradient(135deg, rgba(201,87,63,.16) 0 6px, rgba(201,87,63,.3) 6px 12px); }
+.ldt-fechado.bloqueado.curto { flex-direction: row; gap: 8px; }

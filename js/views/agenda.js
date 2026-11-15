@@ -297,7 +297,12 @@ export function render(raiz) {
   // esse é mesmo das duas.
   const bloqueiosHoje = db.estado.bloqueios.filter((b) =>
     localData(b.inicio) <= ate && localData(b.fim) >= de
-    && (!eu || !b.profissional_id || b.profissional_id === eu));
+    && (!eu || !b.profissional_id || b.profissional_id === eu)
+    // Na visão do dia, quem está em linha do tempo já vê o bloqueio dentro da
+    // própria coluna, de outra cor, escrito "bloqueada": o aviso em cima
+    // viraria repetição. Fica só para quem está em lista (e nas outras visões).
+    && !(visao === 'dia' && (b.profissional_id ? [b.profissional_id] : visiveis.map((p) => p.id))
+          .every((id) => emLinhaDoTempo(id))));
 
   raiz.innerHTML = `
     <div class="flex envolve mb" style="gap:8px">
@@ -381,6 +386,11 @@ export function render(raiz) {
   // do ponto tocado, não a do começo do buraco — "livre · 7h" cobre a tarde
   // inteira, e quem toca às 14h quer 14h.
   raiz.querySelectorAll('.ldt').forEach((ldt) => ligarLinhaDoTempo(ldt, raiz));
+  raiz.querySelectorAll('[data-bloqueio]').forEach((el) => el.onclick = (e) => {
+    e.stopPropagation();
+    const b = db.estado.bloqueios.find((x) => x.id === el.dataset.bloqueio);
+    if (b) abrirBloqueio(dia, b);
+  });
   raiz.querySelectorAll('[data-desbloquear]').forEach((b) => b.onclick = async () => {
     if (await confirmar('Liberar a agenda?', 'O bloqueio some e os horários voltam a aparecer para as clientes.', 'Liberar', false)) {
       await db.remover('bloqueios', b.dataset.desbloquear);
@@ -605,7 +615,7 @@ function ligarLinhaDoTempo(ldt, raiz) {
 
   // Toque no vazio: a hora é a do lugar tocado, arredondada para 15 minutos.
   ldt.addEventListener('click', (e) => {
-    if (e.target.closest('.ldt-bloco')) return;
+    if (e.target.closest('.ldt-bloco') || e.target.closest('[data-bloqueio]')) return;
     if (ldt.dataset.arrastou) { delete ldt.dataset.arrastou; return; }
     const m = Math.min(fimRegua - 15, Math.max(ini, arred(minDoY(e.clientY))));
     abrirMarcarEm(profId, relogioDeMin(m));
@@ -731,14 +741,15 @@ function linhaDoTempo(prof, itens, data) {
 
   // Pausa do expediente e bloqueios do dia: agenda fechada, não buraco.
   const fechados = [];
-  if (exp?.pausa_inicio && exp?.pausa_fim) fechados.push({ i: aMin(exp.pausa_inicio), f: aMin(exp.pausa_fim), nome: 'pausa' });
+  if (exp?.pausa_inicio && exp?.pausa_fim) fechados.push({ i: aMin(exp.pausa_inicio), f: aMin(exp.pausa_fim), nome: 'pausa', tipo: 'pausa' });
   const diaIni = new Date(data + 'T00:00:00'), diaFim = new Date(data + 'T23:59:59');
   for (const b of db.estado.bloqueios) {
     if (b.profissional_id && b.profissional_id !== prof.id) continue;
     const bi = new Date(b.inicio), bf = new Date(b.fim);
     if (bi > diaFim || bf < diaIni) continue;
     fechados.push({ i: Math.max(ini, Math.round(minutosNoDia(b.inicio, data))),
-                    f: Math.min(fim, Math.round(minutosNoDia(b.fim, data))), nome: b.motivo || 'fechada' });
+                    f: Math.min(fim, Math.round(minutosNoDia(b.fim, data))),
+                    nome: b.motivo || '', tipo: 'bloqueio', id: b.id, quando: quandoBloqueio(b) });
   }
 
   // Os buracos: o que sobra do expediente depois dos blocos e do fechado.
@@ -761,8 +772,13 @@ function linhaDoTempo(prof, itens, data) {
       return `<div class="ldt-hora" style="top:${y(m)}px"><span>${relogioDeMin(m)}</span></div>`
         + (m + 30 < fim ? `<div class="ldt-meia" style="top:${y(m + 30)}px"></div>` : '');
     }).join('')}
-    ${fechados.filter((c) => c.f > c.i).map((c) => `<div class="ldt-fechado" style="top:${y(c.i)}px;height:${(c.f - c.i) * PX}px"
-        title="${esc(c.nome)}"><span>${esc(c.nome)}</span></div>`).join('')}
+    ${fechados.filter((c) => c.f > c.i).map((c) => c.tipo === 'bloqueio'
+      // "Na agenda mesmo, de outra cor, escrito bloqueada" — e tocando, edita.
+      ? `<div class="ldt-fechado bloqueado ${(c.f - c.i) * PX < 48 ? 'curto' : ''}" data-bloqueio="${esc(c.id)}"
+           style="top:${y(c.i)}px;height:${(c.f - c.i) * PX}px" title="Bloqueada ${esc(c.quando)}${c.nome ? ' · ' + esc(c.nome) : ''} — toque para editar">
+           <strong>bloqueada</strong><span>${esc(c.nome ? c.nome + ' · ' : '')}${esc(c.quando)}</span></div>`
+      : `<div class="ldt-fechado" style="top:${y(c.i)}px;height:${(c.f - c.i) * PX}px"
+           title="${esc(c.nome)}"><span>${esc(c.nome)}</span></div>`).join('')}
     ${livres.filter(([li, lf]) => lf - li >= 30).map(([li, lf]) => `<div class="ldt-livre"
         style="top:${y(li)}px;height:${(lf - li) * PX}px" data-livre-de="${relogioDeMin(li)}">
         <span>livre · ${fmt.horas((lf - li) / 60)}</span></div>`).join('')}
@@ -1753,24 +1769,30 @@ export function abrirEditar(a) {
  * todo. Agora as duas aparecem lado a lado, e a de horário já vem escolhida:
  * férias se marca uma vez por ano, um buraco na tarde se marca toda semana.
  */
-export function abrirBloqueio(dataPadrao) {
+export function abrirBloqueio(dataPadrao, existente = null) {
   // Sugere a próxima hora cheia, dentro do horário em que o studio funciona:
   // abrir a tela às onze da noite e ver "23:00" não ajuda ninguém.
   const agora = new Date();
   const hora = Math.min(20, Math.max(8, agora.getHours() + 1));
   const dois = (n) => String(n).padStart(2, '0');
-  const proximaHora = `${dois(hora)}:00`;
-  const maisUma = `${dois(hora + 1)}:00`;
+  // Editando um bloqueio que já existe, os campos vêm preenchidos com ele.
+  // "Se ela clicar nesse período, automaticamente vai abrir pra edição."
+  const ex = existente;
+  const exDiaTodo = ex && localHora(ex.inicio) === '00:00' && localHora(ex.fim) >= '23:00';
+  const proximaHora = ex && !exDiaTodo ? localHora(ex.inicio) : `${dois(hora)}:00`;
+  const maisUma = ex && !exDiaTodo ? localHora(ex.fim) : `${dois(hora + 1)}:00`;
+  const deInicial = ex ? localData(ex.inicio) : (dataPadrao || hoje());
+  const ateInicial = ex ? localData(ex.fim) : (dataPadrao || hoje());
 
   abrirModal({
-    titulo: 'Bloquear agenda',
+    titulo: ex ? 'Bloqueio da agenda' : 'Bloquear agenda',
     corpo: `
       <p class="t2 pequeno mb">Almoço, médico, curso, férias. No período bloqueado
         ninguém consegue marcar pelo site, e a agenda mostra o motivo.</p>
       <label class="campo"><span>Quem fica bloqueada</span>
         <select name="profissional_id">
-          ${atendentes().map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
-          <option value="">O studio inteiro</option>
+          ${atendentes().map((p) => `<option value="${p.id}" ${ex?.profissional_id === p.id ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}
+          <option value="" ${ex && !ex.profissional_id ? 'selected' : ''}>O studio inteiro</option>
         </select></label>
 
       <div class="campo"><span class="rotulo" style="display:block;margin-bottom:7px">Quanto tempo</span>
@@ -1783,9 +1805,9 @@ export function abrirBloqueio(dataPadrao) {
 
       <div class="linha-campos">
         <label class="campo"><span>De</span>
-          <input type="date" name="de" value="${dataPadrao || hoje()}"></label>
+          <input type="date" name="de" value="${deInicial}"></label>
         <label class="campo" id="campo-ate" hidden><span>Até</span>
-          <input type="date" name="ate" value="${dataPadrao || hoje()}"></label>
+          <input type="date" name="ate" value="${ateInicial}"></label>
       </div>
       <div class="linha-campos" id="horas">
         <label class="campo"><span>Das</span>
@@ -1794,8 +1816,15 @@ export function abrirBloqueio(dataPadrao) {
           <input type="time" name="hf" value="${maisUma}" step="900"></label>
       </div>
       <label class="campo"><span>Motivo</span>
-        <input name="motivo" placeholder="Ex.: almoço, médico, curso"></label>`,
-    acoes: [{ texto: 'Bloquear', classe: 'btn-primario', onClick: async (fechar, veu) => {
+        <input name="motivo" placeholder="Ex.: almoço, médico, curso" value="${esc(ex?.motivo || '')}"></label>`,
+    acoes: [
+      ...(ex ? [{ texto: 'Liberar', classe: 'btn-perigo', onClick: async (fechar) => {
+        if (await confirmar('Liberar a agenda?', 'O bloqueio some e os horários voltam a aparecer para as clientes.', 'Liberar', false)) {
+          await db.remover('bloqueios', ex.id);
+          fechar(); avisar('Agenda liberada');
+        }
+      } }] : []),
+      { texto: ex ? 'Salvar' : 'Bloquear', classe: 'btn-primario', onClick: async (fechar, veu) => {
       const d = lerForm(veu);
       const diaTodo = !!d.dia_todo;
       if (!d.de) return avisar('Informe o dia', 'erro');
@@ -1820,12 +1849,13 @@ export function abrirBloqueio(dataPadrao) {
 
       dia = d.de;
       await db.salvar('bloqueios', {
+        ...(ex ? { id: ex.id } : {}),
         profissional_id: d.profissional_id || null,
         inicio: inicio.toISOString(), fim: fim.toISOString(),
         motivo: d.motivo || null,
       });
       fechar();
-      avisar(diaTodo ? 'Dia bloqueado' : `Bloqueado das ${d.hi} às ${d.hf}`);
+      avisar(ex ? 'Bloqueio atualizado' : diaTodo ? 'Dia bloqueado' : `Bloqueado das ${d.hi} às ${d.hf}`);
     } }],
     aoAbrir: (veu) => {
       const marca = veu.querySelector('[name=dia_todo]');
@@ -1838,6 +1868,7 @@ export function abrirBloqueio(dataPadrao) {
           veu.querySelector('#campo-ate').hidden = !diaTodo;
         };
       });
+      if (exDiaTodo) veu.querySelector('[data-quanto="dia"]')?.click();
     },
   });
 }

@@ -4506,6 +4506,63 @@ const fecharTudo = async (pg) => {
   await fecharTudo(p2);
 }
 
+// ── 48. Bloqueio dentro da linha do tempo, sem o aviso em cima ──
+// "Quando a Júlia bloquear a agenda, não precisa do aviso em cima: na agenda
+// mesmo, de outra cor, escrito bloqueada — e tocando, abre pra editar."
+{
+  const diaAlvo = await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 15);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await p2.evaluate(async (diaAlvo) => {
+    const db = await import('./js/db.js');
+    const em = (h, m = 0) => { const d = new Date(diaAlvo + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.toISOString(); };
+    // Um pedaço da tarde da Júlia bloqueado; e a Laura (lista) com o dia inteiro.
+    await db.salvar('bloqueios', { id: 'blq-ju', profissional_id: 'p2', inicio: em(14), fim: em(16), motivo: 'médico' });
+    await db.salvar('bloqueios', { id: 'blq-la', profissional_id: 'p1', inicio: em(0), fim: em(23, 59), motivo: 'folga' });
+    location.hash = '#/agenda';
+  }, diaAlvo);
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]');
+  await p2.fill('#dia', diaAlvo); await p2.dispatchEvent('#dia', 'change');
+  await p2.waitForTimeout(700);
+
+  const aviso = nb(await p2.evaluate(() => [...document.querySelectorAll('#conteudo .aviso.alerta')].map((a) => a.textContent).join(' | '))).replace(/\s+/g, ' ');
+  checagens.push(['bloqueio: o aviso amarelo some para quem está em linha do tempo (Júlia)', !/Julia/.test(aviso), aviso.slice(0, 160)]);
+  checagens.push(['bloqueio: mas continua para quem está em lista (Laura)', /Laura/.test(aviso) && /folga/.test(aviso)]);
+
+  const bloqueado = await p2.evaluate(() => [...document.querySelectorAll('.ldt-fechado.bloqueado')]
+    .map((e) => ({ id: e.dataset.bloqueio, texto: e.textContent.replace(/\s+/g, ' ').trim(), alt: e.getBoundingClientRect().height })));
+  checagens.push(['bloqueio: aparece na linha do tempo, de outra cor, escrito bloqueada',
+    bloqueado.length === 1 && bloqueado[0].id === 'blq-ju' && /bloqueada/i.test(bloqueado[0].texto) && /médico/.test(bloqueado[0].texto), JSON.stringify(bloqueado)]);
+  checagens.push(['bloqueio: com o tamanho do período (2h)', Math.abs(bloqueado[0]?.alt - 120 * 1.2) < 4, String(bloqueado[0]?.alt)]);
+
+  // Tocar no período abre a edição, com "Liberar".
+  await p2.click('.ldt-fechado.bloqueado[data-bloqueio="blq-ju"]');
+  await p2.waitForTimeout(500);
+  checagens.push(['bloqueio: tocar abre a edição com os dados dele',
+    /Bloqueio da agenda/.test(nb(await p2.textContent('.veu h2'))) && (await p2.inputValue('.veu [name=motivo]')) === 'médico'
+    && (await p2.inputValue('.veu [name=hi]')) === '14:00' && (await p2.inputValue('.veu [name=hf]')) === '16:00']);
+  // Muda o motivo e a hora, salva.
+  await p2.fill('.veu [name=motivo]', 'dentista');
+  await p2.fill('.veu [name=hf]', '17:00');
+  await tocarPrimario(p2);
+  await p2.waitForTimeout(700);
+  const editado = await p2.evaluate(async () => { const db = await import('./js/db.js'); const b = db.estado.bloqueios.find((x) => x.id === 'blq-ju'); return { motivo: b?.motivo, fim: b && new Date(b.fim).getHours() }; });
+  checagens.push(['bloqueio: salvar edita o mesmo bloqueio, sem criar outro', editado.motivo === 'dentista' && editado.fim === 17
+    && (await p2.evaluate(async () => (await import('./js/db.js')).estado.bloqueios.filter((x) => x.profissional_id === 'p2').length)) === 1, JSON.stringify(editado)]);
+
+  // E "Liberar" tira o bloqueio.
+  await p2.click('.ldt-fechado.bloqueado[data-bloqueio="blq-ju"]');
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => [...document.querySelectorAll('.veu .modal-pe button')].find((b) => /Liberar/.test(b.textContent)).click());
+  await p2.waitForTimeout(400);
+  await p2.evaluate(() => document.querySelector('.veu .modal-pe .btn-perigo, .veu .modal-pe .btn-primario')?.click());  // confirma
+  await p2.waitForTimeout(700);
+  checagens.push(['bloqueio: Liberar tira o bloqueio da agenda',
+    await p2.locator('.ldt-fechado.bloqueado').count() === 0
+    && !(await p2.evaluate(async () => (await import('./js/db.js')).estado.bloqueios.some((x) => x.id === 'blq-ju')))]);
+  await fecharTudo(p2);
+}
+
 await browser.close();
 
 let falhas = 0;
