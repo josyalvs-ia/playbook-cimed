@@ -1351,8 +1351,12 @@ await p2.waitForTimeout(700);
     // justamente porque as duas visões querem coisas diferentes.
     const emDias = (n) => { const x = new Date(hoje); x.setDate(hoje.getDate() + n); return x; };
 
+    // Dias desta semana que NUNCA são hoje: num domingo, "domingo + 0" era
+    // hoje, e os dois horários da Laura entravam no tempo de cadeira de outro
+    // teste, que só conta o dia de hoje.
+    const d1 = (hoje.getDay() + 1) % 7, d2 = (hoje.getDay() + 2) % 7;
     const linhas = [
-      [noDomingoMais(0), 9, 'p1'], [noDomingoMais(0), 11, 'p1'], [noDomingoMais(2), 14, 'p2'],
+      [noDomingoMais(d1), 9, 'p1'], [noDomingoMais(d1), 11, 'p1'], [noDomingoMais(d2), 14, 'p2'],
       [noMes(5), 10, 'p1'], [noMes(12), 10, 'p1'], [noMes(19), 15, 'p2'], [noMes(19), 17, 'p1'],
       [emDias(1), 9, 'p1'],   // Cliente 7 — amanhã, com a Laura
       [emDias(2), 16, 'p2'],  // Cliente 8 — depois, com a Julia
@@ -3276,7 +3280,9 @@ for (const t of ['ajustes','caixa','clientes','estoque']) {
 
   await p2.click('.veu [data-descartar]');
   await p2.waitForTimeout(400);
-  await p2.click('.veu .modal-pe .btn-perigo');
+  // Por JS: o botão existe e está visível, mas o ponteiro do Playwright
+  // esbarra no cabeçalho grudado do modal (mesmo caso de tocarPrimario).
+  await p2.evaluate(() => document.querySelector('.veu .modal-pe .btn-perigo').click());
   await p2.waitForTimeout(700);
   checagens.push(['revisão: descartado, sai da fila',
     await p2.evaluate(() =>
@@ -4292,6 +4298,78 @@ const fecharTudo = async (pg) => {
   checagens.push(['choque: diz que o horário antigo foi gravado com 1h30 e que a tabela hoje diz 1h',
     /gravado com 1h30/.test(choque) && /tabela hoje diz 1h\b/.test(choque), choque.slice(0, 200)]);
   await fecharTudo(p2);
+}
+
+// ── 45. A agenda da Júlia em linha do tempo ──
+// "Ela gosta de ver no formato de calendário: a ideia é que consiga ver um
+// buraco na agenda quando tiver horário disponível. Só a dela."
+{
+  const diaAlvo = await p2.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 9);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await p2.evaluate(async (diaAlvo) => {
+    const db = await import('./js/db.js');
+    const em = (h, m = 0) => { const d = new Date(diaAlvo + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.toISOString(); };
+    const t = globalThis.__DB.agendamentos;
+    t.push({ id: 'ldt-1', profissional_id: 'p2', servico_id: 'manicure', servico_nome: 'Manutenção alongamento',
+             cliente_nome: 'Barbara Linha', inicio: em(10), duracao_min: 120, valor: 235, status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    t.push({ id: 'ldt-2', profissional_id: 'p2', servico_id: 'manicure', servico_nome: 'Mãos e pés em gel',
+             cliente_nome: 'Daniele Linha', inicio: em(13, 30), duracao_min: 140, valor: 220, status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    t.push({ id: 'ldt-3', profissional_id: 'p1', servico_id: 'cab-sessao-terapia', servico_nome: 'Terapia',
+             cliente_nome: 'Cliente Da Laura', inicio: em(11), duracao_min: 90, valor: 280, status: 'confirmado', origem: 'studio', atualizado_em: new Date().toISOString() });
+    await db.recarregar();
+    // A preferência é da Júlia (p2) e mora no studio, não no aparelho.
+    await db.setCfg('agenda', { linha_do_tempo: { p2: true } });
+    location.hash = '#/agenda';
+  }, diaAlvo);
+  await p2.waitForTimeout(700);
+  await p2.click('[data-ver="todas"]');
+  await p2.fill('#dia', diaAlvo);
+  await p2.dispatchEvent('#dia', 'change');
+  await p2.waitForTimeout(700);
+
+  const colunas = await p2.evaluate(() => [...document.querySelectorAll('.agenda-colunas > .cartao')]
+    .map((c) => ({ nome: c.querySelector('h3')?.textContent, linha: !!c.querySelector('.ldt'),
+                   blocos: c.querySelectorAll('.ldt-bloco').length, itensLista: c.querySelectorAll('[data-agend]:not(.ldt-bloco)').length })));
+  const ju = colunas.find((c) => /Julia/i.test(c.nome)), la = colunas.find((c) => /Laura/i.test(c.nome));
+  checagens.push(['linha do tempo: a coluna da Júlia vira linha do tempo', !!ju && ju.linha && ju.blocos === 2, JSON.stringify(colunas)]);
+  checagens.push(['linha do tempo: a da Laura continua em lista', !!la && !la.linha && la.itensLista === 1, JSON.stringify(la)]);
+
+  // Bloco do tamanho da duração: 140 min é mais alto que 120, na proporção.
+  const alturas = await p2.evaluate(() => Object.fromEntries([...document.querySelectorAll('.ldt-bloco')]
+    .map((b) => [b.dataset.agend, b.getBoundingClientRect().height])));
+  checagens.push(['linha do tempo: o bloco tem o tamanho da duração',
+    alturas['ldt-2'] > alturas['ldt-1'] && Math.abs(alturas['ldt-2'] / alturas['ldt-1'] - 140 / 120) < 0.08, JSON.stringify(alturas)]);
+
+  // O buraco entre 12:00 e 13:30 aparece, com o tamanho escrito.
+  const livres = await p2.evaluate(() => [...document.querySelectorAll('.ldt-livre')]
+    .map((l) => l.dataset.livreDe + ' ' + l.textContent.replace(/\s+/g, ' ').trim()));
+  checagens.push(['linha do tempo: o buraco entre dois atendimentos aparece com o tamanho',
+    livres.some((l) => /^12:00 livre · 1h30/.test(l)), JSON.stringify(livres)]);
+
+  // Tocar no buraco abre o "marcar" já naquela hora.
+  await p2.click('.ldt-livre[data-livre-de="12:00"]');
+  await p2.waitForTimeout(500);
+  checagens.push(['linha do tempo: tocar no buraco abre o marcar com a hora do buraco',
+    (await p2.inputValue('.veu [data-hora]')) === '12:00' && (await p2.inputValue('.veu [name=data]')) === diaAlvo]);
+  await fecharTudo(p2);
+
+  // Tocar no bloco abre o horário.
+  await p2.click('.ldt-bloco[data-agend="ldt-1"]');
+  await p2.waitForTimeout(400);
+  checagens.push(['linha do tempo: tocar no bloco abre o horário', /Barbara Linha/.test(nb(await p2.textContent('.veu h2')))]);
+  await fecharTudo(p2);
+
+  // O botão na coluna alterna, e a escolha fica no studio.
+  await p2.click('[data-formato="p2"]');
+  await p2.waitForTimeout(500);
+  const voltou = await p2.evaluate(async () => ({
+    linha: !!document.querySelector('.ldt'),
+    cfg: (await import('./js/db.js')).cfg('agenda')?.linha_do_tempo?.p2 }));
+  checagens.push(['linha do tempo: o botão da coluna volta para lista e guarda a escolha no studio',
+    voltou.linha === false && voltou.cfg === false, JSON.stringify(voltou)]);
+  await p2.click('[data-formato="p2"]');
+  await p2.waitForTimeout(400);
+  checagens.push(['linha do tempo: e volta para linha do tempo', await p2.locator('.ldt').count() === 1]);
 }
 
 await browser.close();

@@ -373,6 +373,14 @@ export function render(raiz) {
   raiz.querySelector('#bloquear').onclick = () => abrirBloqueio(dia);
   raiz.querySelectorAll('[data-agend]').forEach((el) =>
     el.onclick = () => abrirAgendamento(el.dataset.agend));
+  raiz.querySelectorAll('[data-formato]').forEach((b) => b.onclick = async () => {
+    await trocarFormato(b.dataset.formato); render(raiz);
+  });
+  // Tocar num buraco já abre o "marcar" naquele dia, com a hora preenchida.
+  raiz.querySelectorAll('[data-livre-de]').forEach((el) => el.onclick = () => {
+    abrirAgendamento(null, dia);
+    setTimeout(() => { const h = document.querySelector('.veu [data-hora]'); if (h) h.value = el.dataset.livreDe; }, 120);
+  });
   raiz.querySelectorAll('[data-desbloquear]').forEach((b) => b.onclick = async () => {
     if (await confirmar('Liberar a agenda?', 'O bloqueio some e os horários voltam a aparecer para as clientes.', 'Liberar', false)) {
       await db.remover('bloqueios', b.dataset.desbloquear);
@@ -517,17 +525,125 @@ function corpoLista() {
   </div>`;
 }
 
+/**
+ * Como cada profissional prefere ver o dia dela: lista ou linha do tempo.
+ *
+ * "A Júlia gosta de ver no formato de calendário — a ideia é que ela consiga
+ * ver um buraco na agenda quando tiver horário disponível." A lista responde
+ * "quem vem"; a linha do tempo responde "onde cabe". São perguntas de pessoas
+ * diferentes, então a escolha é por pessoa, e fica guardada no studio (não no
+ * aparelho): a Júlia vê a dela em linha do tempo em qualquer celular, e a
+ * Laura continua na lista.
+ */
+const emLinhaDoTempo = (profId) => !!(db.cfg('agenda') || {}).linha_do_tempo?.[profId];
+
+async function trocarFormato(profId) {
+  const atual = db.cfg('agenda') || {};
+  const mapa = { ...(atual.linha_do_tempo || {}) };
+  mapa[profId] = !mapa[profId];
+  await db.setCfg('agenda', { ...atual, linha_do_tempo: mapa });
+}
+
 function coluna(prof, itens) {
+  const linha = emLinhaDoTempo(prof.id);
   return `
     <div class="cartao">
       <div class="cartao-cabeca">
         ${retrato(prof, { tam: 34 })}
         <h3>${esc(prof.nome)}</h3>
         <span class="t3 pequeno">${itens.length}</span>
+        <button type="button" class="btn-icone" data-formato="${prof.id}"
+          title="${linha ? 'Ver como lista' : 'Ver como linha do tempo'}"
+          aria-label="${linha ? 'Ver como lista' : 'Ver como linha do tempo'}">${ico(linha ? 'lista' : 'relogio')}</button>
       </div>
-      ${itens.length ? itens.map(cartaoHorario).join('')
+      ${linha ? linhaDoTempo(prof, itens, dia)
+        : itens.length ? itens.map(cartaoHorario).join('')
         : '<p class="t3 pequeno centro" style="padding:20px 0">Dia livre.</p>'}
     </div>`;
+}
+
+/** Minutos desde a meia-noite local de `data`. */
+const minutosNoDia = (iso, data) => (new Date(iso) - new Date(data + 'T00:00:00')) / 60000;
+const relogioDeMin = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/**
+ * O dia como uma régua de horas: cada atendimento é um bloco do tamanho da
+ * duração, e o que sobra entre eles é o buraco — visível, com o tamanho dele
+ * escrito. Pausa e bloqueio aparecem hachurados: não são buraco, são agenda
+ * fechada. Dois horários que se sobrepõem (encaixe) ficam lado a lado.
+ */
+function linhaDoTempo(prof, itens, data) {
+  const PX = 1.2;                              // pixels por minuto: 1h = 72px
+  const exp = expedienteDe(prof.id, data);
+  const aMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
+  let ini = exp ? aMin(exp.abre) : 8 * 60;
+  let fim = exp ? aMin(exp.fecha) : 20 * 60;
+  const blocos = itens.map((a) => {
+    const i = Math.round(minutosNoDia(a.inicio, data));
+    const d = Math.max(15, Math.round(Number(a.duracao_min) || 0));
+    return { a, i, f: i + d };
+  }).sort((x, y) => x.i - y.i || x.f - y.f);
+  // A régua cobre o expediente e, se alguém marcou fora dele, estica até lá.
+  for (const b of blocos) { ini = Math.min(ini, Math.floor(b.i / 60) * 60); fim = Math.max(fim, Math.ceil(b.f / 60) * 60); }
+  ini = Math.floor(ini / 60) * 60; fim = Math.ceil(fim / 60) * 60;
+  const alt = (fim - ini) * PX;
+  const y = (m) => (m - ini) * PX;
+
+  // Faixas lado a lado para o que se sobrepõe.
+  const faixas = [];
+  for (const b of blocos) {
+    let k = faixas.findIndex((fimDaFaixa) => fimDaFaixa <= b.i);
+    if (k < 0) { k = faixas.length; faixas.push(0); }
+    faixas[k] = b.f; b.faixa = k;
+  }
+  const nFaixas = Math.max(1, faixas.length);
+
+  // Pausa do expediente e bloqueios do dia: agenda fechada, não buraco.
+  const fechados = [];
+  if (exp?.pausa_inicio && exp?.pausa_fim) fechados.push({ i: aMin(exp.pausa_inicio), f: aMin(exp.pausa_fim), nome: 'pausa' });
+  const diaIni = new Date(data + 'T00:00:00'), diaFim = new Date(data + 'T23:59:59');
+  for (const b of db.estado.bloqueios) {
+    if (b.profissional_id && b.profissional_id !== prof.id) continue;
+    const bi = new Date(b.inicio), bf = new Date(b.fim);
+    if (bi > diaFim || bf < diaIni) continue;
+    fechados.push({ i: Math.max(ini, Math.round(minutosNoDia(b.inicio, data))),
+                    f: Math.min(fim, Math.round(minutosNoDia(b.fim, data))), nome: b.motivo || 'fechada' });
+  }
+
+  // Os buracos: o que sobra do expediente depois dos blocos e do fechado.
+  const ocupados = [...blocos.map((b) => [b.i, b.f]), ...fechados.map((c) => [c.i, c.f])].sort((x, y) => x[0] - y[0]);
+  const livres = [];
+  let cursor = exp ? aMin(exp.abre) : ini;
+  const limite = exp ? aMin(exp.fecha) : fim;
+  for (const [oi, of] of ocupados) {
+    if (oi > cursor) livres.push([cursor, Math.min(oi, limite)]);
+    cursor = Math.max(cursor, of);
+  }
+  if (cursor < limite) livres.push([cursor, limite]);
+
+  const agora = data === hoje() ? Math.round((Date.now() - diaIni) / 60000) : null;
+  const selo = { concluido: 'ok', faltou: 'erro' };
+
+  return `<div class="ldt" style="height:${alt}px">
+    ${Array.from({ length: (fim - ini) / 60 + 1 }, (_, k) => {
+      const m = ini + k * 60;
+      return `<div class="ldt-hora" style="top:${y(m)}px"><span>${relogioDeMin(m)}</span></div>`
+        + (m + 30 < fim ? `<div class="ldt-meia" style="top:${y(m + 30)}px"></div>` : '');
+    }).join('')}
+    ${fechados.filter((c) => c.f > c.i).map((c) => `<div class="ldt-fechado" style="top:${y(c.i)}px;height:${(c.f - c.i) * PX}px"
+        title="${esc(c.nome)}"><span>${esc(c.nome)}</span></div>`).join('')}
+    ${livres.filter(([li, lf]) => lf - li >= 30).map(([li, lf]) => `<div class="ldt-livre"
+        style="top:${y(li)}px;height:${(lf - li) * PX}px" data-livre-de="${relogioDeMin(li)}">
+        <span>livre · ${fmt.horas((lf - li) / 60)}</span></div>`).join('')}
+    ${blocos.map(({ a, i, f, faixa }) => `<div class="ldt-bloco ${selo[a.status] || ''} ${a.encaixe ? 'encaixe' : ''}"
+        data-agend="${a.id}" style="top:${y(i)}px;height:${Math.max(26, (f - i) * PX - 2)}px;
+        left:calc(44px + ${(100 / nFaixas) * faixa}% - ${44 * faixa / nFaixas}px);width:calc(${100 / nFaixas}% - ${44 / nFaixas}px - 6px)"
+        title="${esc(a.cliente_nome)} · ${esc(a.servico_nome)} · ${relogioDeMin(i)}–${relogioDeMin(f)}">
+        <strong>${relogioDeMin(i)} ${esc(a.cliente_nome)}</strong>
+        <span>${esc(a.servico_nome)} · ${fmt.horas((f - i) / 60)}</span>
+      </div>`).join('')}
+    ${agora != null && agora >= ini && agora <= fim ? `<div class="ldt-agora" style="top:${y(agora)}px"></div>` : ''}
+  </div>`;
 }
 
 function cartaoHorario(a) {
